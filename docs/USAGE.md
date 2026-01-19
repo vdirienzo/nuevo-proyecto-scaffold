@@ -476,7 +476,434 @@ git push
 3. No external dependencies
 4. Perfect for rapid development
 
+### Workflow 5: High-Performance Microservices (v4.0+)
+
+**Configuration:**
+- Scale: Large
+- Backend: Go
+- Frontend: React SPA (Vite)
+- Database: MongoDB + Redis
+- API: gRPC + REST
+- Jobs: None (use Go goroutines)
+- Real-time: WebSockets
+- Storage: S3
+- Email: AWS SES
+- Monitoring: OpenTelemetry + Prometheus
+- Deploy: Kubernetes
+
+**Post-generation:**
+1. Generate protobuf definitions
+2. Configure service mesh (Istio/Linkerd)
+3. Set up distributed tracing
+4. Deploy to Kubernetes cluster
+5. Configure autoscaling
+
+**Example use cases:**
+- Financial services
+- High-frequency trading
+- Gaming backends
+- IoT platforms
+
+### Workflow 6: AI-Powered SaaS (v4.0+)
+
+**Configuration:**
+- Scale: Medium
+- Backend: FastAPI (for AI integration)
+- Frontend: Next.js
+- Database: PostgreSQL + Supabase
+- State: Redis
+- AI: OpenAI + Anthropic Claude
+- Jobs: Celery (for long-running AI tasks)
+- Real-time: Server-Sent Events (for streaming)
+- Storage: S3
+- Email: SendGrid
+- Monitoring: Sentry
+- Deploy: Vercel + AWS
+
+**Post-generation:**
+1. Configure OpenAI API keys
+2. Set up Anthropic Claude API
+3. Implement streaming responses
+4. Add rate limiting for AI endpoints
+5. Configure job queues for background processing
+
+**Example use cases:**
+- AI writing assistants
+- Code generation tools
+- Document analysis platforms
+- Chatbot applications
+
+### Workflow 7: E-commerce with Payments (v4.0+)
+
+**Configuration:**
+- Scale: Medium
+- Backend: NestJS
+- Frontend: Next.js
+- Database: PostgreSQL
+- State: Redis
+- Payments: Stripe
+- Search: Algolia
+- Jobs: BullMQ
+- Real-time: WebSockets
+- Storage: Cloudinary (images) + S3
+- Email: SendGrid
+- Monitoring: DataDog
+- Deploy: Docker full
+
+**Post-generation:**
+1. Configure Stripe webhooks
+2. Set up product catalog in Algolia
+3. Implement checkout flow
+4. Configure order processing jobs
+5. Set up payment reconciliation
+6. Test webhook endpoints
+
+**Example use cases:**
+- Online stores
+- Subscription services
+- Digital product marketplaces
+- B2B commerce platforms
+
+### Workflow 8: Real-time Collaboration (v4.0+)
+
+**Configuration:**
+- Scale: Medium
+- Backend: NestJS
+- Frontend: Next.js
+- Database: PostgreSQL + MongoDB (for documents)
+- API: tRPC + GraphQL subscriptions
+- State: Redis
+- Jobs: BullMQ
+- Real-time: WebSockets + Server-Sent Events
+- Storage: Supabase Storage
+- Email: Resend
+- Monitoring: Sentry
+- Deploy: Vercel + Railway
+
+**Post-generation:**
+1. Configure WebSocket rooms
+2. Set up presence tracking
+3. Implement operational transforms (OT)
+4. Configure conflict resolution
+5. Set up real-time notifications
+
+**Example use cases:**
+- Document editors (like Notion, Google Docs)
+- Design tools (like Figma)
+- Project management tools
+- Real-time dashboards
+
+### Workflow 9: Admin Dashboard (v4.0+)
+
+**Configuration:**
+- Scale: Small
+- Backend: Go
+- Frontend: React SPA (Vite)
+- Database: MongoDB
+- State: Redis
+- Jobs: None
+- Real-time: None
+- Storage: Local
+- Email: None
+- Monitoring: Basic
+- Deploy: Docker
+
+**Post-generation:**
+1. Minimal setup
+2. Fast compilation (Go)
+3. Flexible schemas (MongoDB)
+4. Perfect for internal tools
+
+**Example use cases:**
+- Admin panels
+- Internal dashboards
+- CRM systems
+- Analytics platforms
+
 ## Advanced Usage
+
+### Working with Go Backend
+
+**Starting the server:**
+```bash
+cd backend
+go mod download
+go run cmd/api/main.go
+```
+
+**Running tests:**
+```bash
+go test ./...
+go test -v -cover ./internal/...
+```
+
+**Building for production:**
+```bash
+go build -o bin/api cmd/api/main.go
+./bin/api
+```
+
+**Running with Docker:**
+```bash
+docker build -t my-api .
+docker run -p 8080:8080 my-api
+```
+
+### Working with React SPA (Vite)
+
+**Starting development server:**
+```bash
+cd apps/web
+npm install
+npm run dev
+```
+
+**Building for production:**
+```bash
+npm run build
+npm run preview  # Preview production build
+```
+
+**Deploying to Netlify:**
+```bash
+npm run build
+netlify deploy --prod --dir=dist
+```
+
+### Working with MongoDB
+
+**Connecting to MongoDB:**
+```typescript
+// NestJS example
+import { MongooseModule } from '@nestjs/mongoose';
+
+@Module({
+  imports: [
+    MongooseModule.forRoot(process.env.MONGODB_URL),
+  ],
+})
+export class AppModule {}
+```
+
+```go
+// Go example
+import "go.mongodb.org/mongo-driver/mongo"
+
+client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
+```
+
+**Running migrations:**
+MongoDB doesn't require migrations, but you can use:
+```bash
+# Create indexes
+mongosh mongodb://localhost:27017/myapp --eval "db.users.createIndex({email: 1}, {unique: true})"
+```
+
+### Working with gRPC
+
+**Generating code from protobuf:**
+```bash
+# Go
+protoc --go_out=. --go-grpc_out=. proto/*.proto
+
+# TypeScript
+protoc --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto \
+  --ts_proto_out=. proto/*.proto
+```
+
+**Starting gRPC server:**
+```go
+// Go example
+lis, _ := net.Listen("tcp", ":50051")
+grpcServer := grpc.NewServer()
+pb.RegisterUserServiceServer(grpcServer, &userService{})
+grpcServer.Serve(lis)
+```
+
+**gRPC client example:**
+```typescript
+// NestJS example
+@Client({ transport: Transport.GRPC, options: { ... } })
+private client: ClientGrpc;
+
+const userService = this.client.getService<UserService>('UserService');
+const user = await userService.getUser({ id: 1 }).toPromise();
+```
+
+### Working with tRPC
+
+**Calling tRPC procedures:**
+```typescript
+// From Next.js page
+import { trpc } from '@/lib/trpc';
+
+export default function UserPage() {
+  const { data: user } = trpc.user.getById.useQuery(1);
+  const createUser = trpc.user.create.useMutation();
+
+  return (
+    <button onClick={() => createUser.mutate({ email: 'test@example.com' })}>
+      Create User
+    </button>
+  );
+}
+```
+
+**Adding new procedures:**
+```typescript
+// apps/api/src/trpc/router.ts
+export const appRouter = router({
+  user: {
+    // Add new procedure
+    list: publicProcedure
+      .query(async ({ ctx }) => {
+        return ctx.db.user.findMany();
+      }),
+  },
+});
+```
+
+### Working with AI Integrations
+
+**OpenAI example:**
+```typescript
+import OpenAI from 'openai';
+
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+const completion = await openai.chat.completions.create({
+  model: "gpt-4",
+  messages: [{ role: "user", content: "Hello!" }],
+});
+```
+
+```python
+# FastAPI example
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(api_key=settings.openai_api_key)
+
+async def generate_text(prompt: str):
+    response = await client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}]
+    )
+    return response.choices[0].message.content
+```
+
+**Anthropic Claude example:**
+```typescript
+import Anthropic from '@anthropic-ai/sdk';
+
+const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const message = await client.messages.create({
+  model: "claude-3-opus-20240229",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "Hello, Claude!" }],
+});
+```
+
+**Streaming responses:**
+```typescript
+const stream = await client.messages.stream({
+  model: "claude-3-opus-20240229",
+  max_tokens: 1024,
+  messages: [{ role: "user", content: "Write a story" }],
+});
+
+for await (const chunk of stream) {
+  if (chunk.type === 'content_block_delta') {
+    process.stdout.write(chunk.delta.text);
+  }
+}
+```
+
+### Working with Stripe Payments
+
+**Creating a checkout session:**
+```typescript
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+const session = await stripe.checkout.sessions.create({
+  payment_method_types: ['card'],
+  line_items: [{
+    price_data: {
+      currency: 'usd',
+      product_data: { name: 'My Product' },
+      unit_amount: 2000, // $20.00
+    },
+    quantity: 1,
+  }],
+  mode: 'payment',
+  success_url: 'https://example.com/success',
+  cancel_url: 'https://example.com/cancel',
+});
+```
+
+**Handling webhooks:**
+```typescript
+@Post('webhook')
+async handleWebhook(@Req() req: Request) {
+  const sig = req.headers['stripe-signature'];
+  const event = stripe.webhooks.constructEvent(
+    req.body,
+    sig,
+    process.env.STRIPE_WEBHOOK_SECRET
+  );
+
+  switch (event.type) {
+    case 'payment_intent.succeeded':
+      await this.handlePaymentSuccess(event.data.object);
+      break;
+    case 'payment_intent.payment_failed':
+      await this.handlePaymentFailure(event.data.object);
+      break;
+  }
+
+  return { received: true };
+}
+```
+
+### Working with Search (Algolia)
+
+**Indexing documents:**
+```typescript
+import algoliasearch from 'algoliasearch';
+
+const client = algoliasearch(
+  process.env.ALGOLIA_APP_ID,
+  process.env.ALGOLIA_ADMIN_KEY
+);
+const index = client.initIndex('products');
+
+await index.saveObjects([
+  { objectID: '1', name: 'Product 1', price: 29.99 },
+  { objectID: '2', name: 'Product 2', price: 49.99 },
+]);
+```
+
+**Searching from frontend:**
+```typescript
+import { InstantSearch, SearchBox, Hits } from 'react-instantsearch';
+import algoliasearch from 'algoliasearch/lite';
+
+const searchClient = algoliasearch(
+  process.env.NEXT_PUBLIC_ALGOLIA_APP_ID,
+  process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY
+);
+
+export default function SearchPage() {
+  return (
+    <InstantSearch searchClient={searchClient} indexName="products">
+      <SearchBox />
+      <Hits />
+    </InstantSearch>
+  );
+}
+```
 
 ### Custom Templates
 
@@ -704,13 +1131,18 @@ Most architectural decisions work across scales.
 
 ### Q: Do you support other frameworks?
 
-**A:** Currently: FastAPI (Python), NestJS (TypeScript), Next.js (React)
+**A:** Currently supported (v4.0):
+- **Backend:** FastAPI (Python), NestJS (TypeScript), Go
+- **Frontend:** Next.js (React), React SPA (Vite)
+- **Databases:** PostgreSQL, MongoDB, Supabase, Firebase
+- **API Patterns:** REST, GraphQL, gRPC, tRPC
 
 Coming soon:
 - Django (Python)
 - Express (TypeScript)
 - SvelteKit (Frontend)
 - Flutter (Mobile)
+- Svelte SPA (Frontend)
 
 ### Q: How do I contribute templates?
 
@@ -752,5 +1184,47 @@ Coming soon:
 
 ---
 
+## Quick Reference: v4.0 Features
+
+### Backend Options
+- **FastAPI** (Python) - Data/ML focus
+- **NestJS** (TypeScript) - Enterprise patterns
+- **Go** - High performance, concurrency
+- **API-less** - Supabase direct
+
+### Frontend Options
+- **Next.js** - SSR/SSG, SEO-friendly
+- **React SPA (Vite)** - Client-side only, fast dev
+- **None** - API-only projects
+
+### Database Options
+- **PostgreSQL** - Relational, ACID
+- **MongoDB** - Document, flexible schemas
+- **Supabase** - PostgreSQL + auth + storage
+- **Firebase** - Firestore + auth + realtime
+
+### Auth Enhancements (v4.0+)
+- **Auth0** - Enterprise SSO
+- **Clerk** - Modern UI, pre-built components
+- **SAML** - Enterprise SSO
+- **MFA** - Multi-factor authentication
+
+### API Patterns (v4.0+)
+- **REST** - Standard HTTP
+- **GraphQL** - Flexible queries
+- **gRPC** - High performance, streaming
+- **tRPC** - End-to-end type safety
+
+### Extras (v4.0+)
+- **AI:** OpenAI, Anthropic, AWS Bedrock
+- **Payments:** Stripe, PayPal, RevenueCat
+- **Search:** Algolia, Elasticsearch, Typesense
+- **Analytics:** Mixpanel, Amplitude, PostHog
+- **Feature Flags:** LaunchDarkly, Flagsmith
+- **Monitoring:** Sentry, DataDog, New Relic, Grafana
+
+---
+
 **Author:** Homero Thompson del Lago del Terror
+**Version:** 4.0
 **Last Updated:** 2026-01-19
