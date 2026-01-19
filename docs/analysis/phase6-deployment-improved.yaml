@@ -1,0 +1,651 @@
+---
+# Phase 6: Deployment & Infrastructure (Improved)
+# Covers: Cloud platform, IaC, CI/CD, deployment strategies
+
+phase: 6
+title: "Deployment & Infrastructure"
+sections:
+
+  # 1. Cloud Platform (Primary)
+  - id: cloud_platform
+    type: single_choice
+    question: "What's your primary cloud platform?"
+    required: true
+    options:
+      # Serverless/PaaS (MVP-friendly)
+      - value: vercel_supabase
+        label: "Vercel + Supabase"
+        tier: mvp
+        description: "Zero-ops, instant deploys. Best for Next.js + Supabase stack"
+        pros:
+          - "Deploy in < 5 minutes"
+          - "Automatic preview environments"
+          - "Built-in CDN, edge functions"
+          - "Free tier generous"
+        cons:
+          - "Vendor lock-in"
+          - "Limited backend customization"
+          - "Expensive at scale (>100k users)"
+        generates:
+          - vercel.json
+          - .github/workflows/vercel-deploy.yml
+
+      - value: aws_serverless
+        label: "AWS Serverless (Lambda + API Gateway)"
+        tier: scale_up
+        description: "Pay-per-use, infinite scale. Good for event-driven apps"
+        pros:
+          - "True auto-scaling (0 to ∞)"
+          - "Pay only for requests"
+          - "Massive free tier"
+        cons:
+          - "Cold starts (200ms-1s)"
+          - "15min max execution time"
+          - "Harder local development"
+        requires_iac: true
+        generates:
+          - serverless.yml  # or SAM template
+          - .github/workflows/aws-deploy.yml
+
+      - value: aws_containers
+        label: "AWS Containers (ECS Fargate + ALB)"
+        tier: scale_up
+        description: "Containerized, serverless containers. Balance of control + simplicity"
+        pros:
+          - "No server management"
+          - "Better for long-running processes"
+          - "VPC networking"
+        cons:
+          - "More expensive than Lambda"
+          - "Still has cold starts (smaller)"
+        requires_iac: true
+        generates:
+          - Dockerfile
+          - task-definition.json
+          - .github/workflows/ecs-deploy.yml
+
+      - value: aws_app_runner
+        label: "AWS App Runner"
+        tier: mvp
+        description: "Heroku-like PaaS on AWS. Deploy from Git or container"
+        pros:
+          - "Simplest AWS option"
+          - "Auto-scaling included"
+          - "Built-in load balancer"
+        cons:
+          - "Limited configuration"
+          - "No VPC peering (yet)"
+        requires_iac: false
+        generates:
+          - apprunner.yaml
+          - .github/workflows/apprunner-deploy.yml
+
+      # Azure options
+      - value: azure_container_apps
+        label: "Azure Container Apps"
+        tier: scale_up
+        description: "Modern serverless containers on Azure. K8s under the hood"
+        pros:
+          - "KEDA auto-scaling built-in"
+          - "Dapr integration"
+          - "Free tier available"
+        cons:
+          - "Azure vendor lock-in"
+          - "Newer service (less mature)"
+        requires_iac: true
+        generates:
+          - Dockerfile
+          - containerapp.yaml
+          - .github/workflows/azure-deploy.yml
+
+      - value: azure_functions
+        label: "Azure Functions"
+        tier: mvp
+        description: "Serverless functions (like Lambda). Good for .NET/TypeScript"
+        pros:
+          - "Excellent TypeScript support"
+          - "Durable Functions (workflows)"
+        cons:
+          - "Similar cold start issues"
+          - "Azure ecosystem learning curve"
+        requires_iac: false
+
+      # Google Cloud
+      - value: gcp_cloud_run
+        label: "Google Cloud Run"
+        tier: scale_up
+        description: "Serverless containers. Deploy any container, pay per request"
+        pros:
+          - "Best cold start times (< 100ms)"
+          - "Simplest K8s-compatible option"
+          - "Generous free tier"
+        cons:
+          - "GCP ecosystem smaller"
+          - "Less enterprise adoption"
+        requires_iac: true
+        generates:
+          - Dockerfile
+          - cloudrun.yaml
+          - .github/workflows/cloudrun-deploy.yml
+
+      # Kubernetes (Enterprise)
+      - value: kubernetes_gke
+        label: "Kubernetes on GKE"
+        tier: enterprise
+        description: "Managed Kubernetes on Google Cloud. Netflix-scale infrastructure"
+        pros:
+          - "Ultimate flexibility"
+          - "Multi-cloud portable"
+          - "Huge ecosystem"
+        cons:
+          - "Steep learning curve"
+          - "Expensive ($200+/month base)"
+          - "Operational overhead"
+        requires_iac: true
+        requires_k8s_choices: true
+        generates:
+          - k8s/
+          - helm/
+          - .github/workflows/k8s-deploy.yml
+
+      - value: kubernetes_eks
+        label: "Kubernetes on AWS EKS"
+        tier: enterprise
+        description: "Managed Kubernetes on AWS"
+        requires_iac: true
+        requires_k8s_choices: true
+
+      - value: kubernetes_aks
+        label: "Kubernetes on Azure AKS"
+        tier: enterprise
+        description: "Managed Kubernetes on Azure"
+        requires_iac: true
+        requires_k8s_choices: true
+
+      # Alternative PaaS
+      - value: render
+        label: "Render"
+        tier: mvp
+        description: "Modern Heroku alternative. Simple, fast, affordable"
+        pros:
+          - "Zero DevOps needed"
+          - "Preview environments included"
+          - "Affordable ($7-25/month)"
+        cons:
+          - "Smaller ecosystem than AWS/GCP"
+          - "Limited enterprise features"
+        generates:
+          - render.yaml
+
+      - value: railway
+        label: "Railway"
+        tier: mvp
+        description: "Deploy from GitHub in 60 seconds. Great DX"
+        pros:
+          - "Best onboarding experience"
+          - "Generous free tier"
+        cons:
+          - "Early stage company (risk)"
+        generates:
+          - railway.json
+
+      - value: fly_io
+        label: "Fly.io"
+        tier: scale_up
+        description: "Deploy containers globally. Run near your users"
+        pros:
+          - "Edge deployment (low latency)"
+          - "PostgreSQL clustering built-in"
+        cons:
+          - "Smaller company (risk)"
+          - "Command-line heavy"
+        generates:
+          - fly.toml
+
+      - value: docker_compose
+        label: "Docker Compose (Self-hosted)"
+        tier: scale_up
+        description: "Deploy anywhere with Docker. Full control, VPS or on-prem"
+        pros:
+          - "Works anywhere (AWS, DigitalOcean, bare metal)"
+          - "Simple multi-container orchestration"
+          - "Cheapest option ($5-20/month VPS)"
+        cons:
+          - "Manual scaling"
+          - "You manage updates/backups"
+        generates:
+          - docker-compose.yml
+          - docker-compose.prod.yml
+          - Dockerfile
+
+  # 2. Infrastructure as Code (if needed)
+  - id: iac_tool
+    type: single_choice
+    question: "How will you manage infrastructure?"
+    show_if:
+      - cloud_platform.requires_iac == true
+    recommended: terraform
+    options:
+      - value: terraform
+        label: "Terraform (HCL)"
+        description: "Industry standard. 10+ years mature. Huge community"
+        pros:
+          - "Most jobs require it"
+          - "30,000+ providers"
+          - "State management mature"
+        cons:
+          - "HCL syntax learning curve"
+          - "State file management"
+        generates:
+          - terraform/
+          - terraform/main.tf
+          - terraform/variables.tf
+          - terraform/outputs.tf
+          - .github/workflows/terraform-plan.yml
+
+      - value: opentofu
+        label: "OpenTofu"
+        description: "Open-source Terraform fork (post-license change)"
+        pros:
+          - "Terraform-compatible"
+          - "Community-driven"
+        cons:
+          - "Newer (less mature)"
+        generates:
+          - tofu/  # same structure as Terraform
+
+      - value: pulumi
+        label: "Pulumi (TypeScript/Python)"
+        description: "IaC in real programming languages. Best for TS developers"
+        pros:
+          - "Use TypeScript/Python you know"
+          - "Type-safe infrastructure"
+          - "Better testing"
+        cons:
+          - "Smaller community"
+          - "Paid state management (or DIY)"
+        generates:
+          - pulumi/
+          - Pulumi.yaml
+          - index.ts  # or index.py
+
+      - value: aws_cdk
+        label: "AWS CDK (TypeScript)"
+        description: "AWS-native IaC. Generates CloudFormation"
+        pros:
+          - "Best AWS integration"
+          - "L2/L3 constructs (less code)"
+        cons:
+          - "AWS-only"
+          - "CloudFormation limitations"
+        generates:
+          - cdk/
+          - cdk.json
+          - lib/stack.ts
+
+      - value: sst
+        label: "SST (Serverless Stack)"
+        description: "Modern AWS IaC for fullstack apps. Built on CDK"
+        pros:
+          - "Live Lambda development"
+          - "Next.js integration"
+          - "Great DX"
+        cons:
+          - "AWS-only"
+          - "Smaller community"
+        generates:
+          - sst.config.ts
+          - stacks/
+
+      - value: manual
+        label: "Manual (ClickOps)"
+        description: "Configure via web console. Not recommended for production"
+        pros:
+          - "No learning curve"
+        cons:
+          - "Not reproducible"
+          - "Disaster recovery nightmare"
+          - "No version control"
+
+  # 3. Kubernetes Ecosystem (only if K8s chosen)
+  - id: k8s_ingress
+    type: single_choice
+    question: "Which Kubernetes ingress controller?"
+    show_if:
+      - cloud_platform.requires_k8s_choices == true
+    recommended: nginx
+    options:
+      - value: nginx_ingress
+        label: "NGINX Ingress"
+        description: "Most popular. Battle-tested"
+        generates:
+          - k8s/ingress-nginx/
+
+      - value: traefik
+        label: "Traefik"
+        description: "Modern, dynamic routing. Great for microservices"
+        generates:
+          - k8s/traefik/
+
+      - value: istio_ingress_gateway
+        label: "Istio Gateway"
+        description: "Part of service mesh. Advanced traffic management"
+        requires: service_mesh == istio
+
+      - value: kong
+        label: "Kong Gateway"
+        description: "API gateway with plugins (auth, rate limit, etc)"
+        generates:
+          - k8s/kong/
+
+  - id: k8s_service_mesh
+    type: single_choice
+    question: "Do you need a service mesh?"
+    show_if:
+      - cloud_platform.requires_k8s_choices == true
+    recommended: none  # unless microservices
+    options:
+      - value: none
+        label: "None"
+        description: "Keep it simple. Add later if needed"
+
+      - value: istio
+        label: "Istio"
+        description: "Most feature-rich. mTLS, traffic split, observability"
+        pros:
+          - "Battle-tested (Lyft, IBM)"
+          - "Rich feature set"
+        cons:
+          - "Heavy (high resource usage)"
+          - "Complex setup"
+        generates:
+          - k8s/istio/
+
+      - value: linkerd
+        label: "Linkerd"
+        description: "Lightweight, simple. Made for K8s"
+        pros:
+          - "Minimal resource usage"
+          - "Easier to operate"
+        cons:
+          - "Less features than Istio"
+        generates:
+          - k8s/linkerd/
+
+      - value: cilium
+        label: "Cilium"
+        description: "eBPF-based. Best performance"
+        pros:
+          - "Kernel-level efficiency"
+          - "Network policies built-in"
+        cons:
+          - "Newer technology"
+        generates:
+          - k8s/cilium/
+
+  - id: k8s_package_manager
+    type: single_choice
+    question: "How will you package Kubernetes manifests?"
+    show_if:
+      - cloud_platform.requires_k8s_choices == true
+    recommended: helm
+    options:
+      - value: helm
+        label: "Helm Charts"
+        description: "K8s package manager. Templating + versioning"
+        generates:
+          - helm/
+          - helm/Chart.yaml
+          - helm/values.yaml
+          - helm/templates/
+
+      - value: kustomize
+        label: "Kustomize"
+        description: "Native K8s. Patch-based (no templating)"
+        generates:
+          - k8s/base/
+          - k8s/overlays/dev/
+          - k8s/overlays/prod/
+
+      - value: raw_manifests
+        label: "Raw YAML"
+        description: "No abstraction. Simple but repetitive"
+        generates:
+          - k8s/
+
+  # 4. CI/CD Strategy
+  - id: cicd_platform
+    type: single_choice
+    question: "CI/CD platform?"
+    recommended: github_actions
+    options:
+      - value: github_actions
+        label: "GitHub Actions"
+        description: "Native to GitHub. 2000 free minutes/month"
+        generates:
+          - .github/workflows/
+
+      - value: gitlab_ci
+        label: "GitLab CI"
+        description: "Built-in to GitLab. Great for self-hosted"
+        generates:
+          - .gitlab-ci.yml
+
+      - value: circleci
+        label: "CircleCI"
+        description: "Fast, modern. Good for complex pipelines"
+        generates:
+          - .circleci/config.yml
+
+      - value: jenkins
+        label: "Jenkins"
+        description: "Self-hosted, fully customizable. Enterprise standard"
+        generates:
+          - Jenkinsfile
+
+  - id: branch_strategy
+    type: single_choice
+    question: "Git branching strategy?"
+    recommended: trunk_based
+    options:
+      - value: trunk_based
+        label: "Trunk-based (main only)"
+        description: "Ship fast. Feature flags for incomplete work. Google/Facebook style"
+        pros:
+          - "Fastest velocity"
+          - "Forces small PRs"
+          - "No merge hell"
+        cons:
+          - "Requires feature flags"
+          - "Needs strong testing"
+
+      - value: github_flow
+        label: "GitHub Flow (main + feature branches)"
+        description: "Simple. Branch → PR → merge → deploy. No release branches"
+        pros:
+          - "Simple to understand"
+          - "Good for continuous deployment"
+        cons:
+          - "Hard to maintain multiple versions"
+
+      - value: git_flow
+        label: "Git Flow (develop + release branches)"
+        description: "Complex. Good for versioned releases (e.g., on-prem software)"
+        pros:
+          - "Clear release process"
+          - "Support multiple versions"
+        cons:
+          - "Slow (many branches)"
+          - "Merge conflicts common"
+
+  - id: preview_environments
+    type: boolean
+    question: "Enable preview environments for pull requests?"
+    description: "Deploy every PR to a temporary URL (e.g., pr-123.yourapp.dev)"
+    recommended: true
+    pros:
+      - "Test before merge"
+      - "Share with designers/PMs"
+      - "Catch integration bugs early"
+    cons:
+      - "Higher CI/CD costs"
+      - "Need ephemeral DB strategy"
+    generates:
+      - .github/workflows/preview-deploy.yml
+      - scripts/create-preview-db.sh
+
+  - id: deployment_strategy
+    type: single_choice
+    question: "Deployment strategy?"
+    recommended: rolling
+    options:
+      - value: rolling
+        label: "Rolling Update"
+        description: "Gradually replace old instances. Default for K8s/ECS"
+        pros:
+          - "Zero downtime"
+          - "Built-in to most platforms"
+        cons:
+          - "Both versions running during rollout"
+
+      - value: blue_green
+        label: "Blue-Green"
+        description: "Deploy to new environment, then switch traffic"
+        pros:
+          - "Instant rollback (just switch back)"
+          - "Test new version before traffic"
+        cons:
+          - "2x infrastructure during deploy"
+          - "Database migrations tricky"
+        generates:
+          - scripts/blue-green-deploy.sh
+
+      - value: canary
+        label: "Canary (Progressive)"
+        description: "Route 5% → 25% → 50% → 100% traffic to new version"
+        pros:
+          - "Catch issues before 100% rollout"
+          - "Automatic rollback on errors"
+        cons:
+          - "Complex setup"
+          - "Needs metrics/alerting"
+        requires:
+          - monitoring: sentry  # Need error tracking
+        generates:
+          - .github/workflows/canary-deploy.yml
+          - scripts/canary-rollout.sh
+
+      - value: ab_testing
+        label: "A/B Testing Deploy"
+        description: "Route users by ID/segment. Test UX changes"
+        pros:
+          - "Measure feature impact"
+          - "Safe experimentation"
+        cons:
+          - "Requires feature flags"
+          - "Complex analytics setup"
+        requires:
+          - feature_flags: true
+
+  # 5. Database Migrations in CI/CD
+  - id: db_migration_strategy
+    type: single_choice
+    question: "How to handle database migrations?"
+    show_if:
+      - database != supabase  # Supabase has built-in migrations
+    recommended: pre_deploy
+    options:
+      - value: pre_deploy
+        label: "Pre-deploy (automatic)"
+        description: "Run migrations before deploying app. Simple but risky"
+        pros:
+          - "Simple automation"
+        cons:
+          - "Downtime if migration slow"
+          - "Hard to rollback"
+
+      - value: expand_contract
+        label: "Expand-Contract (zero-downtime)"
+        description: "Deploy 1: add columns. Deploy 2: use them. Deploy 3: remove old"
+        pros:
+          - "Zero downtime"
+          - "Safe rollbacks"
+        cons:
+          - "3 deploys per schema change"
+          - "Discipline required"
+
+      - value: manual
+        label: "Manual (approved in PR)"
+        description: "Developer runs migration script after review"
+        pros:
+          - "Full control"
+        cons:
+          - "Human error risk"
+          - "Slower process"
+
+  # 6. Rollback Strategy
+  - id: rollback_automation
+    type: single_choice
+    question: "Automatic rollback on errors?"
+    recommended: metric_based
+    options:
+      - value: none
+        label: "Manual only"
+        description: "Human decides to rollback"
+
+      - value: metric_based
+        label: "Metric-based"
+        description: "Auto-rollback if error rate > threshold"
+        pros:
+          - "Fast recovery (< 2 min)"
+        cons:
+          - "Needs robust monitoring"
+        requires:
+          - monitoring: true
+        generates:
+          - scripts/auto-rollback.sh
+
+      - value: smoke_test
+        label: "Smoke test failure"
+        description: "Rollback if POST-deploy health checks fail"
+        generates:
+          - tests/smoke/
+
+  # 7. Multi-environment setup
+  - id: environments
+    type: multi_choice
+    question: "Which environments do you need?"
+    recommended:
+      - dev
+      - staging
+      - prod
+    options:
+      - value: dev
+        label: "Development"
+        description: "Local or shared dev environment"
+
+      - value: staging
+        label: "Staging"
+        description: "Production-like for final testing"
+
+      - value: prod
+        label: "Production"
+        description: "Live customer traffic"
+
+      - value: qa
+        label: "QA"
+        description: "Dedicated QA team environment"
+
+      - value: demo
+        label: "Demo"
+        description: "For sales demos (stable, seeded data)"
+
+    generates:
+      # For each selected environment:
+      - .env.{environment}
+      - terraform/environments/{environment}/
+      - k8s/overlays/{environment}/  # if kustomize
+
+metadata:
+  estimated_time: "15-20 minutes"
+  complexity_warning: "Kubernetes options add significant setup time (2-4 hours)"

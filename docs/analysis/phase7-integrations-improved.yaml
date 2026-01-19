@@ -1,0 +1,623 @@
+---
+# Phase 7: Integrations & Extensions (Improved)
+# Optional features that enhance the core app
+# Moved Observability to Phase 8 (it's critical, not optional)
+
+phase: 7
+title: "Integrations & Extensions"
+description: "Optional features to enhance your app (pick what you need)"
+sections:
+
+  # 1. EMAIL SERVICE
+  - id: email_service
+    type: single_choice
+    question: "Email service?"
+    description: "Transactional emails (welcome, password reset, notifications)"
+    recommended: resend
+    options:
+      - value: none
+        label: "None"
+        description: "Skip email. Add later if needed"
+
+      - value: resend
+        label: "Resend"
+        description: "Modern email API. Built for developers"
+        tier: all
+        pricing: "Free 3k emails/month, then $20/month"
+        pros:
+          - "Best DX (React Email integration)"
+          - "Fast delivery"
+          - "Great docs"
+        cons:
+          - "Newer service (less proven)"
+        integrations:
+          react_email: true
+        generates:
+          - lib/email/
+          - emails/  # React Email templates
+          - lib/email/send.ts
+
+      - value: sendgrid
+        label: "SendGrid"
+        description: "Industry standard. Twilio-owned"
+        tier: all
+        pricing: "Free 100 emails/day, then $15/month"
+        pros:
+          - "Very reliable"
+          - "Huge scale"
+        cons:
+          - "Worse DX than Resend"
+          - "Complex pricing"
+        generates:
+          - lib/email/sendgrid.ts
+
+      - value: ses
+        label: "AWS SES"
+        description: "Cheapest at scale. Good if on AWS"
+        tier: scale_up
+        pricing: "$0.10 per 1000 emails"
+        pros:
+          - "Extremely cheap"
+          - "Unlimited scale"
+        cons:
+          - "Harder setup (domain verification)"
+          - "No templates (DIY)"
+        show_if:
+          - cloud_platform: aws_*
+
+      - value: postmark
+        label: "Postmark"
+        description: "Premium transactional email. Best deliverability"
+        tier: enterprise
+        pricing: "Starts $15/month"
+
+      - value: mailgun
+        label: "Mailgun"
+        description: "Developer-focused. Good for bulk"
+
+  # 2. FILE STORAGE
+  - id: file_storage
+    type: single_choice
+    question: "File storage (user uploads, images, etc)?"
+    recommended: supabase_storage  # if using Supabase
+    options:
+      - value: none
+        label: "None"
+        description: "No file uploads. Skip"
+
+      - value: supabase_storage
+        label: "Supabase Storage"
+        description: "Built-in to Supabase. CDN included"
+        show_if:
+          - database: supabase
+        tier: all
+        pricing: "Free 1GB, then $0.021/GB"
+        pros:
+          - "Zero setup"
+          - "RLS policies (access control)"
+          - "Image transformations"
+        generates:
+          - lib/storage/supabase.ts
+
+      - value: s3
+        label: "AWS S3"
+        description: "Industry standard object storage"
+        tier: all
+        pricing: "$0.023/GB/month"
+        pros:
+          - "Cheapest at scale"
+          - "Unlimited storage"
+          - "99.999999999% durability"
+        cons:
+          - "Need CDN (CloudFront) for fast delivery"
+        generates:
+          - lib/storage/s3.ts
+          - lib/storage/presigned-urls.ts
+
+      - value: cloudflare_r2
+        label: "Cloudflare R2"
+        description: "S3-compatible. No egress fees"
+        tier: scale_up
+        pricing: "$0.015/GB (no bandwidth charges!)"
+        pros:
+          - "Free bandwidth (huge savings)"
+          - "S3-compatible API"
+        cons:
+          - "Newer service"
+        generates:
+          - lib/storage/r2.ts
+
+      - value: gcs
+        label: "Google Cloud Storage"
+        description: "GCP object storage"
+        show_if:
+          - cloud_platform: gcp_*
+
+      - value: uploadthing
+        label: "UploadThing"
+        description: "Managed file uploads for Next.js"
+        tier: mvp
+        pricing: "Free 2GB, then $10/month"
+        pros:
+          - "Easiest setup"
+          - "Next.js components included"
+        generates:
+          - lib/uploadthing.ts
+
+  # 3. BACKGROUND JOBS
+  - id: background_jobs
+    type: single_choice
+    question: "Background jobs & task queues?"
+    description: "For async work (emails, exports, image processing)"
+    recommended: none  # Unless you need it
+    options:
+      - value: none
+        label: "None"
+        description: "All work happens in HTTP requests. OK for simple apps"
+
+      - value: bullmq
+        label: "BullMQ (Redis-based)"
+        description: "Modern Node.js queue. Great DX"
+        tier: all
+        pros:
+          - "Reliable"
+          - "Repeatable jobs (cron)"
+          - "Nice UI (Bull Board)"
+        cons:
+          - "Requires Redis"
+        requires:
+          - redis: true
+        generates:
+          - lib/queue/
+          - workers/
+          - docker-compose.queue.yml
+
+      - value: celery
+        label: "Celery (Python)"
+        description: "Standard for Python/Django apps"
+        show_if:
+          - backend: fastapi OR backend: django
+        pros:
+          - "Battle-tested"
+        cons:
+          - "Heavy (needs broker + result backend)"
+        requires:
+          - redis OR rabbitmq: true
+        generates:
+          - workers/
+          - celery.py
+
+      - value: aws_sqs
+        label: "AWS SQS + Lambda"
+        description: "Serverless queues"
+        show_if:
+          - cloud_platform: aws_*
+        pros:
+          - "Fully managed"
+          - "Scale to zero"
+        cons:
+          - "No scheduling (need EventBridge)"
+        generates:
+          - lib/sqs/
+          - workers/
+
+      - value: inngest
+        label: "Inngest"
+        description: "Serverless job platform. Queues + cron + workflows"
+        tier: scale_up
+        pricing: "Free 50k steps/month"
+        pros:
+          - "Zero infrastructure"
+          - "TypeScript-native"
+        generates:
+          - inngest/
+
+      - value: quirrel
+        label: "Quirrel"
+        description: "Job queue for Next.js"
+        tier: mvp
+
+      - value: temporal
+        label: "Temporal"
+        description: "Workflow engine. For complex orchestration"
+        tier: enterprise
+        use_case: "Only if you need multi-step workflows (saga pattern)"
+
+  # 4. FEATURE FLAGS
+  - id: feature_flags
+    type: single_choice
+    question: "Feature flags (progressive rollouts, A/B tests)?"
+    recommended: none  # Unless trunk-based dev
+    options:
+      - value: none
+        label: "None"
+        description: "Deploy features all-or-nothing"
+
+      - value: launchdarkly
+        label: "LaunchDarkly"
+        description: "Enterprise feature management"
+        tier: enterprise
+        pricing: "Starts $10/seat/month"
+        pros:
+          - "Best-in-class"
+          - "Percentage rollouts"
+          - "User targeting"
+        cons:
+          - "Expensive"
+
+      - value: unleash
+        label: "Unleash"
+        description: "Open-source alternative to LaunchDarkly"
+        tier: scale_up
+        pros:
+          - "Free self-hosted"
+          - "LaunchDarkly-like features"
+        generates:
+          - docker-compose.unleash.yml
+          - lib/feature-flags/
+
+      - value: posthog_flags
+        label: "PostHog Feature Flags"
+        description: "Built-in to PostHog analytics"
+        show_if:
+          - analytics: posthog
+        pros:
+          - "Free with PostHog"
+
+      - value: growthbook
+        label: "GrowthBook"
+        description: "Open-source. A/B testing + feature flags"
+        tier: scale_up
+
+      - value: vercel_flags
+        label: "Vercel Toolbar Flags"
+        description: "Simple flags for Vercel deploys"
+        show_if:
+          - cloud_platform: vercel_supabase
+        pros:
+          - "Zero setup"
+        cons:
+          - "Basic features"
+
+  # 5. ANALYTICS
+  - id: analytics
+    type: single_choice
+    question: "Product analytics?"
+    description: "Track user behavior, funnels, retention"
+    recommended: posthog
+    options:
+      - value: none
+        label: "None"
+        description: "Skip analytics"
+
+      - value: posthog
+        label: "PostHog"
+        description: "Open-source alternative to Mixpanel. Self-host or cloud"
+        tier: all
+        pricing: "Free 1M events/month, then usage-based"
+        pros:
+          - "Session replays"
+          - "Feature flags included"
+          - "Heatmaps"
+        cons:
+          - "Can get expensive"
+        generates:
+          - lib/analytics/posthog.ts
+
+      - value: mixpanel
+        label: "Mixpanel"
+        description: "Classic product analytics"
+        tier: scale_up
+        pricing: "Free 20M events/month"
+
+      - value: amplitude
+        label: "Amplitude"
+        description: "Enterprise analytics. Great for product teams"
+        tier: enterprise
+
+      - value: plausible
+        label: "Plausible"
+        description: "Privacy-focused web analytics. GA alternative"
+        tier: mvp
+        pricing: "$9/month"
+        pros:
+          - "GDPR-friendly (no cookies)"
+          - "Lightweight script"
+        cons:
+          - "Less features than PostHog"
+
+      - value: umami
+        label: "Umami"
+        description: "Self-hosted simple analytics"
+        tier: mvp
+        pros:
+          - "Free"
+        generates:
+          - docker-compose.umami.yml
+
+  # 6. SEARCH
+  - id: search
+    type: single_choice
+    question: "Search engine?"
+    description: "For full-text search, filters, facets"
+    recommended: none  # Unless you need it
+    options:
+      - value: none
+        label: "None"
+        description: "Use database LIKE queries. OK for small datasets"
+
+      - value: postgres_fts
+        label: "PostgreSQL Full-Text Search"
+        description: "Built-in to Postgres. Good for basic search"
+        tier: all
+        pros:
+          - "No extra service"
+          - "Fast enough for most apps"
+        cons:
+          - "Limited vs dedicated search engines"
+        generates:
+          - migrations/add-search-indexes.sql
+
+      - value: meilisearch
+        label: "Meilisearch"
+        description: "Modern, fast, typo-tolerant. Easy self-host"
+        tier: scale_up
+        pros:
+          - "Fast (Rust-based)"
+          - "Great DX"
+        cons:
+          - "Less features than Elastic"
+        generates:
+          - docker-compose.search.yml
+          - lib/search/meilisearch.ts
+
+      - value: algolia
+        label: "Algolia"
+        description: "Hosted search. Best for e-commerce"
+        tier: scale_up
+        pricing: "Free 10k requests/month, then $1/1k"
+        pros:
+          - "Fastest UI"
+          - "Great docs"
+        cons:
+          - "Expensive at scale"
+
+      - value: elasticsearch
+        label: "Elasticsearch"
+        description: "Enterprise search. Very powerful"
+        tier: enterprise
+        pros:
+          - "Most features"
+          - "Analytics included"
+        cons:
+          - "Heavy (high memory)"
+          - "Complex ops"
+
+      - value: typesense
+        label: "Typesense"
+        description: "Algolia alternative. Self-hosted or cloud"
+        tier: scale_up
+
+  # 7. PAYMENTS
+  - id: payments
+    type: single_choice
+    question: "Payment processing?"
+    recommended: stripe
+    options:
+      - value: none
+        label: "None"
+        description: "Free product. No payments"
+
+      - value: stripe
+        label: "Stripe"
+        description: "Industry standard. Best API"
+        tier: all
+        pricing: "2.9% + $0.30 per transaction"
+        pros:
+          - "Best developer experience"
+          - "Subscriptions built-in"
+          - "Global coverage"
+        generates:
+          - lib/stripe/
+          - webhooks/stripe.ts
+          - types/stripe.ts
+
+      - value: stripe_subscriptions
+        label: "Stripe Subscriptions (SaaS)"
+        description: "Full subscription management + billing portal"
+        tier: all
+        generates:
+          - lib/stripe/subscriptions.ts
+          - app/api/stripe/webhook/route.ts
+
+      - value: lemonsqueezy
+        label: "Lemon Squeezy"
+        description: "Merchant of record. They handle tax/compliance"
+        tier: mvp
+        pricing: "5% + payment fees"
+        pros:
+          - "Merchant of record (no tax complexity)"
+          - "Great for solo devs"
+        cons:
+          - "5% fee (vs Stripe's 2.9%)"
+
+      - value: paddle
+        label: "Paddle"
+        description: "Merchant of record. Stripe alternative"
+        tier: scale_up
+
+  # 8. COMMUNICATION
+  - id: realtime_communication
+    type: multi_choice
+    question: "Real-time communication features?"
+    description: "Select all that apply"
+    options:
+      - value: websockets
+        label: "WebSockets (real-time updates)"
+        description: "Live chat, notifications, collaborative editing"
+        generates:
+          - lib/websocket/
+          - pages/api/socket.ts  # if Next.js
+
+      - value: push_notifications
+        label: "Push Notifications (mobile/web)"
+        options:
+          - value: firebase_fcm
+            label: "Firebase Cloud Messaging"
+            description: "Google's push service. Free"
+            generates:
+              - lib/push/firebase.ts
+
+          - value: onesignal
+            label: "OneSignal"
+            description: "Multi-platform push. Easier than Firebase"
+            pricing: "Free 10k subscribers"
+
+          - value: pusher_beams
+            label: "Pusher Beams"
+            description: "Part of Pusher suite"
+
+      - value: sms
+        label: "SMS Notifications"
+        options:
+          - value: twilio
+            label: "Twilio"
+            description: "Standard for SMS/Voice"
+            pricing: "$0.0079/SMS (US)"
+
+          - value: sns
+            label: "AWS SNS"
+            description: "Cheaper for bulk SMS"
+            show_if:
+              - cloud_platform: aws_*
+
+      - value: webhooks
+        label: "Webhooks (for integrations)"
+        description: "Let users subscribe to events"
+        generates:
+          - lib/webhooks/
+          - app/api/webhooks/
+
+  # 9. AI/ML FEATURES
+  - id: ai_features
+    type: multi_choice
+    question: "AI/ML integrations?"
+    description: "Select if your app uses AI"
+    options:
+      - value: llm_integration
+        label: "LLM Integration (ChatGPT, Claude, etc)"
+        sub_options:
+          - value: openai
+            label: "OpenAI (GPT-4, GPT-4o)"
+            pricing: "$10/1M tokens (GPT-4o-mini)"
+
+          - value: anthropic
+            label: "Anthropic (Claude)"
+            pricing: "$3/1M tokens (Haiku)"
+
+          - value: aws_bedrock
+            label: "AWS Bedrock (multiple models)"
+            show_if:
+              - cloud_platform: aws_*
+
+          - value: vercel_ai_sdk
+            label: "Vercel AI SDK (unified API)"
+            description: "Switch between providers easily"
+            generates:
+              - lib/ai/
+
+      - value: vector_database
+        label: "Vector Database (for RAG, embeddings)"
+        description: "Store embeddings for semantic search"
+        sub_options:
+          - value: supabase_vector
+            label: "Supabase pgvector"
+            show_if:
+              - database: supabase
+            pros:
+              - "Built-in to Postgres"
+
+          - value: pinecone
+            label: "Pinecone"
+            pricing: "Free 1 index, then $70/month"
+
+          - value: weaviate
+            label: "Weaviate (self-hosted)"
+
+          - value: qdrant
+            label: "Qdrant (self-hosted)"
+
+      - value: image_generation
+        label: "Image Generation"
+        sub_options:
+          - value: replicate
+            label: "Replicate (Flux, SDXL, etc)"
+            pricing: "Pay per generation"
+
+          - value: fal_ai
+            label: "fal.ai"
+            description: "Fast image generation"
+
+  # 10. INTERNATIONALIZATION
+  - id: i18n
+    type: boolean
+    question: "Multi-language support (i18n)?"
+    recommended: false  # Unless you need it
+    options:
+      - value: next_intl
+        label: "next-intl"
+        description: "Best i18n for Next.js"
+        show_if:
+          - frontend: nextjs
+        generates:
+          - messages/
+          - middleware.ts  # locale detection
+          - i18n.ts
+
+      - value: react_i18next
+        label: "react-i18next"
+        description: "Standard for React apps"
+
+      - value: lingui
+        label: "Lingui"
+        description: "Modern i18n. Type-safe"
+
+  # 11. DEVELOPER EXPERIENCE
+  - id: devex_tools
+    type: multi_choice
+    question: "Developer experience tools?"
+    options:
+      - value: devcontainers
+        label: "DevContainers"
+        description: "VS Code development containers. Consistent env"
+        generates:
+          - .devcontainer/
+
+      - value: api_docs
+        label: "API Documentation"
+        sub_options:
+          - value: openapi_swagger
+            label: "OpenAPI (Swagger)"
+            show_if:
+              - backend: fastapi OR backend: nestjs
+            generates:
+              - openapi.yaml
+
+          - value: mintlify
+            label: "Mintlify"
+            description: "Beautiful API docs"
+
+          - value: docusaurus
+            label: "Docusaurus"
+            description: "Full documentation site"
+
+      - value: sdk_generation
+        label: "Auto-generate SDKs"
+        description: "Generate TypeScript/Python SDKs from OpenAPI"
+        tools:
+          - openapi-generator
+          - fern
+
+metadata:
+  estimated_time: "10-15 minutes"
+  note: "Pick only what you need. You can always add more later."

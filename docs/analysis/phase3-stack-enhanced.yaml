@@ -1,0 +1,830 @@
+# PHASE 3 - STACK SELECTION (ENHANCED 2025)
+# Complete tech stack with modern architecture patterns
+
+phase3:
+  id: "stack"
+  title: "Tech Stack Selection"
+  description: "Choose your technology stack based on architecture pattern"
+
+  questions:
+    # ============================================================
+    # Q1: ARCHITECTURE PATTERN (NEW - Most Fundamental)
+    # ============================================================
+    - id: "architecture_pattern"
+      text: "¿Qué patrón arquitectónico necesitas?"
+      type: "single"
+      required: true
+      help: "Esta es la decisión más fundamental. Afecta desarrollo, testing, deployment y escalabilidad."
+      options:
+        - value: "monolith"
+          label: "Monolithic"
+          description: "Single deployment unit. Simple, fast to start, easy to debug."
+          pros:
+            - "Desarrollo rápido"
+            - "Fácil debugging (un solo proceso)"
+            - "Simple deployment"
+            - "No network latency entre componentes"
+          cons:
+            - "Escala verticalmente (hardware más potente)"
+            - "Todo o nada en deploy"
+            - "Puede volverse complejo si crece mucho"
+          recommended_for:
+            - "MVPs y prototipos"
+            - "Equipos pequeños (1-5 devs)"
+            - "Apps con dominio simple"
+
+        - value: "modular_monolith"
+          label: "Modular Monolith"
+          description: "Organized modules within single deployment. Best of both worlds."
+          pros:
+            - "Módulos bien separados (preparado para microservices)"
+            - "Un solo deploy (simplicidad operacional)"
+            - "Transacciones ACID entre módulos"
+            - "Fácil refactor a microservices si es necesario"
+          cons:
+            - "Requiere disciplina arquitectónica"
+            - "Escala como monolito (verticalmente)"
+          recommended_for:
+            - "Startups en crecimiento"
+            - "Equipos medianos (5-15 devs)"
+            - "Cuando no estás seguro si necesitas microservices"
+          recommended: true
+
+        - value: "microservices"
+          label: "Microservices"
+          description: "Distributed independent services. Maximum scalability and team independence."
+          pros:
+            - "Escala horizontalmente (más instancias)"
+            - "Equipos independientes por servicio"
+            - "Deploy independiente (menos riesgo)"
+            - "Tech stack heterogéneo (Go + Python + Node)"
+          cons:
+            - "Complejidad operacional (múltiples deploys)"
+            - "Network latency y fallos"
+            - "Testing más complejo"
+            - "Transacciones distribuidas difíciles"
+          recommended_for:
+            - "Empresas grandes (múltiples equipos)"
+            - "Dominios complejos y bien definidos"
+            - "Alto tráfico que requiere escala horizontal"
+          requires:
+            - "Service mesh o API Gateway"
+            - "Distributed tracing"
+            - "CI/CD maduro"
+
+        - value: "event_driven"
+          label: "Event-Driven Architecture"
+          description: "Async messaging, decoupled services. Best for real-time and high scalability."
+          pros:
+            - "Desacoplamiento total (servicios no se conocen)"
+            - "Alta escalabilidad"
+            - "Resiliente a fallos"
+            - "Perfecto para real-time"
+          cons:
+            - "Complejidad de debugging (flujo async)"
+            - "Eventual consistency"
+            - "Requiere message broker (Kafka, RabbitMQ)"
+          recommended_for:
+            - "Sistemas real-time"
+            - "IoT y streaming de datos"
+            - "E-commerce (pedidos, inventario, pagos)"
+          requires:
+            - "Message broker (Kafka, RabbitMQ, NATS)"
+            - "Event store"
+            - "Saga pattern para transacciones"
+
+    # ============================================================
+    # Q2: BACKEND FRAMEWORK (ENHANCED)
+    # ============================================================
+    - id: "backend"
+      text: "Backend framework"
+      type: "single"
+      required: true
+      help: "Elige según tu equipo, performance requirements y ecosistema."
+      options:
+        - value: "fastapi"
+          label: "FastAPI (Python 3.12+)"
+          description: "Async, type-safe, auto OpenAPI docs. Excelente para AI/ML integration."
+          tech_stack:
+            - "Python 3.12+"
+            - "Async/await nativo"
+            - "Pydantic validation"
+            - "SQLModel/SQLAlchemy ORM"
+          pros:
+            - "Rápido desarrollo"
+            - "Auto-documentación (OpenAPI/Swagger)"
+            - "Type hints (IDE support)"
+            - "Ecosistema AI/ML masivo (PyTorch, LangChain, etc)"
+          cons:
+            - "Performance < Go/Rust (pero async ayuda)"
+            - "Python GIL (usar workers)"
+          best_for:
+            - "APIs con lógica ML/AI"
+            - "Desarrollo rápido"
+            - "Equipos Python"
+          performance: "Medium-High (async)"
+          ecosystem: "★★★★★"
+
+        - value: "nestjs"
+          label: "NestJS (TypeScript)"
+          description: "Enterprise-grade, modular, Angular-inspired DI. Best for large teams."
+          tech_stack:
+            - "TypeScript"
+            - "Decorators"
+            - "Dependency Injection"
+            - "TypeORM/Prisma"
+          pros:
+            - "Arquitectura escalable (modular)"
+            - "TypeScript end-to-end"
+            - "Ecosistema enterprise (auth, validation, etc)"
+            - "Excelente para equipos grandes"
+          cons:
+            - "Curva de aprendizaje (DI, decorators)"
+            - "Boilerplate (más verbose que Express)"
+          best_for:
+            - "Empresas grandes"
+            - "Equipos que vienen de Angular"
+            - "Microservices en TypeScript"
+          performance: "Medium"
+          ecosystem: "★★★★☆"
+
+        - value: "go_fiber"
+          label: "Go + Fiber"
+          description: "⚡ Ultra-fast, low memory, compiled binary. Best for microservices and performance."
+          tech_stack:
+            - "Go 1.22+"
+            - "Fiber (Express-like)"
+            - "GORM or sqlx"
+            - "Built-in concurrency"
+          pros:
+            - "⚡ 10x más rápido que Node/Python en CPU-bound"
+            - "Bajo uso de memoria"
+            - "Binary único (no dependencies)"
+            - "Goroutines (concurrencia built-in)"
+            - "Excelente para microservices"
+          cons:
+            - "Ecosistema más pequeño"
+            - "Error handling verboso"
+            - "Curva de aprendizaje si no conoces Go"
+          best_for:
+            - "Microservices"
+            - "APIs de alta performance"
+            - "Infraestructura (tooling, CLI)"
+          performance: "★★★★★ (Extreme)"
+          ecosystem: "★★★☆☆"
+          recommended: true
+          use_cases:
+            - "Fintech (bajo latency)"
+            - "Gaming backends"
+            - "Real-time APIs"
+            - "Gateway/Proxy services"
+
+        - value: "none"
+          label: "None (API-less / BaaS)"
+          description: "Direct frontend to Supabase/Firebase. Best for prototypes and simple CRUD."
+          tech_stack:
+            - "Frontend directo a Supabase/Firebase"
+            - "Cloud Functions para lógica custom"
+          pros:
+            - "Desarrollo ultra-rápido"
+            - "No backend code"
+            - "Auth, DB, Storage incluidos"
+          cons:
+            - "Vendor lock-in"
+            - "Menos control"
+            - "Difícil custom logic compleja"
+          best_for:
+            - "MVPs y prototipos"
+            - "CRUD simple"
+            - "Equipos pequeños"
+          requires:
+            - "Supabase o Firebase"
+
+    # ============================================================
+    # Q3: FRONTEND PLATFORMS (NEW - Multi-select)
+    # ============================================================
+    - id: "frontend_platforms"
+      text: "¿Qué plataformas necesitas?"
+      type: "multi"
+      required: true
+      min_selections: 1
+      help: "Puedes elegir múltiples. Web + Mobile es común."
+      options:
+        - value: "web"
+          label: "Web Application"
+          description: "Browser-based application (desktop + mobile web)"
+          required: true
+
+        - value: "mobile"
+          label: "Mobile Native (iOS + Android)"
+          description: "React Native + Expo. 95% code sharing, native performance."
+          tech_stack:
+            - "React Native"
+            - "Expo (managed workflow)"
+            - "EAS Build & Submit"
+          pros:
+            - "95% código compartido iOS/Android"
+            - "Performance nativa"
+            - "Expo simplifica builds y updates"
+            - "Acceso a APIs nativas"
+          cons:
+            - "Algunas libs nativas requieren ejecting"
+            - "Bundle size mayor que Flutter"
+
+        - value: "desktop"
+          label: "Desktop (Windows, macOS, Linux)"
+          description: "Tauri (Rust-based). 600KB vs 100MB de Electron."
+          tech_stack:
+            - "Tauri"
+            - "Rust backend"
+            - "Web frontend"
+          pros:
+            - "100x más ligero que Electron"
+            - "Más seguro (Rust)"
+            - "Binarios pequeños"
+          cons:
+            - "Ecosistema más nuevo"
+            - "Menos plugins que Electron"
+
+    # ============================================================
+    # Q4: WEB FRAMEWORK (Conditional)
+    # ============================================================
+    - id: "web_framework"
+      text: "Web framework"
+      type: "single"
+      required: true
+      conditional:
+        field: "frontend_platforms"
+        includes: "web"
+      help: "Next.js es el estándar de facto, Remix mejor para apps data-heavy."
+      options:
+        - value: "nextjs"
+          label: "Next.js 15 (App Router)"
+          description: "⭐ React framework with Server Components, Streaming SSR, and excellent DX."
+          tech_stack:
+            - "React 19"
+            - "App Router"
+            - "Server Components"
+            - "Streaming SSR"
+            - "Turbopack (dev)"
+          pros:
+            - "Industry standard (Netflix, TikTok, Twitch)"
+            - "Server Components (less JS to client)"
+            - "Excellent SEO"
+            - "Vercel deployment (1-click)"
+            - "Image optimization built-in"
+          cons:
+            - "Curva de aprendizaje (App Router)"
+            - "Puede ser overkill para apps simple"
+          best_for:
+            - "90% de casos de uso"
+            - "E-commerce"
+            - "SaaS dashboards"
+            - "Marketing sites con app"
+          recommended: true
+
+        - value: "remix"
+          label: "Remix"
+          description: "Nested routes, progressive enhancement, excellent data loading."
+          tech_stack:
+            - "React 18+"
+            - "Nested routing"
+            - "Loaders & Actions"
+            - "Progressive enhancement"
+          pros:
+            - "Mejor para data-heavy apps"
+            - "Nested routes (colocation)"
+            - "Excelente manejo de forms"
+            - "Progressive enhancement (works sin JS)"
+          cons:
+            - "Ecosistema más pequeño que Next.js"
+            - "Menos deployment options"
+          best_for:
+            - "Apps data-centric (dashboards)"
+            - "Forms pesados"
+            - "Legacy migration (MPA → SPA)"
+
+        - value: "astro"
+          label: "Astro"
+          description: "Content-first, islands architecture, multi-framework support."
+          tech_stack:
+            - "Islands architecture"
+            - "Partial hydration"
+            - "React/Vue/Svelte components"
+            - "MDX support"
+          pros:
+            - "Zero JS by default"
+            - "Fastest possible (static)"
+            - "Multi-framework (React + Vue en mismo proyecto)"
+            - "Excelente para SEO"
+          cons:
+            - "No es SPA (page transitions básicas)"
+            - "Menos interactividad que Next/Remix"
+          best_for:
+            - "Content sites (blogs, docs, marketing)"
+            - "SEO-heavy sites"
+            - "Static site generation"
+
+    # ============================================================
+    # Q5: API STYLE (NEW)
+    # ============================================================
+    - id: "api_style"
+      text: "API communication styles"
+      type: "multi"
+      required: true
+      min_selections: 1
+      help: "REST siempre incluido. GraphQL para frontends complejos, gRPC para inter-service."
+      options:
+        - value: "rest"
+          label: "REST (JSON over HTTP)"
+          description: "Standard HTTP APIs. Always included."
+          required: true
+          pros:
+            - "Universal support"
+            - "Simple"
+            - "Cacheable (HTTP caching)"
+
+        - value: "graphql"
+          label: "GraphQL"
+          description: "Flexible queries, type-safe, single endpoint. Best for complex data."
+          tech_stack:
+            - "Apollo Server"
+            - "GraphQL Codegen"
+            - "Relay/Apollo Client"
+          pros:
+            - "Frontend pide exactamente lo que necesita"
+            - "Type-safe (schema first)"
+            - "Single endpoint"
+            - "No over/under-fetching"
+          cons:
+            - "Backend complexity (resolvers)"
+            - "Caching más complejo"
+            - "N+1 problem (dataloader)"
+          best_for:
+            - "Apps con frontend complejo"
+            - "Mobile apps (reduce requests)"
+            - "Múltiples clientes (web, mobile, etc)"
+
+        - value: "grpc"
+          label: "gRPC"
+          description: "Binary protocol, HTTP/2, streaming. Best for internal microservices."
+          tech_stack:
+            - "Protocol Buffers"
+            - "HTTP/2"
+            - "Bi-directional streaming"
+          pros:
+            - "5-10x más rápido que REST"
+            - "Strongly typed (.proto contracts)"
+            - "Streaming (server/client/bidirectional)"
+            - "Code generation (cliente/servidor)"
+          cons:
+            - "No browser support (necesita grpc-web)"
+            - "Binary (no human-readable)"
+            - "Debugging más difícil"
+          best_for:
+            - "Internal microservices communication"
+            - "High-throughput APIs"
+            - "Streaming data"
+          recommended_if: ["microservices", "go_fiber"]
+
+    # ============================================================
+    # Q6: PRIMARY DATABASE (ENHANCED)
+    # ============================================================
+    - id: "primary_database"
+      text: "Primary database"
+      type: "single"
+      required: true
+      help: "Elige según tipo de datos: relational (PostgreSQL), document (MongoDB), o all-in-one (Supabase/Firebase)."
+      options:
+        - value: "supabase"
+          label: "Supabase (PostgreSQL + BaaS)"
+          description: "All-in-one: PostgreSQL + Auth + Storage + Realtime + Edge Functions."
+          includes:
+            - "PostgreSQL 15+"
+            - "Auth (JWT, OAuth, magic links)"
+            - "Storage (S3-compatible)"
+            - "Realtime (WebSocket subscriptions)"
+            - "Edge Functions"
+            - "pgvector (AI embeddings)"
+          pros:
+            - "Todo incluido (no setup)"
+            - "Excelente DX"
+            - "Generous free tier"
+            - "TypeScript client auto-generated"
+          cons:
+            - "Vendor lock-in"
+            - "Menos control que self-hosted"
+          best_for:
+            - "Startups y MVPs"
+            - "Rapid development"
+            - "Apps con auth + storage + DB"
+          recommended: true
+
+        - value: "postgresql"
+          label: "PostgreSQL (self-managed)"
+          description: "Battle-tested relational DB. Install pgvector for AI embeddings."
+          tech_stack:
+            - "PostgreSQL 15+"
+            - "pgvector extension"
+            - "Full-text search"
+            - "JSONB support"
+          pros:
+            - "Mature, battle-tested"
+            - "ACID transactions"
+            - "Excelente performance"
+            - "Rich ecosystem (extensions)"
+          cons:
+            - "Requiere setup y mantenimiento"
+            - "Schema migrations (Alembic, Prisma)"
+          best_for:
+            - "Datos relacionales"
+            - "ACID transactions críticas"
+            - "Full control"
+
+        - value: "mongodb"
+          label: "MongoDB"
+          description: "📄 Document database, flexible schema. Best for evolving data models."
+          tech_stack:
+            - "MongoDB 7+"
+            - "Atlas managed service"
+            - "Document-oriented"
+          pros:
+            - "Schema flexible (rápido prototipado)"
+            - "Excelente para nested documents"
+            - "Horizontal scaling (sharding)"
+            - "Atlas managed (no ops)"
+          cons:
+            - "No ACID multi-document (hasta v4)"
+            - "Joins limitados ($lookup)"
+          best_for:
+            - "Product catalogs"
+            - "Content management"
+            - "IoT data"
+            - "Data models que evolucionan rápido"
+          use_cases:
+            - "E-commerce (productos con variantes)"
+            - "CMS (contenido semi-estructurado)"
+            - "Analytics (eventos)"
+
+        - value: "firebase"
+          label: "Firebase Firestore"
+          description: "Real-time NoSQL, excellent offline support, Google ecosystem."
+          tech_stack:
+            - "Firestore"
+            - "Firebase Auth"
+            - "Cloud Functions"
+            - "Hosting"
+          pros:
+            - "Real-time out-of-the-box"
+            - "Offline support (mobile)"
+            - "Google ecosystem integration"
+          cons:
+            - "Vendor lock-in"
+            - "Queries limitadas"
+            - "Pricing puede escalar rápido"
+          best_for:
+            - "Mobile-first apps"
+            - "Real-time collaboration"
+            - "Google Cloud users"
+
+    # ============================================================
+    # Q7: CACHING LAYER (NEW)
+    # ============================================================
+    - id: "caching"
+      text: "Caching strategy"
+      type: "single"
+      required: true
+      help: "Redis es el estándar en producción. In-memory OK para dev."
+      options:
+        - value: "redis"
+          label: "Redis"
+          description: "⚡ In-memory cache, sessions, pub/sub, queues. Industry standard."
+          use_cases:
+            - "Cache (API responses, queries)"
+            - "Session store"
+            - "Rate limiting"
+            - "Job queues (BullMQ)"
+            - "Pub/Sub messaging"
+            - "Leaderboards"
+          pros:
+            - "Ultra-fast (in-memory)"
+            - "Versatile (cache + queue + pub/sub)"
+            - "Atomic operations"
+            - "Persistence opcional"
+          cons:
+            - "Requiere server adicional"
+            - "Data in-memory (límite RAM)"
+          recommended: true
+          managed_options:
+            - "Redis Cloud"
+            - "AWS ElastiCache"
+            - "Upstash (serverless Redis)"
+
+        - value: "in_memory"
+          label: "In-memory (application-level)"
+          description: "Simple caching dentro del proceso. No compartido entre instancias."
+          pros:
+            - "Zero dependencies"
+            - "Simple setup"
+          cons:
+            - "No compartido (cada instancia su cache)"
+            - "Pierde cache al reiniciar"
+          best_for:
+            - "Development"
+            - "Single instance apps"
+
+        - value: "none"
+          label: "None (add later)"
+          description: "Start simple, add caching when needed."
+          recommended_for: ["mvp", "prototype"]
+
+    # ============================================================
+    # Q8: VECTOR DATABASE (NEW - AI Workloads)
+    # ============================================================
+    - id: "vector_database"
+      text: "Vector database (AI/semantic search)"
+      type: "single"
+      required: false
+      help: "Solo si necesitas AI/LLM features (RAG, semantic search, recommendations)."
+      options:
+        - value: "none"
+          label: "Not needed"
+          description: "Skip if no AI/semantic search features."
+
+        - value: "pgvector"
+          label: "pgvector (PostgreSQL extension)"
+          description: "⭐ Best if already using PostgreSQL. Mature, OpenAI/LangChain compatible."
+          tech_stack:
+            - "PostgreSQL extension"
+            - "Cosine similarity"
+            - "HNSW index"
+          pros:
+            - "Mismo DB (no infraestructura adicional)"
+            - "ACID transactions (vector + relational)"
+            - "Mature y estable"
+            - "Compatible con todos los ORMs"
+          cons:
+            - "Performance < purpose-built (pero suficiente hasta 1M+ vectors)"
+          best_for:
+            - "RAG (Retrieval Augmented Generation)"
+            - "Semantic search"
+            - "Recommendations"
+          recommended_if: ["postgresql", "supabase"]
+
+        - value: "qdrant"
+          label: "Qdrant"
+          description: "Purpose-built vector DB. Rust-based, gRPC, advanced filtering."
+          tech_stack:
+            - "Rust-based"
+            - "gRPC API"
+            - "Advanced filtering"
+            - "Sharding/replication"
+          pros:
+            - "Optimizado para vectores"
+            - "Filtering + vector search combinados"
+            - "Horizontal scaling"
+          cons:
+            - "Infraestructura adicional"
+          best_for:
+            - "Large-scale vector search (10M+ vectors)"
+            - "Advanced filtering requirements"
+
+        - value: "pinecone"
+          label: "Pinecone (managed)"
+          description: "Serverless vector DB. Easiest to start, pay-as-you-go."
+          tech_stack:
+            - "Fully managed"
+            - "Serverless"
+            - "RESTful API"
+          pros:
+            - "Zero ops"
+            - "Scales automáticamente"
+            - "Excellent docs"
+          cons:
+            - "Pricing puede escalar"
+            - "Vendor lock-in"
+          best_for:
+            - "Fast prototyping"
+            - "No ops team"
+
+    # ============================================================
+    # Q9: SEARCH ENGINE (NEW - Optional)
+    # ============================================================
+    - id: "search_engine"
+      text: "Full-text search"
+      type: "single"
+      required: false
+      help: "Solo si necesitas búsqueda avanzada. PostgreSQL/MongoDB tienen búsqueda básica built-in."
+      options:
+        - value: "none"
+          label: "Database search (basic)"
+          description: "Use PostgreSQL full-text search or MongoDB text indexes."
+          recommended_for: ["simple_search", "mvp"]
+
+        - value: "elasticsearch"
+          label: "Elasticsearch"
+          description: "Advanced search, analytics, logging. Industry standard."
+          tech_stack:
+            - "Lucene-based"
+            - "RESTful API"
+            - "Kibana (visualization)"
+          pros:
+            - "Advanced queries (fuzzy, geo, etc)"
+            - "Analytics (aggregations)"
+            - "Horizontal scaling"
+            - "Logging (ELK stack)"
+          cons:
+            - "Heavy (RAM intensive)"
+            - "Complex setup"
+          best_for:
+            - "Large datasets (millions of docs)"
+            - "Complex queries"
+            - "E-commerce search"
+            - "Log analysis"
+
+        - value: "typesense"
+          label: "Typesense"
+          description: "Lighter alternative, easier ops. Good for medium-scale."
+          tech_stack:
+            - "C++ based"
+            - "RESTful API"
+            - "Typo tolerance built-in"
+          pros:
+            - "Más ligero que Elastic"
+            - "Setup simple"
+            - "Typo tolerance out-of-the-box"
+          cons:
+            - "Menos features que Elastic"
+          best_for:
+            - "Medium-scale search"
+            - "Easier ops"
+
+    # ============================================================
+    # Q10: DEPLOYMENT STRATEGY (NEW)
+    # ============================================================
+    - id: "deployment_strategy"
+      text: "Deployment strategy"
+      type: "single"
+      required: true
+      help: "Elige según tu experiencia DevOps, presupuesto y requisitos de latencia."
+      options:
+        - value: "traditional"
+          label: "Traditional (Docker + VMs/K8s)"
+          description: "Full control, predictable costs, self-hosted."
+          tech_stack:
+            - "Docker/Docker Compose"
+            - "Kubernetes (optional)"
+            - "AWS EC2/ECS or DigitalOcean"
+          pros:
+            - "Full control"
+            - "Costos predecibles"
+            - "No vendor lock-in"
+            - "Mejor para workloads constantes"
+          cons:
+            - "Requiere DevOps"
+            - "Scaling manual/semi-automático"
+          best_for:
+            - "Enterprise con DevOps team"
+            - "Workloads predecibles"
+            - "Compliance/data residency"
+
+        - value: "serverless"
+          label: "Serverless-first"
+          description: "Auto-scaling, pay-per-use. Best for variable traffic."
+          tech_stack:
+            - "AWS Lambda / Cloud Run"
+            - "Vercel / Netlify"
+            - "Serverless Framework"
+          pros:
+            - "Auto-scaling (0 a infinito)"
+            - "Pay-per-use (no idle costs)"
+            - "No server management"
+          cons:
+            - "Cold starts"
+            - "Vendor lock-in"
+            - "Debugging más complejo"
+          best_for:
+            - "Variable traffic"
+            - "Low traffic startups"
+            - "Event-driven workloads"
+          recommended_if: ["nextjs", "fastapi"]
+
+        - value: "edge"
+          label: "Edge Computing"
+          description: "Deploy globally, <50ms latency. Best for global users."
+          tech_stack:
+            - "Cloudflare Workers"
+            - "Vercel Edge Functions"
+            - "Deno Deploy"
+          pros:
+            - "< 50ms latency (deployed globally)"
+            - "Auto-scaling"
+            - "DDoS protection built-in"
+          cons:
+            - "Límites de compute time"
+            - "No file system"
+            - "Runtime restrictions"
+          best_for:
+            - "Global audience"
+            - "API routes / middleware"
+            - "Geo-based content"
+          recommended_if: ["nextjs"]
+          use_cases:
+            - "A/B testing"
+            - "Auth middleware"
+            - "Geo-routing"
+            - "i18n"
+
+        - value: "hybrid"
+          label: "Hybrid"
+          description: "Mix strategies: Edge for web, traditional/serverless for backend."
+          example:
+            - "Next.js → Vercel Edge"
+            - "API → AWS ECS/Fargate"
+            - "DB → RDS"
+          pros:
+            - "Optimize por workload"
+            - "Best of both worlds"
+          cons:
+            - "Más complejidad operacional"
+          best_for:
+            - "Large scale apps"
+            - "Different requirements per component"
+
+# ============================================================
+# VALIDATION RULES
+# ============================================================
+validation:
+  rules:
+    # Go + NestJS no tienen sentido juntos
+    - if:
+        backend: ["go_fiber", "nestjs"]
+      then:
+        error: "Choose either Go or NestJS, not both"
+
+    # API-less requiere Supabase o Firebase
+    - if:
+        backend: "none"
+      then:
+        require:
+          primary_database: ["supabase", "firebase"]
+
+    # Microservices recomienda gRPC
+    - if:
+        architecture_pattern: "microservices"
+      then:
+        recommend:
+          api_style: "grpc"
+          backend: "go_fiber"
+
+    # Event-driven requiere message broker (handled in infra phase)
+    - if:
+        architecture_pattern: "event_driven"
+      then:
+        note: "Will require message broker (Kafka, RabbitMQ) in infrastructure phase"
+
+    # pgvector requiere PostgreSQL
+    - if:
+        vector_database: "pgvector"
+      then:
+        require:
+          primary_database: ["postgresql", "supabase"]
+
+# ============================================================
+# RECOMMENDATIONS ENGINE
+# ============================================================
+recommendations:
+  # Startup stack
+  - name: "Modern Startup Stack"
+    when:
+      team_size: "small"
+      timeline: "fast"
+    stack:
+      architecture_pattern: "modular_monolith"
+      backend: "fastapi"
+      web_framework: "nextjs"
+      primary_database: "supabase"
+      caching: "redis"
+      deployment_strategy: "serverless"
+
+  # High-performance microservices
+  - name: "High-Performance Microservices"
+    when:
+      architecture_pattern: "microservices"
+      scale: "large"
+    stack:
+      backend: "go_fiber"
+      api_style: ["rest", "grpc"]
+      primary_database: "postgresql"
+      caching: "redis"
+      deployment_strategy: "traditional"
+
+  # AI-first app
+  - name: "AI-First Application"
+    when:
+      features_includes: "ai"
+    stack:
+      backend: "fastapi"
+      primary_database: "postgresql"
+      vector_database: "pgvector"
+      caching: "redis"

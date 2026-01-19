@@ -1,0 +1,502 @@
+---
+# Phase 8: Observability & Monitoring (NEW)
+# This should NOT be in "extras" - it's critical for production
+# Covers: Logging, Metrics, Tracing, Alerting, Uptime, Error Tracking
+
+phase: 8
+title: "Observability & Monitoring"
+description: "How will you know when things break? (Spoiler: they will)"
+importance: critical
+sections:
+
+  # 1. Error Tracking (most critical)
+  - id: error_tracking
+    type: single_choice
+    question: "Error tracking & crash reporting?"
+    required: true
+    recommended: sentry
+    options:
+      - value: sentry
+        label: "Sentry"
+        description: "Industry standard. Captures errors, stack traces, user context"
+        tier: all
+        pricing: "Free up to 5k errors/month, then $26/month"
+        pros:
+          - "Best error grouping (ML-powered)"
+          - "Source map support"
+          - "Performance monitoring included"
+          - "Release tracking"
+        cons:
+          - "Can get expensive at scale"
+        integrations:
+          - nextjs: "@sentry/nextjs"
+          - fastapi: "sentry-sdk[fastapi]"
+          - react: "@sentry/react"
+        generates:
+          - sentry.client.config.ts
+          - sentry.server.config.ts
+          - sentry.edge.config.ts
+
+      - value: rollbar
+        label: "Rollbar"
+        description: "Alternative to Sentry. Simpler, sometimes cheaper"
+        tier: all
+        pricing: "Free up to 5k events/month"
+
+      - value: bugsnag
+        label: "Bugsnag"
+        description: "Error monitoring + stability score"
+        tier: all
+
+      - value: cloudwatch_logs
+        label: "CloudWatch (AWS only)"
+        description: "Built-in to AWS. Good if all-in on AWS"
+        tier: all
+        pros:
+          - "No extra service"
+          - "Integrated with Lambda/ECS"
+        cons:
+          - "Less user-friendly UI"
+          - "No smart grouping"
+
+      - value: none
+        label: "None (logs only)"
+        warning: "You'll debug via logs. Not recommended for production"
+
+  # 2. Application Performance Monitoring (APM)
+  - id: apm
+    type: single_choice
+    question: "Application Performance Monitoring (APM)?"
+    description: "Track slow queries, API response times, bottlenecks"
+    recommended: sentry_performance  # if Sentry chosen
+    options:
+      - value: sentry_performance
+        label: "Sentry Performance"
+        description: "Built into Sentry. Traces slow transactions"
+        show_if:
+          - error_tracking == sentry
+        pricing: "Included in Sentry plan"
+        pros:
+          - "Single platform for errors + performance"
+          - "Automatic instrumentation"
+
+      - value: datadog_apm
+        label: "DataDog APM"
+        description: "Enterprise-grade. Full observability platform"
+        tier: enterprise
+        pricing: "Starts $31/host/month"
+        pros:
+          - "Best-in-class APM"
+          - "ML-powered anomaly detection"
+          - "Unified metrics + logs + traces"
+        cons:
+          - "Expensive"
+          - "Overkill for small teams"
+
+      - value: new_relic
+        label: "New Relic"
+        description: "Veteran APM. Great for traditional apps"
+        tier: scale_up
+        pricing: "Free up to 100GB/month"
+
+      - value: elastic_apm
+        label: "Elastic APM"
+        description: "Open-source. Part of ELK stack"
+        tier: scale_up
+        pros:
+          - "Free (self-hosted)"
+          - "Integrates with Elasticsearch"
+        cons:
+          - "Complex setup"
+
+      - value: aws_xray
+        label: "AWS X-Ray"
+        description: "Distributed tracing for AWS services"
+        show_if:
+          - cloud_platform: aws_*
+        pros:
+          - "Deep AWS integration"
+        cons:
+          - "AWS-only"
+
+      - value: none
+        label: "None"
+        description: "Skip APM. Add later if needed"
+
+  # 3. Logging Strategy
+  - id: logging_stack
+    type: single_choice
+    question: "Centralized logging?"
+    description: "Where do you aggregate logs from all services?"
+    recommended: cloud_native  # CloudWatch, Cloud Logging, etc.
+    options:
+      - value: cloud_native
+        label: "Cloud Provider Logs"
+        description: "CloudWatch (AWS), Cloud Logging (GCP), Azure Monitor"
+        pros:
+          - "Zero setup"
+          - "Integrated with platform"
+          - "Generous free tier"
+        cons:
+          - "Vendor lock-in"
+          - "Limited search (vs ELK)"
+        generates:
+          - lib/logger.ts  # Structured logging config
+
+      - value: elk_stack
+        label: "ELK Stack (Elasticsearch, Logstash, Kibana)"
+        description: "Self-hosted. Industry standard for log search"
+        tier: enterprise
+        pros:
+          - "Powerful search"
+          - "Custom dashboards"
+        cons:
+          - "Heavy infrastructure (3+ services)"
+          - "Expensive to run (memory-hungry)"
+        generates:
+          - docker-compose.logging.yml
+          - logstash/pipeline/
+
+      - value: loki
+        label: "Grafana Loki"
+        description: "Lightweight alternative to ELK. Prometheus-style"
+        tier: scale_up
+        pros:
+          - "Cost-effective (indexes metadata only)"
+          - "Integrates with Grafana"
+        cons:
+          - "Less powerful search than ELK"
+        generates:
+          - loki-config.yaml
+          - promtail-config.yaml
+
+      - value: better_stack
+        label: "Better Stack (Logtail)"
+        description: "Hosted logging. Simple SaaS"
+        tier: mvp
+        pricing: "Free up to 1GB/month, then $0.50/GB"
+        pros:
+          - "Zero setup"
+          - "Modern UI"
+        cons:
+          - "Expensive at scale"
+
+      - value: papertrail
+        label: "Papertrail"
+        description: "Simple log aggregation. Good for small teams"
+        tier: mvp
+
+  # 4. Metrics (Time-series)
+  - id: metrics
+    type: single_choice
+    question: "Metrics & dashboards?"
+    description: "Track CPU, memory, request rate, custom business metrics"
+    recommended: prometheus_grafana  # if self-hosted
+    options:
+      - value: prometheus_grafana
+        label: "Prometheus + Grafana"
+        description: "Open-source standard. Self-hosted or managed (Grafana Cloud)"
+        tier: all
+        pros:
+          - "Industry standard"
+          - "Powerful query language (PromQL)"
+          - "Huge ecosystem (exporters for everything)"
+        cons:
+          - "Setup complexity"
+          - "No built-in alerting (need Alertmanager)"
+        generates:
+          - prometheus.yml
+          - grafana/dashboards/
+          - docker-compose.metrics.yml
+
+      - value: datadog
+        label: "DataDog"
+        description: "All-in-one observability (metrics + logs + APM)"
+        tier: enterprise
+        pricing: "Starts $15/host/month"
+        pros:
+          - "Unified platform"
+          - "ML-powered insights"
+        cons:
+          - "Expensive"
+
+      - value: cloudwatch
+        label: "AWS CloudWatch"
+        description: "Built-in AWS metrics + custom metrics"
+        show_if:
+          - cloud_platform: aws_*
+        pros:
+          - "Zero setup for AWS resources"
+        cons:
+          - "Limited compared to Prometheus"
+
+      - value: cloud_monitoring
+        label: "GCP Cloud Monitoring"
+        description: "Built-in GCP metrics"
+        show_if:
+          - cloud_platform: gcp_*
+
+      - value: azure_monitor
+        label: "Azure Monitor"
+        description: "Built-in Azure metrics + Application Insights"
+        show_if:
+          - cloud_platform: azure_*
+
+      - value: none
+        label: "None"
+        description: "Skip custom metrics. Use only built-in platform metrics"
+
+  # 5. Distributed Tracing
+  - id: tracing
+    type: single_choice
+    question: "Distributed tracing?"
+    description: "Follow a request across multiple services (microservices/serverless)"
+    recommended: none  # Unless microservices
+    show_if:
+      - architecture: microservices OR
+      - cloud_platform: kubernetes_* OR
+      - backend: serverless
+    options:
+      - value: none
+        label: "None"
+        description: "Skip tracing. Add later if needed"
+
+      - value: jaeger
+        label: "Jaeger"
+        description: "CNCF project. OpenTelemetry-native"
+        pros:
+          - "Open-source"
+          - "Kubernetes-native"
+        cons:
+          - "Self-hosted complexity"
+        generates:
+          - jaeger-operator.yaml
+
+      - value: tempo
+        label: "Grafana Tempo"
+        description: "Grafana's tracing backend. Cost-efficient"
+        pros:
+          - "Integrates with Grafana + Loki"
+          - "S3-backed (cheap storage)"
+        generates:
+          - tempo-config.yaml
+
+      - value: aws_xray
+        label: "AWS X-Ray"
+        description: "Managed tracing for AWS"
+        show_if:
+          - cloud_platform: aws_*
+
+      - value: datadog_apm
+        label: "DataDog APM"
+        description: "Includes distributed tracing"
+        show_if:
+          - apm: datadog_apm
+
+  # 6. Uptime Monitoring
+  - id: uptime_monitoring
+    type: single_choice
+    question: "Uptime monitoring (external ping)?"
+    description: "Monitor your site from outside. Get alerted if down"
+    recommended: uptimerobot
+    required: true
+    options:
+      - value: uptimerobot
+        label: "UptimeRobot"
+        description: "Free for 50 monitors. Ping every 5 minutes"
+        tier: all
+        pricing: "Free (50 monitors, 5min interval)"
+        pros:
+          - "Simple setup"
+          - "SMS/Slack/PagerDuty alerts"
+        cons:
+          - "Limited to HTTP/HTTPS checks"
+        generates:
+          - docs/uptimerobot-setup.md
+
+      - value: pingdom
+        label: "Pingdom"
+        description: "Enterprise uptime monitoring. More locations"
+        tier: enterprise
+        pricing: "Starts $15/month"
+
+      - value: betteruptime
+        label: "Better Uptime"
+        description: "Modern alternative. Beautiful status pages"
+        tier: all
+        pricing: "Free up to 10 monitors"
+        pros:
+          - "Great status pages"
+          - "Incident management"
+        generates:
+          - docs/betteruptime-setup.md
+
+      - value: healthchecks_io
+        label: "Healthchecks.io"
+        description: "For cron jobs & background tasks. They ping you"
+        tier: all
+        pricing: "Free up to 20 checks"
+        use_case: "Best for monitoring cron jobs (reverse ping)"
+
+      - value: cloud_native
+        label: "Cloud Provider (CloudWatch Alarms, etc)"
+        description: "Use built-in uptime checks"
+        pros:
+          - "No extra service"
+        cons:
+          - "Internal monitoring (not external)"
+
+  # 7. Alerting & On-Call
+  - id: alerting
+    type: single_choice
+    question: "How will you get alerted when things break?"
+    required: true
+    recommended: pagerduty  # if enterprise
+    options:
+      - value: email_slack
+        label: "Email + Slack"
+        description: "Simple. Free. Good for small teams"
+        tier: mvp
+        pros:
+          - "Zero cost"
+          - "Easy setup"
+        cons:
+          - "No alert routing"
+          - "No on-call schedule"
+
+      - value: pagerduty
+        label: "PagerDuty"
+        description: "Enterprise incident management. On-call rotation"
+        tier: enterprise
+        pricing: "Starts $21/user/month"
+        pros:
+          - "Sophisticated routing"
+          - "Escalation policies"
+          - "On-call schedules"
+        cons:
+          - "Expensive for small teams"
+
+      - value: opsgenie
+        label: "Opsgenie"
+        description: "Atlassian's incident management. Similar to PagerDuty"
+        tier: scale_up
+        pricing: "Starts $9/user/month"
+
+      - value: oncall
+        label: "Grafana OnCall"
+        description: "Open-source alternative to PagerDuty"
+        tier: scale_up
+        pros:
+          - "Free self-hosted"
+          - "Integrates with Grafana"
+
+  # 8. Status Page
+  - id: status_page
+    type: boolean
+    question: "Public status page?"
+    description: "Show system status to users (e.g., status.yourapp.com)"
+    recommended: true  # if B2B
+    options:
+      - value: statuspage_io
+        label: "Statuspage.io (Atlassian)"
+        pricing: "Starts $29/month"
+        generates:
+          - docs/statuspage-setup.md
+
+      - value: better_uptime_page
+        label: "Better Uptime Status Page"
+        pricing: "Included with Better Uptime"
+        show_if:
+          - uptime_monitoring: betteruptime
+
+      - value: selfhosted
+        label: "Self-hosted (Upptime, Cachet)"
+        pros:
+          - "Free"
+        cons:
+          - "Maintenance burden"
+        generates:
+          - statuspage/
+
+      - value: none
+        label: "None"
+
+  # 9. SLO/SLI Definition
+  - id: slo_tracking
+    type: boolean
+    question: "Track SLOs (Service Level Objectives)?"
+    description: "Define uptime goals (e.g., 99.9% = 43min downtime/month)"
+    recommended: false  # Unless enterprise
+    show_if:
+      - tier: enterprise
+    generates:
+      - docs/slo-definitions.md
+      - scripts/slo-calculator.ts
+
+  # 10. Real User Monitoring (RUM)
+  - id: rum
+    type: single_choice
+    question: "Real User Monitoring (frontend performance)?"
+    description: "Track actual user page load times, Core Web Vitals"
+    recommended: vercel_analytics  # if on Vercel
+    options:
+      - value: vercel_analytics
+        label: "Vercel Analytics"
+        description: "Built-in to Vercel. Real user metrics"
+        show_if:
+          - cloud_platform: vercel_supabase
+        pricing: "Free basic, $10/month pro"
+
+      - value: google_analytics_4
+        label: "Google Analytics 4"
+        description: "Free. Includes some performance metrics"
+        tier: all
+        cons:
+          - "More for marketing than DevOps"
+
+      - value: sentry_performance
+        label: "Sentry Performance"
+        description: "Tracks frontend performance + errors"
+        show_if:
+          - error_tracking: sentry
+
+      - value: datadog_rum
+        label: "DataDog RUM"
+        description: "Enterprise real user monitoring"
+        show_if:
+          - apm: datadog_apm
+
+      - value: none
+        label: "None"
+
+recommendations:
+  mvp:
+    error_tracking: sentry
+    apm: sentry_performance
+    logging_stack: cloud_native
+    metrics: cloud_native  # CloudWatch, etc.
+    uptime_monitoring: uptimerobot
+    alerting: email_slack
+
+  scale_up:
+    error_tracking: sentry
+    apm: sentry_performance
+    logging_stack: loki
+    metrics: prometheus_grafana
+    uptime_monitoring: betteruptime
+    alerting: opsgenie
+
+  enterprise:
+    error_tracking: sentry
+    apm: datadog_apm
+    logging_stack: elk_stack
+    metrics: datadog
+    tracing: datadog_apm
+    uptime_monitoring: pingdom
+    alerting: pagerduty
+    status_page: statuspage_io
+    slo_tracking: true
+
+metadata:
+  estimated_time: "10-15 minutes"
+  why_separate_phase: "Observability is NOT optional for production. Deserves dedicated focus."
