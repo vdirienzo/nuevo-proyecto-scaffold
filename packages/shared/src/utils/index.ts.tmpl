@@ -1,0 +1,74 @@
+// utils/index.ts - Shared Utility Functions
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+/**
+ * Sleep for a specified duration.
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Check if a value is defined (not null or undefined).
+ */
+export function isDefined<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
+/**
+ * Generate a random string ID.
+ */
+export function generateId(length: number = 8): string {
+  return Math.random()
+    .toString(36)
+    .substring(2, 2 + length);
+}
+
+/**
+ * Format a date to ISO string without time.
+ */
+export function formatDateISO(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
+/**
+ * Safely parse JSON with fallback.
+ */
+export function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Omit keys from an object.
+ */
+export function omit<T extends object, K extends keyof T>(
+  obj: T,
+  keys: K[]
+): Omit<T, K> {
+  const result = { ...obj };
+  for (const key of keys) {
+    delete result[key];
+  }
+  return result;
+}
+
+/**
+ * Pick keys from an object.
+ */
+export function pick<T extends object, K extends keyof T>(
+  obj: T,
+  keys: K[]
+): Pick<T, K> {
+  const result = {} as Pick<T, K>;
+  for (const key of keys) {
+    if (key in obj) {
+      result[key] = obj[key];
+    }
+  }
+  return result;
+}

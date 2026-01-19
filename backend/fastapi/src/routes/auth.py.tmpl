@@ -1,0 +1,167 @@
+# routes/auth.py - Authentication Endpoints
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Authentication endpoints for login, registration, and token management.
+"""
+
+from datetime import timedelta
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, status
+from fastapi.security import OAuth2PasswordRequestForm
+from pydantic import BaseModel, EmailStr
+
+from ..config import settings
+from ..database import SessionDep
+from ..exceptions import AuthenticationError, ConflictError
+from ..models import UserCreate, UserResponse
+from ..services.auth import AuthService
+from ..services.user import UserService
+from ..auth.jwt import create_access_token, create_refresh_token
+
+
+router = APIRouter()
+
+
+class TokenResponse(BaseModel):
+    """Token response schema."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class RefreshTokenRequest(BaseModel):
+    """Refresh token request schema."""
+
+    refresh_token: str
+
+
+class RegisterRequest(BaseModel):
+    """User registration request."""
+
+    email: EmailStr
+    username: str
+    password: str
+    full_name: str | None = None
+
+
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register new user",
+)
+async def register(
+    data: RegisterRequest,
+    session: SessionDep,
+) -> UserResponse:
+    """
+    Register a new user account.
+
+    - **email**: Valid email address (must be unique)
+    - **username**: Alphanumeric username (3-50 chars, must be unique)
+    - **password**: Strong password (min 8 chars with upper, lower, digit, special)
+    - **full_name**: Optional display name
+    """
+    user_service = UserService(session)
+    auth_service = AuthService(session)
+
+    # Check for existing user
+    if await user_service.get_by_email(data.email):
+        raise ConflictError("User with this email already exists", field="email")
+
+    if await user_service.get_by_username(data.username):
+        raise ConflictError("User with this username already exists", field="username")
+
+    # Create user with hashed password
+    user_data = UserCreate(
+        email=data.email,
+        username=data.username,
+        password=data.password,
+        full_name=data.full_name,
+    )
+    user = await auth_service.register_user(user_data)
+
+    return UserResponse.model_validate(user)
+
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    summary="Login with credentials",
+)
+async def login(
+    session: SessionDep,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+) -> TokenResponse:
+    """
+    Authenticate user and return JWT tokens.
+
+    - **username**: Email or username
+    - **password**: User password
+    """
+    auth_service = AuthService(session)
+
+    user = await auth_service.authenticate(form_data.username, form_data.password)
+    if not user:
+        raise AuthenticationError("Invalid email/username or password")
+
+    if not user.is_active:
+        raise AuthenticationError("Account is disabled")
+
+    # Create tokens
+    access_token = create_access_token(
+        user_id=user.id,  # type: ignore
+        expires_delta=timedelta(minutes=settings.jwt_access_token_expire_minutes),
+    )
+    refresh_token = create_refresh_token(
+        user_id=user.id,  # type: ignore
+        expires_delta=timedelta(days=settings.jwt_refresh_token_expire_days),
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.jwt_access_token_expire_minutes * 60,
+    )
+
+
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    summary="Refresh access token",
+)
+async def refresh_token(
+    data: RefreshTokenRequest,
+    session: SessionDep,
+) -> TokenResponse:
+    """
+    Get new access token using refresh token.
+
+    - **refresh_token**: Valid refresh token from login
+    """
+    auth_service = AuthService(session)
+
+    user = await auth_service.verify_refresh_token(data.refresh_token)
+    if not user:
+        raise AuthenticationError("Invalid or expired refresh token")
+
+    # Create new tokens
+    access_token = create_access_token(
+        user_id=user.id,  # type: ignore
+        expires_delta=timedelta(minutes=settings.jwt_access_token_expire_minutes),
+    )
+    refresh_token = create_refresh_token(
+        user_id=user.id,  # type: ignore
+        expires_delta=timedelta(days=settings.jwt_refresh_token_expire_days),
+    )
+
+    return TokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=settings.jwt_access_token_expire_minutes * 60,
+    )

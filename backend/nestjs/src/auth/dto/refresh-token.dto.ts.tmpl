@@ -1,0 +1,12 @@
+// auth/dto/refresh-token.dto.ts - Refresh Token DTO
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString } from 'class-validator';
+
+export class RefreshTokenDto {
+  @ApiProperty({ description: 'Refresh token obtained from login' })
+  @IsString()
+  refreshToken: string;
+}

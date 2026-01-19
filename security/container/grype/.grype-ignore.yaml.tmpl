@@ -1,0 +1,16 @@
+# .grype-ignore.yaml - Ignored Vulnerabilities
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+# Review these periodically!
+
+ignore:
+  # Example: Disputed CVE
+  # - vulnerability: CVE-2023-12345
+  #   reason: "Disputed - vendor confirmed not vulnerable"
+  #   expires: "2026-06-01"
+
+  # Development dependencies only
+  - package:
+      type: npm
+      location: "**/node_modules/@types/**"
+    reason: "Type definitions only - not in production"

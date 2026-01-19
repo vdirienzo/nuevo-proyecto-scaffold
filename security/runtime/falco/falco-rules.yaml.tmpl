@@ -1,0 +1,97 @@
+# falco-rules.yaml - Falco Runtime Security Rules
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+- rule: Detect Crypto Mining
+  desc: Detect crypto mining processes
+  condition: >
+    spawned_process and
+    (proc.name in (crypto_miners) or
+     proc.cmdline contains "stratum+" or
+     proc.cmdline contains "coin" or
+     proc.cmdline contains "xmr")
+  output: >
+    Crypto mining detected (user=%user.name command=%proc.cmdline
+    container=%container.name image=%container.image.repository)
+  priority: CRITICAL
+  tags: [cryptomining, mitre_resource_hijacking]
+
+- rule: Detect Shell in Container
+  desc: Detect shell spawned in container
+  condition: >
+    spawned_process and
+    container and
+    proc.name in (shell_binaries) and
+    not proc.pname in (allowed_shell_parents)
+  output: >
+    Shell spawned in container (user=%user.name shell=%proc.name
+    parent=%proc.pname container=%container.name
+    image=%container.image.repository)
+  priority: WARNING
+  tags: [container, shell, mitre_execution]
+
+- rule: Sensitive File Access
+  desc: Detect access to sensitive files
+  condition: >
+    open_read and
+    (fd.name startswith /etc/shadow or
+     fd.name startswith /etc/passwd or
+     fd.name startswith /root/.ssh or
+     fd.name contains aws/credentials)
+  output: >
+    Sensitive file accessed (user=%user.name file=%fd.name
+    command=%proc.cmdline container=%container.name)
+  priority: WARNING
+  tags: [filesystem, mitre_credential_access]
+
+- rule: Unauthorized Process
+  desc: Detect unauthorized process in production
+  condition: >
+    spawned_process and
+    container and
+    container.image.repository = "{{PROJECT_NAME}}" and
+    not proc.name in ({{PROJECT_NAME}}_allowed_processes)
+  output: >
+    Unauthorized process in {{PROJECT_NAME}} (proc=%proc.name
+    cmdline=%proc.cmdline container=%container.name)
+  priority: ERROR
+  tags: [process, mitre_execution]
+
+- rule: Database Credential Dump
+  desc: Detect database credential access attempts
+  condition: >
+    (spawned_process and proc.cmdline contains "pg_dump") or
+    (spawned_process and proc.cmdline contains "mysqldump") or
+    (open_read and fd.name contains ".pgpass")
+  output: >
+    Database credential dump attempt (user=%user.name
+    command=%proc.cmdline container=%container.name)
+  priority: CRITICAL
+  tags: [database, mitre_credential_access]
+
+- rule: Network Tool in Container
+  desc: Detect network scanning tools
+  condition: >
+    spawned_process and
+    container and
+    proc.name in (network_tools)
+  output: >
+    Network tool used in container (tool=%proc.name
+    cmdline=%proc.cmdline container=%container.name)
+  priority: WARNING
+  tags: [network, mitre_discovery]
+
+- list: crypto_miners
+  items: [minerd, xmrig, cpuminer, cgminer, bfgminer]
+
+- list: shell_binaries
+  items: [bash, sh, zsh, ksh, csh, fish]
+
+- list: allowed_shell_parents
+  items: [crond, supervisord, entrypoint.sh, docker-entrypoint]
+
+- list: network_tools
+  items: [nmap, nc, netcat, ncat, tcpdump, wireshark, tshark]
+
+- list: {{PROJECT_NAME}}_allowed_processes
+  items: [python, python3, uvicorn, gunicorn, node, npm, pnpm]

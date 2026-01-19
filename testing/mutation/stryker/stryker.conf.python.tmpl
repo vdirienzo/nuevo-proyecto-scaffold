@@ -1,0 +1,10 @@
+# stryker.conf.ini - Mutmut Configuration for Python
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+[mutmut]
+paths_to_mutate=src/
+backup=False
+runner=python -m pytest -x --tb=short
+tests_dir=tests/
+dict_synonyms=Struct,NamedStruct

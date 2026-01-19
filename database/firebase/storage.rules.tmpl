@@ -1,0 +1,205 @@
+// storage.rules - Cloud Storage Security Rules
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    /**
+     * Check if user is authenticated
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /**
+     * Check if user is the owner
+     */
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /**
+     * Check if file size is within limit (in MB)
+     */
+    function isValidSize(maxSizeMB) {
+      return request.resource.size < maxSizeMB * 1024 * 1024;
+    }
+
+    /**
+     * Check if file is an image
+     */
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    /**
+     * Check if file is a PDF
+     */
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf';
+    }
+
+    /**
+     * Check if file is a document (PDF, Word, Excel)
+     */
+    function isDocument() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
+             request.resource.contentType.matches('application/vnd.ms-excel') ||
+             request.resource.contentType.matches('text/plain');
+    }
+
+    /**
+     * Check if content type is allowed for general files
+     */
+    function isAllowedContentType() {
+      return isImage() || isDocument() ||
+             request.resource.contentType.matches('video/.*') ||
+             request.resource.contentType.matches('audio/.*');
+    }
+
+    // ============================================================
+    // DEFAULT DENY ALL
+    // ============================================================
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // USER AVATARS
+    // ============================================================
+
+    match /avatars/{userId}/{fileName} {
+      // Anyone can read avatars
+      allow read: if true;
+
+      // Only owner can upload their avatar
+      allow create: if isOwner(userId) &&
+                       isImage() &&
+                       isValidSize(5);  // 5MB max for images
+
+      // Only owner can update their avatar
+      allow update: if isOwner(userId) &&
+                       isImage() &&
+                       isValidSize(5);
+
+      // Only owner can delete their avatar
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================================
+    // USER PROFILE IMAGES
+    // ============================================================
+
+    match /profiles/{userId}/images/{fileName} {
+      // Anyone can read profile images
+      allow read: if true;
+
+      // Only owner can upload profile images
+      allow create: if isOwner(userId) &&
+                       isImage() &&
+                       isValidSize(5);  // 5MB max
+
+      // Only owner can update profile images
+      allow update: if isOwner(userId) &&
+                       isImage() &&
+                       isValidSize(5);
+
+      // Only owner can delete profile images
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================================
+    // PRIVATE USER DOCUMENTS
+    // ============================================================
+
+    match /documents/{userId}/{fileName} {
+      // Only owner can read their documents
+      allow read: if isOwner(userId);
+
+      // Only owner can upload documents
+      allow create: if isOwner(userId) &&
+                       isDocument() &&
+                       isValidSize(50);  // 50MB max for documents
+
+      // Only owner can update documents
+      allow update: if isOwner(userId) &&
+                       isDocument() &&
+                       isValidSize(50);
+
+      // Only owner can delete documents
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================================
+    // POST ATTACHMENTS (PUBLIC)
+    // ============================================================
+
+    match /posts/{postId}/attachments/{fileName} {
+      // Anyone can read post attachments
+      allow read: if true;
+
+      // Only authenticated users can upload attachments
+      allow create: if isAuthenticated() &&
+                       isAllowedContentType() &&
+                       isValidSize(20);  // 20MB max
+
+      // Only the uploader can delete (requires custom metadata)
+      // Note: You'll need to set metadata.uploadedBy = request.auth.uid on upload
+      allow delete: if isAuthenticated() &&
+                       resource.metadata.uploadedBy == request.auth.uid;
+    }
+
+    // ============================================================
+    // TEMPORARY UPLOADS
+    // ============================================================
+
+    match /temp/{userId}/{fileName} {
+      // Only owner can read temp files
+      allow read: if isOwner(userId);
+
+      // Only owner can upload temp files
+      allow create: if isOwner(userId) &&
+                       isAllowedContentType() &&
+                       isValidSize(100);  // 100MB max for temp
+
+      // Only owner can delete temp files
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================================
+    // PUBLIC ASSETS (READ-ONLY)
+    // ============================================================
+
+    match /public/{allPaths=**} {
+      // Anyone can read public assets
+      allow read: if true;
+
+      // No writes allowed (managed by admin/backend)
+      allow write: if false;
+    }
+
+    // ============================================================
+    // ADMIN UPLOADS
+    // ============================================================
+
+    match /admin/{allPaths=**} {
+      // Anyone can read admin uploads
+      allow read: if true;
+
+      // Only admins can write (requires custom claim)
+      // Note: Set custom claim 'admin: true' in Firebase Auth
+      allow write: if isAuthenticated() &&
+                      request.auth.token.admin == true;
+    }
+  }
+}

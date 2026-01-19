@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "nuevo-proyecto",
+  "version": "3.0.0",
+  "description": "Enterprise fullstack scaffold - Netflix-scale ready",
+  "author": "Homero Thompson del Lago del Terror",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
+  "features": {
+    "scales": ["mvp", "scale-up", "enterprise", "netflix"],
+    "backends": ["fastapi", "nestjs", "none"],
+    "frontends": ["nextjs"],
+    "databases": ["supabase", "postgresql", "firebase"],
+    "testing": {
+      "essential": ["unit", "integration"],
+      "professional": ["unit", "integration", "e2e", "contract"],
+      "enterprise": ["unit", "integration", "e2e", "contract", "load", "visual"],
+      "netflix": ["unit", "integration", "e2e", "contract", "load", "visual", "chaos", "mutation", "accessibility"]
+    },
+    "security": {
+      "standard": ["sast", "secrets"],
+      "enhanced": ["sast", "secrets", "sca", "container"],
+      "compliance": ["sast", "secrets", "sca", "container", "dast", "sbom"],
+      "zero-trust": ["sast", "secrets", "sca", "container", "dast", "sbom", "runtime", "network-policies"]
+    }
+  },
+  "templateCount": 148,
+  "templateBreakdown": {
+    "backend_fastapi": 27,
+    "backend_nestjs": 32,
+    "frontend_nextjs": 13,
+    "database_supabase": 12,
+    "database_firebase": 13,
+    "infrastructure_docker": 4,
+    "testing_basic": 4,
+    "testing_advanced": 23,
+    "security": 16,
+    "ci_cd": 10,
+    "packages": 5,
+    "core": 3
+  },
+  "completionStatus": {
+    "fastapi": "complete",
+    "nestjs": "complete",
+    "nextjs": "complete",
+    "supabase": "complete",
+    "firebase": "complete",
+    "docker": "complete",
+    "testing": "complete",
+    "security": "complete",
+    "ci_cd": "complete"
+  },
+  "lastUpdated": "2026-01-19",
+  "wizardVersion": "3.0.0",
+  "wizardPhases": 10,
+  "wizardQuestions": 28
+}

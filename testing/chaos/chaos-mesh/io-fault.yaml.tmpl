@@ -1,0 +1,42 @@
+# io-fault.yaml - IO Fault Chaos
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: {{PROJECT_NAME}}-io-delay
+  namespace: {{NAMESPACE}}
+spec:
+  action: latency
+  mode: one
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+  volumePath: /data
+  path: "*"
+  delay: "100ms"
+  percent: 50
+  duration: "2m"
+---
+# IO Fault - Simulate disk errors
+apiVersion: chaos-mesh.org/v1alpha1
+kind: IOChaos
+metadata:
+  name: {{PROJECT_NAME}}-io-fault
+  namespace: {{NAMESPACE}}
+spec:
+  action: fault
+  mode: one
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+  volumePath: /data
+  path: "*.log"
+  errno: 5
+  percent: 10
+  duration: "1m"

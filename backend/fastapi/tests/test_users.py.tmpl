@@ -1,0 +1,224 @@
+# tests/test_users.py - User Endpoint Tests
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Tests for user management endpoints.
+"""
+
+import pytest
+from httpx import AsyncClient
+
+from src.{{PROJECT_NAME_SNAKE}}.models import User
+
+
+class TestGetCurrentUser:
+    """Tests for get current user endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_me_authenticated(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test getting current user profile when authenticated."""
+        # Act
+        response = await client.get("/users/me", headers=auth_headers)
+
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == test_user.id
+        assert data["email"] == test_user.email
+        assert data["username"] == test_user.username
+
+    @pytest.mark.asyncio
+    async def test_get_me_unauthenticated(self, client: AsyncClient):
+        """Test that unauthenticated request fails."""
+        # Act
+        response = await client.get("/users/me")
+
+        # Assert
+        assert response.status_code == 401
+
+
+class TestUpdateUser:
+    """Tests for update user endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_update_current_user_success(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test updating current user profile."""
+        # Arrange
+        update_data = {"full_name": "Updated Name"}
+
+        # Act
+        response = await client.patch(
+            "/users/me",
+            json=update_data,
+            headers=auth_headers,
+        )
+
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        assert data["full_name"] == "Updated Name"
+
+    @pytest.mark.asyncio
+    async def test_update_partial_fields(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test that only provided fields are updated."""
+        # Arrange
+        original_email = test_user.email
+        update_data = {"full_name": "New Name"}
+
+        # Act
+        response = await client.patch(
+            "/users/me",
+            json=update_data,
+            headers=auth_headers,
+        )
+
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        assert data["email"] == original_email  # Unchanged
+        assert data["full_name"] == "New Name"  # Changed
+
+
+class TestListUsers:
+    """Tests for list users endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_list_users_authenticated(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test listing users when authenticated."""
+        # Act
+        response = await client.get("/users/", headers=auth_headers)
+
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+
+    @pytest.mark.asyncio
+    async def test_list_users_with_pagination(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test pagination parameters."""
+        # Act
+        response = await client.get(
+            "/users/?skip=0&limit=10",
+            headers=auth_headers,
+        )
+
+        # Assert
+        assert response.status_code == 200
+
+
+class TestGetUser:
+    """Tests for get user by ID endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_get_user_by_id(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test getting user by ID."""
+        # Act
+        response = await client.get(
+            f"/users/{test_user.id}",
+            headers=auth_headers,
+        )
+
+        # Assert
+        assert response.status_code == 200
+        data = response.json()
+        assert data["id"] == test_user.id
+
+    @pytest.mark.asyncio
+    async def test_get_nonexistent_user_fails(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+    ):
+        """Test that getting non-existent user returns 404."""
+        # Act
+        response = await client.get("/users/99999", headers=auth_headers)
+
+        # Assert
+        assert response.status_code == 404
+
+
+class TestDeleteUser:
+    """Tests for delete user endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_delete_own_account(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test that user can delete their own account."""
+        # Act
+        response = await client.delete(
+            f"/users/{test_user.id}",
+            headers=auth_headers,
+        )
+
+        # Assert
+        assert response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_delete_other_user_fails(
+        self,
+        client: AsyncClient,
+        superuser: User,
+        auth_headers: dict[str, str],
+    ):
+        """Test that regular user cannot delete other users."""
+        # Act
+        response = await client.delete(
+            f"/users/{superuser.id}",
+            headers=auth_headers,
+        )
+
+        # Assert
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_superuser_can_delete_others(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        superuser_headers: dict[str, str],
+    ):
+        """Test that superuser can delete other users."""
+        # Act
+        response = await client.delete(
+            f"/users/{test_user.id}",
+            headers=superuser_headers,
+        )
+
+        # Assert
+        assert response.status_code == 204

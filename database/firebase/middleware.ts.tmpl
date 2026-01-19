@@ -1,0 +1,305 @@
+// middleware.ts - Next.js Middleware for Firebase Auth
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { NextRequest, NextResponse } from 'next/server';
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+
+/**
+ * Routes that require authentication
+ */
+const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/profile',
+  '/settings',
+  '/posts/new',
+  '/posts/edit',
+];
+
+/**
+ * Routes that should redirect to dashboard if authenticated
+ */
+const AUTH_ROUTES = ['/login', '/register', '/forgot-password'];
+
+/**
+ * Admin-only routes
+ */
+const ADMIN_ROUTES = ['/admin'];
+
+/**
+ * Public routes (always accessible)
+ */
+const PUBLIC_ROUTES = ['/', '/about', '/contact', '/posts'];
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+/**
+ * Check if path matches any route pattern
+ */
+function matchesRoute(path: string, routes: string[]): boolean {
+  return routes.some((route) => {
+    // Exact match
+    if (path === route) return true;
+
+    // Wildcard match (e.g., /dashboard/* matches /dashboard/anything)
+    if (route.endsWith('/*')) {
+      const baseRoute = route.slice(0, -2);
+      return path.startsWith(baseRoute);
+    }
+
+    // Prefix match
+    return path.startsWith(route);
+  });
+}
+
+/**
+ * Get session token from cookies
+ */
+function getSessionToken(request: NextRequest): string | null {
+  return request.cookies.get('session')?.value || null;
+}
+
+/**
+ * Verify Firebase session token
+ * Note: This requires Firebase Admin SDK on the server
+ */
+async function verifySessionToken(token: string): Promise<{
+  uid: string;
+  email: string;
+  role?: string;
+} | null> {
+  try {
+    // In production, you would verify the token with Firebase Admin SDK
+    // For now, this is a placeholder that makes an API call
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token }),
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return data.user;
+  } catch (error) {
+    console.error('Error verifying session token:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if user has admin role
+ */
+function isAdmin(user: { role?: string }): boolean {
+  return user.role === 'admin';
+}
+
+// ============================================================
+// MIDDLEWARE
+// ============================================================
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip middleware for API routes, static files, and _next
+  if (
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/static/') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
+
+  // Get session token
+  const sessionToken = getSessionToken(request);
+
+  // Verify token if present
+  let user: { uid: string; email: string; role?: string } | null = null;
+  if (sessionToken) {
+    user = await verifySessionToken(sessionToken);
+
+    // If token is invalid, clear the cookie
+    if (!user) {
+      const response = NextResponse.redirect(new URL('/login', request.url));
+      response.cookies.delete('session');
+      return response;
+    }
+  }
+
+  // ============================================================
+  // PROTECTED ROUTES
+  // ============================================================
+
+  if (matchesRoute(pathname, PROTECTED_ROUTES)) {
+    if (!user) {
+      // Redirect to login with return URL
+      const url = new URL('/login', request.url);
+      url.searchParams.set('from', pathname);
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // ============================================================
+  // ADMIN ROUTES
+  // ============================================================
+
+  if (matchesRoute(pathname, ADMIN_ROUTES)) {
+    if (!user) {
+      // Redirect to login
+      const url = new URL('/login', request.url);
+      url.searchParams.set('from', pathname);
+      return NextResponse.redirect(url);
+    }
+
+    if (!isAdmin(user)) {
+      // Redirect to dashboard if not admin
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+
+  // ============================================================
+  // AUTH ROUTES (LOGIN, REGISTER)
+  // ============================================================
+
+  if (matchesRoute(pathname, AUTH_ROUTES)) {
+    if (user) {
+      // Redirect to dashboard if already authenticated
+      const from = request.nextUrl.searchParams.get('from');
+      const redirectUrl = from && from.startsWith('/') ? from : '/dashboard';
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
+    }
+  }
+
+  // ============================================================
+  // ADD USER INFO TO HEADERS
+  // ============================================================
+
+  // Add user info to request headers for server components
+  if (user) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', user.uid);
+    requestHeaders.set('x-user-email', user.email);
+    if (user.role) {
+      requestHeaders.set('x-user-role', user.role);
+    }
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+
+  // Allow request to continue
+  return NextResponse.next();
+}
+
+// ============================================================
+// MIDDLEWARE CONFIG
+// ============================================================
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+  ],
+};
+
+// ============================================================
+// USAGE IN SERVER COMPONENTS
+// ============================================================
+
+/*
+// In a Server Component, you can access user info from headers:
+
+import { headers } from 'next/headers';
+
+export default async function DashboardPage() {
+  const headersList = headers();
+  const userId = headersList.get('x-user-id');
+  const userEmail = headersList.get('x-user-email');
+  const userRole = headersList.get('x-user-role');
+
+  if (!userId) {
+    redirect('/login');
+  }
+
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Welcome, {userEmail}</p>
+      {userRole === 'admin' && <AdminPanel />}
+    </div>
+  );
+}
+*/
+
+// ============================================================
+// API ENDPOINT FOR TOKEN VERIFICATION
+// ============================================================
+
+/*
+// Create this endpoint at: app/api/auth/verify/route.ts
+
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuth } from 'firebase-admin/auth';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+
+// Initialize Firebase Admin SDK
+if (!getApps().length) {
+  initializeApp({
+    credential: cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+    }),
+  });
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const { token } = await request.json();
+
+    if (!token) {
+      return NextResponse.json({ error: 'No token provided' }, { status: 401 });
+    }
+
+    // Verify the session token
+    const decodedToken = await getAuth().verifySessionCookie(token, true);
+
+    // Get user data
+    const user = await getAuth().getUser(decodedToken.uid);
+
+    // Get custom claims (e.g., role)
+    const customClaims = user.customClaims || {};
+
+    return NextResponse.json({
+      user: {
+        uid: user.uid,
+        email: user.email,
+        role: customClaims.role || 'user',
+      },
+    });
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+  }
+}
+*/

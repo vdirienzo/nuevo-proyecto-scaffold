@@ -1,0 +1,76 @@
+# zap.conf - OWASP ZAP Configuration
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+env:
+  contexts:
+    - name: "{{PROJECT_NAME}}"
+      urls:
+        - "{{BASE_URL}}"
+      includePaths:
+        - "{{BASE_URL}}/.*"
+      excludePaths:
+        - ".*\\.js$"
+        - ".*\\.css$"
+        - ".*\\.png$"
+        - ".*\\.jpg$"
+      authentication:
+        method: "json"
+        parameters:
+          loginPageUrl: "{{BASE_URL}}/api/auth/login"
+          loginRequestUrl: "{{BASE_URL}}/api/auth/login"
+          loginRequestBody: '{"email":"{%username%}","password":"{%password%}"}'
+          tokenUrl: "{{BASE_URL}}/api/auth/refresh"
+        verification:
+          method: "response"
+          loggedInRegex: ".*token.*"
+          loggedOutRegex: ".*unauthorized.*"
+      users:
+        - name: "test-user"
+          credentials:
+            username: "{{ZAP_TEST_USER}}"
+            password: "{{ZAP_TEST_PASSWORD}}"
+
+jobs:
+  - type: passiveScan-config
+    parameters:
+      maxAlertsPerRule: 10
+      scanOnlyInScope: true
+
+  - type: spider
+    parameters:
+      context: "{{PROJECT_NAME}}"
+      user: "test-user"
+      maxDuration: 5
+      maxDepth: 5
+      maxChildren: 10
+
+  - type: spiderAjax
+    parameters:
+      context: "{{PROJECT_NAME}}"
+      user: "test-user"
+      maxDuration: 5
+      maxCrawlDepth: 5
+      numberOfBrowsers: 2
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 10
+
+  - type: activeScan
+    parameters:
+      context: "{{PROJECT_NAME}}"
+      user: "test-user"
+      policy: "API-Scan"
+      maxRuleDurationInMins: 5
+      maxScanDurationInMins: 30
+
+  - type: report
+    parameters:
+      template: "sarif-json"
+      reportDir: "/zap/reports"
+      reportFile: "zap-report"
+    risks:
+      - high
+      - medium
+      - low

@@ -1,0 +1,25 @@
+// client.ts - Supabase client initialization for browser
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { createBrowserClient } from '@supabase/ssr'
+import type { Database } from './types'
+
+/**
+ * Creates a Supabase client for browser-side operations.
+ * Uses the anon key which is safe to expose publicly.
+ *
+ * @returns Supabase client instance
+ */
+export function createClient() {
+  return createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+
+/**
+ * Singleton instance for client-side usage.
+ * Use this in Client Components and browser code.
+ */
+export const supabase = createClient()

@@ -1,0 +1,69 @@
+// types/index.ts - Shared Type Definitions
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { z } from 'zod';
+
+// =============================================================================
+// User Types
+// =============================================================================
+
+export const UserSchema = z.object({
+  id: z.number(),
+  email: z.string().email(),
+  username: z.string().min(3).max(50),
+  fullName: z.string().nullable(),
+  isActive: z.boolean(),
+  isVerified: z.boolean(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type User = z.infer<typeof UserSchema>;
+
+export const UserCreateSchema = z.object({
+  email: z.string().email(),
+  username: z.string().min(3).max(50),
+  password: z.string().min(8).max(100),
+  fullName: z.string().max(100).optional(),
+});
+
+export type UserCreate = z.infer<typeof UserCreateSchema>;
+
+// =============================================================================
+// API Response Types
+// =============================================================================
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+    details?: Record<string, unknown>;
+  };
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  perPage: number;
+  totalPages: number;
+}
+
+// =============================================================================
+// Auth Types
+// =============================================================================
+
+export interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  expiresIn: number;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}

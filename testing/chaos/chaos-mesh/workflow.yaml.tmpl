@@ -1,0 +1,70 @@
+# workflow.yaml - Complete Chaos Testing Workflow
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: Workflow
+metadata:
+  name: {{PROJECT_NAME}}-chaos-workflow
+  namespace: {{NAMESPACE}}
+spec:
+  entry: chaos-sequence
+  templates:
+    - name: chaos-sequence
+      templateType: Serial
+      deadline: "1h"
+      children:
+        - network-delay-step
+        - pod-failure-step
+        - cpu-stress-step
+        - recovery-check
+
+    - name: network-delay-step
+      templateType: NetworkChaos
+      deadline: "10m"
+      networkChaos:
+        action: delay
+        mode: all
+        selector:
+          namespaces:
+            - {{NAMESPACE}}
+          labelSelectors:
+            app: {{PROJECT_NAME}}
+        delay:
+          latency: "100ms"
+        duration: "5m"
+
+    - name: pod-failure-step
+      templateType: PodChaos
+      deadline: "5m"
+      podChaos:
+        action: pod-failure
+        mode: one
+        selector:
+          namespaces:
+            - {{NAMESPACE}}
+          labelSelectors:
+            app: {{PROJECT_NAME}}
+        duration: "2m"
+
+    - name: cpu-stress-step
+      templateType: StressChaos
+      deadline: "10m"
+      stressChaos:
+        mode: one
+        selector:
+          namespaces:
+            - {{NAMESPACE}}
+          labelSelectors:
+            app: {{PROJECT_NAME}}
+        stressors:
+          cpu:
+            workers: 1
+            load: 70
+        duration: "5m"
+
+    - name: recovery-check
+      templateType: Suspend
+      deadline: "5m"
+      suspend:
+        duration: "3m"

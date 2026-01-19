@@ -1,0 +1,27 @@
+# syft.yaml - SBOM Generation Config
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+output:
+  - "spdx-json=sbom.spdx.json"
+  - "cyclonedx-json=sbom.cdx.json"
+
+catalogers:
+  - python-index-cataloger
+  - javascript-package-cataloger
+  - go-module-binary-cataloger
+  - dpkg-cataloger
+
+package:
+  cataloger:
+    scope: "all-layers"
+
+source:
+  name: "{{PROJECT_NAME}}"
+  version: "{{VERSION}}"
+
+file:
+  metadata:
+    selection: "all"
+    digests:
+      - sha256

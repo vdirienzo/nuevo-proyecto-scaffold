@@ -1,0 +1,163 @@
+# tests/conftest.py - Pytest Configuration and Fixtures
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Pytest fixtures for testing the {{PROJECT_NAME}} API.
+
+Provides:
+- Async test client
+- In-memory SQLite database
+- Test user fixtures
+- Authentication helpers
+"""
+
+import asyncio
+from collections.abc import AsyncGenerator
+from typing import Any
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from src.{{PROJECT_NAME_SNAKE}}.main import app
+from src.{{PROJECT_NAME_SNAKE}}.database import get_session
+from src.{{PROJECT_NAME_SNAKE}}.models import User
+from src.{{PROJECT_NAME_SNAKE}}.services.auth import AuthService
+from src.{{PROJECT_NAME_SNAKE}}.auth.jwt import create_access_token
+
+
+# =============================================================================
+# Test Database Configuration
+# =============================================================================
+
+TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    """Create event loop for async tests."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
+
+@pytest.fixture
+async def db_engine():
+    """Create test database engine."""
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        echo=False,
+        connect_args={"check_same_thread": False},
+    )
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    yield engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
+
+    await engine.dispose()
+
+
+@pytest.fixture
+async def session(db_engine) -> AsyncGenerator[AsyncSession, None]:
+    """Create test database session."""
+    async_session = async_sessionmaker(
+        db_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+    )
+
+    async with async_session() as session:
+        yield session
+
+
+@pytest.fixture
+async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+    """Create async test client with database override."""
+
+    async def override_get_session():
+        yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+
+    app.dependency_overrides.clear()
+
+
+# =============================================================================
+# User Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def user_data() -> dict[str, Any]:
+    """Sample user registration data."""
+    return {
+        "email": "test@example.com",
+        "username": "testuser",
+        "password": "SecurePass123!",
+        "full_name": "Test User",
+    }
+
+
+@pytest.fixture
+async def test_user(session: AsyncSession, user_data: dict[str, Any]) -> User:
+    """Create a test user in the database."""
+    user = User(
+        email=user_data["email"],
+        username=user_data["username"],
+        hashed_password=AuthService.hash_password(user_data["password"]),
+        full_name=user_data["full_name"],
+        is_active=True,
+        is_verified=True,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+@pytest.fixture
+async def superuser(session: AsyncSession) -> User:
+    """Create a superuser in the database."""
+    user = User(
+        email="admin@example.com",
+        username="admin",
+        hashed_password=AuthService.hash_password("AdminPass123!"),
+        full_name="Admin User",
+        is_active=True,
+        is_verified=True,
+        is_superuser=True,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+    return user
+
+
+# =============================================================================
+# Authentication Fixtures
+# =============================================================================
+
+
+@pytest.fixture
+def auth_headers(test_user: User) -> dict[str, str]:
+    """Get authentication headers for test user."""
+    token = create_access_token(user_id=test_user.id)  # type: ignore
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def superuser_headers(superuser: User) -> dict[str, str]:
+    """Get authentication headers for superuser."""
+    token = create_access_token(user_id=superuser.id)  # type: ignore
+    return {"Authorization": f"Bearer {token}"}

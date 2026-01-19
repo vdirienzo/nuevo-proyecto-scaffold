@@ -1,0 +1,207 @@
+// firestore.rules - Firestore Security Rules
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    /**
+     * Check if user is authenticated
+     */
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /**
+     * Check if user is the owner of the resource
+     */
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    /**
+     * Check if user has admin role
+     * Assumes user document has a 'role' field
+     */
+    function isAdmin() {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    /**
+     * Check if user is admin or owner
+     */
+    function isAdminOrOwner(userId) {
+      return isAdmin() || isOwner(userId);
+    }
+
+    /**
+     * Validate required fields exist
+     */
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    /**
+     * Check if field hasn't changed
+     */
+    function fieldUnchanged(field) {
+      return !request.resource.data.keys().hasAny([field]) ||
+             request.resource.data[field] == resource.data[field];
+    }
+
+    /**
+     * Rate limiting: Check if last action was more than X seconds ago
+     * Note: This is approximate and not foolproof
+     */
+    function notTooFrequent(lastActionField, minSeconds) {
+      return !resource.data.keys().hasAny([lastActionField]) ||
+             request.time > resource.data[lastActionField] + duration.value(minSeconds, 's');
+    }
+
+    /**
+     * Validate timestamp fields are server timestamps
+     */
+    function hasValidTimestamps() {
+      return request.resource.data.createdAt is timestamp &&
+             request.resource.data.updatedAt is timestamp;
+    }
+
+    // ============================================================
+    // DEFAULT DENY ALL
+    // ============================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // USERS COLLECTION
+    // ============================================================
+
+    match /users/{userId} {
+      // Anyone can read user profiles (adjust as needed)
+      allow read: if true;
+
+      // Only owner can create their own document
+      allow create: if isOwner(userId) &&
+                       hasRequiredFields(['email', 'displayName', 'createdAt', 'updatedAt']) &&
+                       hasValidTimestamps() &&
+                       request.resource.data.email == request.auth.token.email;
+
+      // Only owner can update their own document
+      allow update: if isOwner(userId) &&
+                       fieldUnchanged('email') &&  // Email cannot be changed
+                       fieldUnchanged('createdAt') &&  // CreatedAt cannot be changed
+                       request.resource.data.updatedAt is timestamp;
+
+      // Only owner can delete their own document
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================================
+    // PUBLIC COLLECTION (EXAMPLE: POSTS)
+    // ============================================================
+
+    match /posts/{postId} {
+      // Anyone can read posts
+      allow read: if true;
+
+      // Authenticated users can create posts
+      allow create: if isAuthenticated() &&
+                       hasRequiredFields(['userId', 'title', 'content', 'createdAt', 'updatedAt']) &&
+                       hasValidTimestamps() &&
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.title.size() > 0 &&
+                       request.resource.data.title.size() <= 200 &&
+                       request.resource.data.content.size() <= 10000;
+
+      // Only owner can update their posts
+      allow update: if isOwner(resource.data.userId) &&
+                       fieldUnchanged('userId') &&
+                       fieldUnchanged('createdAt') &&
+                       request.resource.data.updatedAt is timestamp &&
+                       request.resource.data.title.size() > 0 &&
+                       request.resource.data.title.size() <= 200;
+
+      // Only owner or admin can delete posts
+      allow delete: if isAdminOrOwner(resource.data.userId);
+
+      // ============================================================
+      // POST COMMENTS SUBCOLLECTION
+      // ============================================================
+
+      match /comments/{commentId} {
+        // Anyone can read comments
+        allow read: if true;
+
+        // Authenticated users can create comments (with rate limiting)
+        allow create: if isAuthenticated() &&
+                         hasRequiredFields(['userId', 'content', 'createdAt', 'updatedAt']) &&
+                         hasValidTimestamps() &&
+                         request.resource.data.userId == request.auth.uid &&
+                         request.resource.data.content.size() > 0 &&
+                         request.resource.data.content.size() <= 1000;
+
+        // Only owner can update their comments
+        allow update: if isOwner(resource.data.userId) &&
+                         fieldUnchanged('userId') &&
+                         fieldUnchanged('createdAt') &&
+                         request.resource.data.updatedAt is timestamp;
+
+        // Only owner or admin can delete comments
+        allow delete: if isAdminOrOwner(resource.data.userId);
+      }
+    }
+
+    // ============================================================
+    // ADMIN-ONLY COLLECTION (EXAMPLE: SETTINGS)
+    // ============================================================
+
+    match /settings/{settingId} {
+      // Only admins can read settings
+      allow read: if isAdmin();
+
+      // Only admins can write settings
+      allow write: if isAdmin();
+    }
+
+    // ============================================================
+    // PRIVATE USER DATA (EXAMPLE: USER PRIVATE DOCUMENTS)
+    // ============================================================
+
+    match /users/{userId}/private/{document} {
+      // Only owner can access private documents
+      allow read, write: if isOwner(userId);
+    }
+
+    // ============================================================
+    // NOTIFICATIONS (USER-SPECIFIC)
+    // ============================================================
+
+    match /notifications/{notificationId} {
+      // Only the recipient can read their notifications
+      allow read: if isAuthenticated() &&
+                     resource.data.userId == request.auth.uid;
+
+      // System creates notifications (handled by server/functions)
+      allow create: if false;
+
+      // Only recipient can mark as read
+      allow update: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid &&
+                       fieldUnchanged('userId') &&
+                       fieldUnchanged('createdAt');
+
+      // Only recipient can delete their notifications
+      allow delete: if isAuthenticated() &&
+                       resource.data.userId == request.auth.uid;
+    }
+  }
+}

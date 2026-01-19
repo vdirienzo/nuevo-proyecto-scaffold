@@ -1,0 +1,29 @@
+// a11y-report.ts - Generate A11y Report
+// Author: {{AUTHOR}}
+
+import { AxeResults } from 'axe-core';
+import fs from 'fs';
+
+export function generateA11yReport(results: AxeResults[], outputPath: string) {
+  const report = {
+    timestamp: new Date().toISOString(),
+    summary: {
+      totalPages: results.length,
+      totalViolations: results.reduce((sum, r) => sum + r.violations.length, 0),
+      totalPasses: results.reduce((sum, r) => sum + r.passes.length, 0),
+    },
+    pages: results.map(r => ({
+      url: r.url,
+      violations: r.violations.map(v => ({
+        id: v.id,
+        impact: v.impact,
+        description: v.description,
+        helpUrl: v.helpUrl,
+        nodes: v.nodes.length,
+      })),
+    })),
+  };
+
+  fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
+  return report;
+}

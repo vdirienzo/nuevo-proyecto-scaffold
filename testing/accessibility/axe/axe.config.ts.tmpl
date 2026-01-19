@@ -1,0 +1,31 @@
+// axe.config.ts - Axe-core Accessibility Configuration
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import type { RunOptions } from 'axe-core';
+
+export const axeConfig: RunOptions = {
+  runOnly: {
+    type: 'tag',
+    values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'],
+  },
+  rules: {
+    'color-contrast': { enabled: true },
+    'valid-lang': { enabled: true },
+    'html-has-lang': { enabled: true },
+    'document-title': { enabled: true },
+    'image-alt': { enabled: true },
+    'label': { enabled: true },
+    'link-name': { enabled: true },
+    'button-name': { enabled: true },
+    'form-field-multiple-labels': { enabled: true },
+    'region': { enabled: true },
+  },
+  reporter: 'v2',
+};
+
+export const wcagLevels = {
+  A: ['wcag2a', 'wcag21a'],
+  AA: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],
+  AAA: ['wcag2a', 'wcag2aa', 'wcag2aaa', 'wcag21a', 'wcag21aa', 'wcag21aaa'],
+};

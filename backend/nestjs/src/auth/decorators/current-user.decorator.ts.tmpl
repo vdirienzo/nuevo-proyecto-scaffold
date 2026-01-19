@@ -1,0 +1,16 @@
+// current-user.decorator.ts - Custom decorator to extract current user from request
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+
+/**
+ * Extracts authenticated user from request
+ * Use with @UseGuards(JwtAuthGuard) on controller/route
+ */
+export const CurrentUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.user;
+  },
+);

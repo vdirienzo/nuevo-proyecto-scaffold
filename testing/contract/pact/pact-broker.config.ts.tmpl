@@ -1,0 +1,11 @@
+// pact-broker.config.ts - Pact Broker Configuration
+// Author: {{AUTHOR}}
+
+export const pactBrokerConfig = {
+  pactBrokerUrl: process.env.PACT_BROKER_URL || 'https://{{PROJECT_NAME}}.pactflow.io',
+  pactBrokerToken: process.env.PACT_BROKER_TOKEN,
+  consumerVersionTags: [process.env.GIT_BRANCH || 'main'],
+  providerVersionTags: [process.env.GIT_BRANCH || 'main'],
+  enablePending: true,
+  includeWipPactsSince: '2026-01-01',
+};

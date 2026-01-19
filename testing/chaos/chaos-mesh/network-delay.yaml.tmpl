@@ -1,0 +1,49 @@
+# network-delay.yaml - Network Latency Chaos
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: {{PROJECT_NAME}}-network-delay
+  namespace: {{NAMESPACE}}
+spec:
+  action: delay
+  mode: all
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+  delay:
+    latency: "200ms"
+    correlation: "25"
+    jitter: "50ms"
+  duration: "5m"
+  direction: both
+---
+# Network Partition - Simulate network split
+apiVersion: chaos-mesh.org/v1alpha1
+kind: NetworkChaos
+metadata:
+  name: {{PROJECT_NAME}}-network-partition
+  namespace: {{NAMESPACE}}
+spec:
+  action: partition
+  mode: all
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+      component: api
+  direction: both
+  target:
+    selector:
+      namespaces:
+        - {{NAMESPACE}}
+      labelSelectors:
+        app: {{PROJECT_NAME}}
+        component: database
+    mode: all
+  duration: "30s"

@@ -1,0 +1,54 @@
+// constants/index.ts - Shared Constants
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+/**
+ * API endpoints constants.
+ */
+export const API_ENDPOINTS = {
+  AUTH: {
+    LOGIN: '/auth/login',
+    REGISTER: '/auth/register',
+    REFRESH: '/auth/refresh',
+    LOGOUT: '/auth/logout',
+  },
+  USERS: {
+    ME: '/users/me',
+    LIST: '/users',
+    BY_ID: (id: number) => `/users/${id}`,
+  },
+} as const;
+
+/**
+ * HTTP status codes.
+ */
+export const HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  NO_CONTENT: 204,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+} as const;
+
+/**
+ * Pagination defaults.
+ */
+export const PAGINATION = {
+  DEFAULT_PAGE: 1,
+  DEFAULT_PER_PAGE: 20,
+  MAX_PER_PAGE: 100,
+} as const;
+
+/**
+ * Token configuration.
+ */
+export const TOKEN = {
+  ACCESS_TOKEN_KEY: 'access_token',
+  REFRESH_TOKEN_KEY: 'refresh_token',
+} as const;

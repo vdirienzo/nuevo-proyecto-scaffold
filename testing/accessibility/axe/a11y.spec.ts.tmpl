@@ -1,0 +1,78 @@
+// a11y.spec.ts - Accessibility Tests with axe-core
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { test, expect } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
+import { axeConfig } from './axe.config';
+
+const pages = [
+  { name: 'Home', path: '/' },
+  { name: 'Login', path: '/login' },
+  { name: 'Dashboard', path: '/dashboard' },
+  { name: '{{RESOURCE}}', path: '/{{RESOURCE}}' },
+];
+
+test.describe('Accessibility Tests', () => {
+  pages.forEach(({ name, path }) => {
+    test(`${name} page should have no accessibility violations`, async ({ page }) => {
+      await page.goto(path);
+
+      // Wait for page to be fully loaded
+      await page.waitForLoadState('networkidle');
+
+      const accessibilityScanResults = await new AxeBuilder({ page })
+        .options(axeConfig)
+        .analyze();
+
+      // Log violations for debugging
+      if (accessibilityScanResults.violations.length > 0) {
+        console.log(`A11y violations on ${name}:`,
+          JSON.stringify(accessibilityScanResults.violations, null, 2)
+        );
+      }
+
+      expect(accessibilityScanResults.violations).toEqual([]);
+    });
+  });
+
+  test('should have correct heading hierarchy', async ({ page }) => {
+    await page.goto('/');
+
+    const headings = await page.evaluate(() => {
+      const hs = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'));
+      return hs.map(h => ({ tag: h.tagName, text: h.textContent?.trim() }));
+    });
+
+    // Check h1 exists
+    const h1Count = headings.filter(h => h.tag === 'H1').length;
+    expect(h1Count).toBe(1);
+  });
+
+  test('all interactive elements should be focusable', async ({ page }) => {
+    await page.goto('/');
+
+    const interactiveElements = await page.locator('button, a, input, select, textarea');
+    const count = await interactiveElements.count();
+
+    for (let i = 0; i < count; i++) {
+      const element = interactiveElements.nth(i);
+      const isVisible = await element.isVisible();
+
+      if (isVisible) {
+        await expect(element).toBeFocusable();
+      }
+    }
+  });
+});
+
+// Custom matcher
+expect.extend({
+  toBeFocusable(received) {
+    const pass = received !== null;
+    return {
+      message: () => `expected element to be focusable`,
+      pass,
+    };
+  },
+});

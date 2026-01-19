@@ -1,0 +1,20 @@
+# models/__init__.py - SQLModel Database Models
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Database models using SQLModel.
+
+All models are imported here to ensure they are registered with SQLModel.metadata.
+"""
+
+from .user import User, UserCreate, UserUpdate, UserResponse
+from .base import TimestampMixin
+
+__all__ = [
+    "User",
+    "UserCreate",
+    "UserUpdate",
+    "UserResponse",
+    "TimestampMixin",
+]

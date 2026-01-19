@@ -1,0 +1,50 @@
+// stryker.conf.js - Stryker Mutation Testing Configuration
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+/** @type {import('@stryker-mutator/api/core').PartialStrykerOptions} */
+const config = {
+  packageManager: 'pnpm',
+  reporters: ['html', 'clear-text', 'progress', 'dashboard'],
+  testRunner: 'vitest',
+  testRunner_comment: 'Use jest for NestJS projects',
+  vitest: {
+    configFile: 'vitest.config.ts',
+  },
+  coverageAnalysis: 'perTest',
+  mutate: [
+    'src/**/*.ts',
+    '!src/**/*.spec.ts',
+    '!src/**/*.test.ts',
+    '!src/**/*.stories.ts',
+    '!src/**/*.d.ts',
+    '!src/main.ts',
+    '!src/**/index.ts',
+  ],
+  thresholds: {
+    high: 80,
+    low: 60,
+    break: 50,
+  },
+  concurrency: 4,
+  timeoutMS: 60000,
+  tempDirName: '.stryker-tmp',
+  htmlReporter: {
+    fileName: 'reports/mutation/index.html',
+  },
+  dashboard: {
+    project: 'github.com/{{GITHUB_ORG}}/{{PROJECT_NAME}}',
+    version: process.env.GIT_BRANCH || 'main',
+    reportType: 'full',
+  },
+  ignorePatterns: ['node_modules', 'dist', '.next', 'coverage'],
+  plugins: [
+    '@stryker-mutator/vitest-runner',
+    '@stryker-mutator/typescript-checker',
+  ],
+  typescriptChecker: {
+    prioritizePerformanceOverAccuracy: true,
+  },
+};
+
+module.exports = config;

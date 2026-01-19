@@ -1,0 +1,138 @@
+# routes/users.py - User Management Endpoints
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+User management endpoints for CRUD operations.
+"""
+
+from fastapi import APIRouter, Query, status
+
+from ..database import SessionDep
+from ..models import User, UserUpdate, UserResponse
+from ..exceptions import NotFoundError, AuthorizationError
+from ..services.user import UserService
+from ..auth.dependencies import CurrentUser
+
+
+router = APIRouter()
+
+
+@router.get(
+    "/me",
+    response_model=UserResponse,
+    summary="Get current user",
+)
+async def get_current_user(
+    current_user: CurrentUser,
+) -> UserResponse:
+    """Get the currently authenticated user's profile."""
+    return UserResponse.model_validate(current_user)
+
+
+@router.patch(
+    "/me",
+    response_model=UserResponse,
+    summary="Update current user",
+)
+async def update_current_user(
+    data: UserUpdate,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> UserResponse:
+    """
+    Update the current user's profile.
+
+    Only provided fields will be updated.
+    """
+    user_service = UserService(session)
+    updated_user = await user_service.update(current_user.id, data)  # type: ignore
+    return UserResponse.model_validate(updated_user)
+
+
+@router.get(
+    "/{user_id}",
+    response_model=UserResponse,
+    summary="Get user by ID",
+)
+async def get_user(
+    user_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> UserResponse:
+    """
+    Get a user by ID.
+
+    Requires authentication. Non-superusers can only view active users.
+    """
+    user_service = UserService(session)
+    user = await user_service.get_by_id(user_id)
+
+    if not user:
+        raise NotFoundError("User", user_id)
+
+    # Non-superusers cannot view inactive users
+    if not user.is_active and not current_user.is_superuser:
+        raise NotFoundError("User", user_id)
+
+    return UserResponse.model_validate(user)
+
+
+@router.get(
+    "/",
+    response_model=list[UserResponse],
+    summary="List users",
+)
+async def list_users(
+    session: SessionDep,
+    current_user: CurrentUser,
+    skip: int = Query(0, ge=0, description="Number of records to skip"),
+    limit: int = Query(20, ge=1, le=100, description="Maximum records to return"),
+    include_inactive: bool = Query(False, description="Include inactive users (superuser only)"),
+) -> list[UserResponse]:
+    """
+    List users with pagination.
+
+    - Non-superusers only see active users
+    - Superusers can optionally include inactive users
+    """
+    user_service = UserService(session)
+
+    # Only superusers can see inactive users
+    show_inactive = include_inactive and current_user.is_superuser
+
+    users = await user_service.list_users(
+        skip=skip,
+        limit=limit,
+        include_inactive=show_inactive,
+    )
+
+    return [UserResponse.model_validate(user) for user in users]
+
+
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete user",
+)
+async def delete_user(
+    user_id: int,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> None:
+    """
+    Delete a user (soft delete - marks as inactive).
+
+    - Users can delete their own account
+    - Superusers can delete any account
+    """
+    if user_id != current_user.id and not current_user.is_superuser:
+        raise AuthorizationError("Cannot delete other users")
+
+    user_service = UserService(session)
+    user = await user_service.get_by_id(user_id)
+
+    if not user:
+        raise NotFoundError("User", user_id)
+
+    await user_service.soft_delete(user_id)

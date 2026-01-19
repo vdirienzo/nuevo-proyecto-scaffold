@@ -1,0 +1,58 @@
+// next.config.ts - Next.js Configuration
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  // Enable React strict mode for better development experience
+  reactStrictMode: true,
+
+  // Experimental features
+  experimental: {
+    // Enable typed routes for better type safety
+    typedRoutes: true,
+  },
+
+  // Security headers
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          // Prevent MIME type sniffing
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // Prevent clickjacking
+          { key: 'X-Frame-Options', value: 'DENY' },
+          // XSS protection
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          // Referrer policy
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Permissions policy
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+    ];
+  },
+
+  // Image optimization domains
+  images: {
+    remotePatterns: [
+      // Add your image domains here
+      // { protocol: 'https', hostname: 'example.com' },
+    ],
+  },
+
+  // Environment variables exposed to browser (prefix with NEXT_PUBLIC_)
+  env: {
+    // Add build-time environment variables here
+  },
+
+  // Disable x-powered-by header
+  poweredByHeader: false,
+};
+
+export default nextConfig;

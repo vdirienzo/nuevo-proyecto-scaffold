@@ -1,0 +1,102 @@
+# middleware/logging.py - Request Logging Middleware
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Structured logging middleware for request tracing and monitoring.
+"""
+
+import time
+import uuid
+from typing import Callable
+
+from fastapi import Request, Response
+from loguru import logger
+from starlette.middleware.base import BaseHTTPMiddleware
+
+
+class LoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware for structured request/response logging.
+
+    Features:
+    - Unique request ID for tracing
+    - Request timing
+    - Structured log format for log aggregation
+    """
+
+    async def dispatch(
+        self,
+        request: Request,
+        call_next: Callable[[Request], Response],
+    ) -> Response:
+        # Generate unique request ID
+        request_id = str(uuid.uuid4())[:8]
+        request.state.request_id = request_id
+
+        # Start timing
+        start_time = time.perf_counter()
+
+        # Log request
+        logger.info(
+            f"Request started",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": str(request.url.path),
+                "query": str(request.query_params),
+                "client_ip": self._get_client_ip(request),
+                "user_agent": request.headers.get("user-agent", "unknown"),
+            },
+        )
+
+        try:
+            response = await call_next(request)
+
+            # Calculate duration
+            duration_ms = (time.perf_counter() - start_time) * 1000
+
+            # Log response
+            logger.info(
+                f"Request completed",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": str(request.url.path),
+                    "status_code": response.status_code,
+                    "duration_ms": round(duration_ms, 2),
+                },
+            )
+
+            # Add request ID to response headers for tracing
+            response.headers["X-Request-ID"] = request_id
+
+            return response
+
+        except Exception as e:
+            duration_ms = (time.perf_counter() - start_time) * 1000
+
+            logger.error(
+                f"Request failed: {type(e).__name__}",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": str(request.url.path),
+                    "duration_ms": round(duration_ms, 2),
+                    "error": str(e),
+                },
+            )
+            raise
+
+    def _get_client_ip(self, request: Request) -> str:
+        """Extract client IP, considering proxy headers."""
+        # Check X-Forwarded-For first (proxy/load balancer)
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+
+        # Fall back to direct client IP
+        if request.client:
+            return request.client.host
+
+        return "unknown"

@@ -1,0 +1,145 @@
+# {{PROJECT_NAME}} API
+
+> {{PROJECT_DESCRIPTION}}
+
+## Author
+
+{{AUTHOR}}
+
+---
+
+## Tech Stack
+
+- **Framework:** FastAPI 0.115+
+- **Python:** 3.12+
+- **Database:** PostgreSQL with SQLModel (async)
+- **Auth:** JWT with refresh tokens
+- **Package Manager:** uv
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.12+
+- PostgreSQL 16+
+- uv (package manager)
+
+### Installation
+
+```bash
+# Clone repository
+cd apps/api
+
+# Install dependencies
+uv sync
+
+# Copy environment file
+cp .env.example .env
+# Edit .env with your values
+
+# Run migrations (if using Alembic)
+uv run alembic upgrade head
+
+# Start development server
+uv run uvicorn src.{{PROJECT_NAME_SNAKE}}.main:app --reload
+```
+
+### Docker
+
+```bash
+# Build image
+docker build -t {{PROJECT_NAME}}-api .
+
+# Run container
+docker run -p 8000:8000 --env-file .env {{PROJECT_NAME}}-api
+```
+
+## API Documentation
+
+When running in development mode:
+
+- **Swagger UI:** http://localhost:8000/docs
+- **ReDoc:** http://localhost:8000/redoc
+- **OpenAPI JSON:** http://localhost:8000/openapi.json
+
+## Project Structure
+
+```
+src/{{PROJECT_NAME_SNAKE}}/
+├── main.py            # Application entry point
+├── config.py          # Pydantic settings
+├── database.py        # Database configuration
+├── exceptions.py      # Custom exceptions
+├── auth/              # Authentication module
+│   ├── jwt.py         # JWT token handling
+│   └── dependencies.py# Auth dependencies
+├── middleware/        # Custom middleware
+│   ├── logging.py     # Request logging
+│   └── security.py    # Security headers
+├── models/            # SQLModel database models
+├── routes/            # API endpoints
+└── services/          # Business logic
+```
+
+## Testing
+
+```bash
+# Run all tests
+uv run pytest
+
+# With coverage
+uv run pytest --cov=src --cov-report=html
+
+# Run specific test file
+uv run pytest tests/test_auth.py -v
+
+# Run only unit tests
+uv run pytest -m "not integration"
+```
+
+## Code Quality
+
+```bash
+# Format code
+uv run ruff format .
+
+# Lint
+uv run ruff check --fix .
+
+# Type checking
+uv run mypy src/
+
+# Security audit
+uv run bandit -r src/
+uv run safety check
+```
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DATABASE_URL` | PostgreSQL connection string | Yes |
+| `SECRET_KEY` | JWT signing key | Yes |
+| `DEBUG` | Enable debug mode | No |
+| `CORS_ORIGINS` | Allowed CORS origins | No |
+
+See `.env.example` for all available options.
+
+## Health Checks
+
+- `GET /health` - Full health check with dependency status
+- `GET /live` - Kubernetes liveness probe
+- `GET /ready` - Kubernetes readiness probe
+
+## Changelog
+
+### [0.1.0] - {{GENERATED_AT}}
+
+#### Added
+- Initial FastAPI project structure
+- JWT authentication with refresh tokens
+- User CRUD operations
+- Health check endpoints
+- Security middleware (CORS, headers)
+- Request logging middleware
+- Comprehensive test suite

@@ -1,0 +1,41 @@
+# sbom-policy.yaml - SBOM Policy Rules
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+policies:
+  - name: no-critical-vulnerabilities
+    description: No critical CVEs allowed
+    rule:
+      severity: ["CRITICAL"]
+      fix-available: true
+    action: fail
+
+  - name: license-compliance
+    description: Only approved licenses
+    rule:
+      licenses:
+        denied:
+          - GPL-3.0
+          - AGPL-3.0
+          - SSPL-1.0
+          - BSL-1.0
+        approved:
+          - MIT
+          - Apache-2.0
+          - BSD-2-Clause
+          - BSD-3-Clause
+          - ISC
+          - 0BSD
+    action: fail
+
+  - name: no-deprecated-packages
+    description: No deprecated packages
+    rule:
+      deprecated: true
+    action: warn
+
+  - name: maintain-inventory
+    description: All packages must be in inventory
+    rule:
+      not-in-inventory: true
+    action: warn

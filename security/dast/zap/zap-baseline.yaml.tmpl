@@ -1,0 +1,29 @@
+# zap-baseline.yaml - Quick Baseline Scan
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+env:
+  contexts:
+    - name: "{{PROJECT_NAME}}-baseline"
+      urls:
+        - "{{BASE_URL}}"
+
+jobs:
+  - type: spider
+    parameters:
+      context: "{{PROJECT_NAME}}-baseline"
+      maxDuration: 2
+      maxDepth: 3
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/reports"
+      reportFile: "baseline-report"
+    risks:
+      - high
+      - medium

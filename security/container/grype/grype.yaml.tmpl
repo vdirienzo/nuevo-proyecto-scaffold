@@ -1,0 +1,35 @@
+# grype.yaml - Grype Vulnerability Scanner Config
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+output: "sarif"
+file: "grype-results.sarif"
+quiet: false
+add-cpes-if-none: true
+distro: ""
+
+fail-on-severity: high
+only-fixed: false
+only-notfixed: false
+
+scope: "all-layers"
+
+db:
+  auto-update: true
+  validate-by-hash-on-start: true
+
+ignore:
+  - vulnerability: CVE-2023-XXXXX
+    reason: "False positive - not applicable"
+
+match:
+  packages:
+    using-cpes: true
+  java:
+    using-cpes: true
+  python:
+    using-cpes: true
+  javascript:
+    using-cpes: true
+  golang:
+    using-cpes: true

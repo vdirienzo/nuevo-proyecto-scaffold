@@ -1,0 +1,75 @@
+# chaos-test.yml - Chaos Engineering with Chaos Mesh
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+name: Chaos Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      experiment:
+        description: 'Chaos experiment'
+        required: true
+        type: choice
+        options:
+          - pod-failure
+          - network-delay
+          - cpu-stress
+          - io-fault
+          - workflow
+  schedule:
+    - cron: '0 2 * * 6'  # Saturdays at 2 AM
+
+jobs:
+  chaos-test:
+    name: Run Chaos Experiment
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Configure kubeconfig
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Verify Chaos Mesh
+        run: |
+          kubectl get pods -n chaos-mesh
+
+      - name: Apply Chaos Experiment
+        run: |
+          kubectl apply -f tests/chaos/chaos-mesh/${{ inputs.experiment }}.yaml
+
+      - name: Wait for Experiment
+        run: |
+          sleep 300  # 5 minutes
+
+      - name: Check Application Health
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://staging-api.{{PROJECT_NAME}}.com/health)
+          if [ "$response" != "200" ]; then
+            echo "Health check failed with status: $response"
+            exit 1
+          fi
+
+      - name: Cleanup Experiment
+        if: always()
+        run: |
+          kubectl delete -f tests/chaos/chaos-mesh/${{ inputs.experiment }}.yaml --ignore-not-found
+
+      - name: Generate Report
+        run: |
+          echo "## Chaos Test Report" > chaos-report.md
+          echo "- Experiment: ${{ inputs.experiment }}" >> chaos-report.md
+          echo "- Status: Success" >> chaos-report.md
+          echo "- Duration: 5 minutes" >> chaos-report.md
+
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: chaos-report
+          path: chaos-report.md

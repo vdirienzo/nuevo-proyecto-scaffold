@@ -1,0 +1,36 @@
+// client.ts - Firebase client initialization for browser
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
+import { firebaseConfig } from './config';
+
+/**
+ * Firebase client instance for browser-side operations.
+ * Uses the modular v9+ SDK for optimal bundle size.
+ */
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
+let storage: FirebaseStorage;
+
+/**
+ * Initialize Firebase app if not already initialized.
+ * Prevents multiple initializations in development (hot reload).
+ */
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+} else {
+  app = getApps()[0];
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+}
+
+export { app, auth, db, storage };

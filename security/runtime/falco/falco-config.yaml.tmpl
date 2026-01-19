@@ -1,0 +1,53 @@
+# falco-config.yaml - Falco Deployment Config
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-config
+  namespace: {{NAMESPACE}}
+  labels:
+    app: falco
+data:
+  falco.yaml: |
+    rules_file:
+      - /etc/falco/falco_rules.yaml
+      - /etc/falco/falco_rules.local.yaml
+      - /etc/falco/{{PROJECT_NAME}}_rules.yaml
+
+    json_output: true
+    json_include_output_property: true
+
+    log_stderr: true
+    log_syslog: false
+    log_level: info
+
+    priority: debug
+    buffered_outputs: false
+
+    outputs:
+      rate: 1
+      max_burst: 1000
+
+    syslog_output:
+      enabled: false
+
+    file_output:
+      enabled: true
+      keep_alive: false
+      filename: /var/log/falco/events.json
+
+    stdout_output:
+      enabled: true
+
+    http_output:
+      enabled: true
+      url: "http://falcosidekick:2801"
+
+    grpc:
+      enabled: true
+      bind_address: "unix:///var/run/falco/falco.sock"
+
+    grpc_output:
+      enabled: true

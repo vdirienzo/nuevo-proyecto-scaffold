@@ -1,0 +1,22 @@
+// pact.config.ts - Contract Testing Configuration
+// Author: {{AUTHOR}}
+
+import { PactV3, MatchersV3 } from '@pact-foundation/pact';
+import path from 'path';
+
+export const pactConfig = {
+  consumer: '{{PROJECT_NAME}}-web',
+  provider: '{{PROJECT_NAME}}-api',
+  pactDir: path.resolve(process.cwd(), 'pacts'),
+  logLevel: 'info',
+  spec: 3,
+};
+
+export const createPact = () => new PactV3({
+  consumer: pactConfig.consumer,
+  provider: pactConfig.provider,
+  dir: pactConfig.pactDir,
+  logLevel: pactConfig.logLevel as any,
+});
+
+export { MatchersV3 as Matchers };

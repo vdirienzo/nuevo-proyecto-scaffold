@@ -1,0 +1,47 @@
+// app/layout.tsx - Root Layout
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import type { Metadata } from 'next';
+import { GeistSans } from 'geist/font/sans';
+import { GeistMono } from 'geist/font/mono';
+
+import { Providers } from '@/components/providers';
+import '@/styles/globals.css';
+
+export const metadata: Metadata = {
+  title: {
+    default: '{{PROJECT_NAME}}',
+    template: '%s | {{PROJECT_NAME}}',
+  },
+  description: '{{PROJECT_DESCRIPTION}}',
+  keywords: ['{{PROJECT_NAME}}'],
+  authors: [{ name: '{{AUTHOR}}' }],
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    siteName: '{{PROJECT_NAME}}',
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html
+      lang="en"
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
+      suppressHydrationWarning
+    >
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}

@@ -1,0 +1,112 @@
+// types.ts - TypeScript types for Firestore collections
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { Timestamp, FieldValue } from 'firebase/firestore';
+
+/**
+ * Base document type with common fields.
+ * All Firestore documents should extend this interface.
+ */
+export interface BaseDocument {
+  id: string;
+  createdAt: Timestamp | FieldValue;
+  updatedAt: Timestamp | FieldValue;
+}
+
+/**
+ * User document structure.
+ * Stored in the 'users' collection.
+ */
+export interface User extends BaseDocument {
+  email: string;
+  displayName: string | null;
+  photoURL: string | null;
+  role: 'admin' | 'user';
+  isActive: boolean;
+  metadata?: {
+    lastLogin?: Timestamp;
+    loginCount?: number;
+  };
+}
+
+/**
+ * Input type for creating a new user (without auto-generated fields).
+ */
+export type UserCreate = Omit<User, 'id' | 'createdAt' | 'updatedAt'>;
+
+/**
+ * Input type for updating a user (all fields optional except id).
+ */
+export type UserUpdate = Partial<Omit<User, 'id' | 'createdAt'>> & {
+  id: string;
+};
+
+/**
+ * Collection names enum for type safety.
+ */
+export enum Collections {
+  USERS = 'users',
+  // Add more collections here as needed
+  // POSTS = 'posts',
+  // COMMENTS = 'comments',
+}
+
+/**
+ * Helper type to get the document type for a collection.
+ */
+export type CollectionDocument<T extends Collections> =
+  T extends Collections.USERS ? User :
+  // Add more mappings here
+  never;
+
+/**
+ * Helper type for Firestore query filters.
+ */
+export type WhereFilterOp =
+  | '<'
+  | '<='
+  | '=='
+  | '!='
+  | '>='
+  | '>'
+  | 'array-contains'
+  | 'array-contains-any'
+  | 'in'
+  | 'not-in';
+
+/**
+ * Helper type for Firestore data conversion.
+ * Converts Timestamp to Date for client-side usage.
+ */
+export type FirestoreDataConverter<T> = T extends Timestamp
+  ? Date
+  : T extends object
+  ? { [K in keyof T]: FirestoreDataConverter<T[K]> }
+  : T;
+
+/**
+ * Generic repository result type with pagination.
+ */
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+/**
+ * Error types for Firestore operations.
+ */
+export class FirestoreError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = 'FirestoreError';
+  }
+}

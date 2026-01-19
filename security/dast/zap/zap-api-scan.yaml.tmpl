@@ -1,0 +1,68 @@
+# zap-api-scan.yaml - API-specific DAST Configuration
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+env:
+  contexts:
+    - name: "{{PROJECT_NAME}}-api"
+      urls:
+        - "{{API_URL}}"
+      includePaths:
+        - "{{API_URL}}/api/.*"
+      excludePaths:
+        - "{{API_URL}}/api/health"
+        - "{{API_URL}}/api/docs.*"
+      technology:
+        include:
+          - "Language.Python"
+          - "Db.PostgreSQL"
+
+jobs:
+  - type: openapi
+    parameters:
+      apiUrl: "{{API_URL}}/openapi.json"
+      context: "{{PROJECT_NAME}}-api"
+      targetUrl: "{{API_URL}}"
+
+  - type: activeScan
+    parameters:
+      context: "{{PROJECT_NAME}}-api"
+      policy: "API-Scan"
+      maxRuleDurationInMins: 3
+      maxScanDurationInMins: 20
+    policyDefinition:
+      rules:
+        - id: 40012  # Cross Site Scripting (Reflected)
+          strength: medium
+        - id: 40014  # Cross Site Scripting (Persistent)
+          strength: medium
+        - id: 40018  # SQL Injection
+          strength: high
+        - id: 40019  # SQL Injection - MySQL
+          strength: high
+        - id: 40020  # SQL Injection - Hypersonic
+          strength: medium
+        - id: 40021  # SQL Injection - Oracle
+          strength: medium
+        - id: 40022  # SQL Injection - PostgreSQL
+          strength: high
+        - id: 90019  # Server Side Code Injection
+          strength: high
+        - id: 90020  # Remote OS Command Injection
+          strength: high
+        - id: 40003  # CRLF Injection
+          strength: medium
+        - id: 40008  # Parameter Tampering
+          strength: medium
+        - id: 40009  # Server Side Include
+          strength: low
+        - id: 90021  # XPath Injection
+          strength: medium
+        - id: 90023  # XML External Entity Attack
+          strength: high
+
+  - type: report
+    parameters:
+      template: "sarif-json"
+      reportDir: "/zap/reports"
+      reportFile: "zap-api-report"

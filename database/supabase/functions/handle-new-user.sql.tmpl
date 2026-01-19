@@ -1,0 +1,134 @@
+-- handle-new-user.sql - Trigger function for automatic user profile creation
+-- Author: {{AUTHOR}}
+-- Project: {{PROJECT_NAME}}
+
+/**
+ * This function automatically creates a profile for new users when they sign up.
+ * It runs as a trigger on the auth.users table.
+ *
+ * Features:
+ * - Creates profile with user ID
+ * - Extracts metadata from auth user
+ * - Handles errors gracefully
+ * - Can be extended for additional setup
+ */
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+    INSERT INTO public.profiles (id, username, full_name, avatar_url)
+    VALUES (
+        NEW.id,
+        NEW.raw_user_meta_data->>'username',
+        NEW.raw_user_meta_data->>'full_name',
+        NEW.raw_user_meta_data->>'avatar_url'
+    );
+    RETURN NEW;
+EXCEPTION
+    WHEN others THEN
+        -- Log error but don't fail user creation
+        RAISE WARNING 'Failed to create profile for user %: %', NEW.id, SQLERRM;
+        RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger on auth.users table
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_new_user();
+
+/**
+ * Additional helper functions
+ */
+
+-- Function to handle user deletion (cleanup)
+CREATE OR REPLACE FUNCTION public.handle_user_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Delete user's storage files
+    DELETE FROM storage.objects
+    WHERE (metadata->>'owner')::uuid = OLD.id;
+
+    -- Profile is automatically deleted via CASCADE
+    -- Add any additional cleanup here
+
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
+CREATE TRIGGER on_auth_user_deleted
+    BEFORE DELETE ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_user_delete();
+
+-- Function to sync email changes to profile
+CREATE OR REPLACE FUNCTION public.handle_user_email_change()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.email <> OLD.email THEN
+        -- You can update profile or send notifications here
+        RAISE LOG 'User % changed email from % to %', NEW.id, OLD.email, NEW.email;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_updated ON auth.users;
+CREATE TRIGGER on_auth_user_updated
+    AFTER UPDATE ON auth.users
+    FOR EACH ROW
+    EXECUTE FUNCTION public.handle_user_email_change();
+
+-- Function to validate profile data
+CREATE OR REPLACE FUNCTION public.validate_profile()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Validate username format
+    IF NEW.username IS NOT NULL THEN
+        IF NEW.username !~ '^[a-zA-Z0-9_]+$' THEN
+            RAISE EXCEPTION 'Username can only contain letters, numbers, and underscores';
+        END IF;
+
+        IF char_length(NEW.username) < 3 THEN
+            RAISE EXCEPTION 'Username must be at least 3 characters long';
+        END IF;
+
+        IF char_length(NEW.username) > 30 THEN
+            RAISE EXCEPTION 'Username must be at most 30 characters long';
+        END IF;
+    END IF;
+
+    -- Validate bio length
+    IF NEW.bio IS NOT NULL AND char_length(NEW.bio) > 500 THEN
+        RAISE EXCEPTION 'Bio must be at most 500 characters long';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS validate_profile_before_insert_update ON public.profiles;
+CREATE TRIGGER validate_profile_before_insert_update
+    BEFORE INSERT OR UPDATE ON public.profiles
+    FOR EACH ROW
+    EXECUTE FUNCTION public.validate_profile();
+
+/**
+ * Usage examples:
+ *
+ * 1. Test profile creation manually:
+ * SELECT handle_new_user();
+ *
+ * 2. Check if trigger is active:
+ * SELECT * FROM information_schema.triggers
+ * WHERE trigger_name = 'on_auth_user_created';
+ *
+ * 3. Disable trigger temporarily:
+ * ALTER TABLE auth.users DISABLE TRIGGER on_auth_user_created;
+ *
+ * 4. Enable trigger:
+ * ALTER TABLE auth.users ENABLE TRIGGER on_auth_user_created;
+ */

@@ -1,0 +1,121 @@
+# docker-compose.yml - Development Environment
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+#
+# Usage:
+#   docker compose up -d      # Start all services
+#   docker compose down       # Stop all services
+#   docker compose logs -f    # View logs
+
+services:
+  # ==========================================================================
+  # API (FastAPI Backend)
+  # ==========================================================================
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: {{PROJECT_NAME}}-api
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/{{PROJECT_NAME_SNAKE}}
+      - SECRET_KEY=${SECRET_KEY:-development-secret-key-change-in-production}
+      - CORS_ORIGINS=http://localhost:3000
+    volumes:
+      - ./apps/api/src:/app/src:ro  # Hot reload in development
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - {{PROJECT_NAME}}-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ==========================================================================
+  # Web (Next.js Frontend)
+  # ==========================================================================
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: {{PROJECT_NAME}}-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api
+    networks:
+      - {{PROJECT_NAME}}-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  db:
+    image: postgres:16-alpine
+    container_name: {{PROJECT_NAME}}-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: {{PROJECT_NAME_SNAKE}}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - {{PROJECT_NAME}}-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d {{PROJECT_NAME_SNAKE}}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ==========================================================================
+  # Redis (Cache & Sessions)
+  # ==========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: {{PROJECT_NAME}}-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - {{PROJECT_NAME}}-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  {{PROJECT_NAME}}-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

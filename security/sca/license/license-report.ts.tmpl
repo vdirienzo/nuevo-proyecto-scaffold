@@ -1,0 +1,88 @@
+// license-report.ts - License Report Generator
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import checker from 'license-checker';
+import fs from 'fs';
+import path from 'path';
+
+interface LicenseInfo {
+  licenses: string;
+  repository?: string;
+  publisher?: string;
+  path: string;
+}
+
+interface LicenseReport {
+  timestamp: string;
+  project: string;
+  summary: {
+    total: number;
+    approved: number;
+    denied: number;
+    unknown: number;
+  };
+  packages: {
+    name: string;
+    license: string;
+    status: 'approved' | 'denied' | 'unknown';
+    repository?: string;
+  }[];
+}
+
+const ALLOWED_LICENSES = [
+  'MIT', 'Apache-2.0', 'BSD-2-Clause', 'BSD-3-Clause',
+  'ISC', '0BSD', 'CC0-1.0', 'Unlicense',
+];
+
+const DENIED_LICENSES = [
+  'GPL-2.0', 'GPL-3.0', 'LGPL-2.0', 'LGPL-2.1', 'LGPL-3.0',
+  'AGPL-1.0', 'AGPL-3.0', 'SSPL-1.0',
+];
+
+export async function generateLicenseReport(
+  projectPath: string,
+  outputPath: string
+): Promise<LicenseReport> {
+  return new Promise((resolve, reject) => {
+    checker.init({ start: projectPath }, (err, packages) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      const report: LicenseReport = {
+        timestamp: new Date().toISOString(),
+        project: '{{PROJECT_NAME}}',
+        summary: { total: 0, approved: 0, denied: 0, unknown: 0 },
+        packages: [],
+      };
+
+      for (const [name, info] of Object.entries(packages as Record<string, LicenseInfo>)) {
+        const license = info.licenses;
+        let status: 'approved' | 'denied' | 'unknown' = 'unknown';
+
+        if (ALLOWED_LICENSES.some(l => license.includes(l))) {
+          status = 'approved';
+          report.summary.approved++;
+        } else if (DENIED_LICENSES.some(l => license.includes(l))) {
+          status = 'denied';
+          report.summary.denied++;
+        } else {
+          report.summary.unknown++;
+        }
+
+        report.summary.total++;
+        report.packages.push({
+          name,
+          license,
+          status,
+          repository: info.repository,
+        });
+      }
+
+      fs.writeFileSync(outputPath, JSON.stringify(report, null, 2));
+      resolve(report);
+    });
+  });
+}

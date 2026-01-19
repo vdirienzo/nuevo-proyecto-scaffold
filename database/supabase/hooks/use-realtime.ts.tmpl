@@ -1,0 +1,177 @@
+// use-realtime.ts - React hook for Supabase realtime subscriptions
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+'use client'
+
+import { useEffect, useState } from 'react'
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
+import { supabase } from '../client'
+import type { Database } from '../types'
+
+type Tables = Database['public']['Tables']
+type TableName = keyof Tables
+
+interface UseRealtimeOptions<T extends TableName> {
+  table: T
+  event?: 'INSERT' | 'UPDATE' | 'DELETE' | '*'
+  filter?: string
+  schema?: string
+}
+
+/**
+ * Hook for subscribing to real-time database changes.
+ *
+ * Features:
+ * - Subscribe to INSERT, UPDATE, DELETE events
+ * - Filter by column values
+ * - Automatic cleanup on unmount
+ * - TypeScript typed payloads
+ *
+ * @param options Realtime subscription options
+ * @returns Latest change payload
+ *
+ * @example
+ * ```tsx
+ * const change = useRealtime({
+ *   table: 'messages',
+ *   event: 'INSERT',
+ *   filter: 'room_id=eq.123'
+ * })
+ * ```
+ */
+export function useRealtime<T extends TableName>(
+  options: UseRealtimeOptions<T>
+) {
+  const { table, event = '*', filter, schema = 'public' } = options
+  const [change, setChange] = useState<RealtimePostgresChangesPayload<Tables[T]['Row']> | null>(null)
+
+  useEffect(() => {
+    let channel: RealtimeChannel
+
+    const setupChannel = () => {
+      channel = supabase.channel(`${schema}:${table}`)
+
+      const subscription = channel.on<Tables[T]['Row']>(
+        'postgres_changes',
+        {
+          event,
+          schema,
+          table,
+          filter,
+        },
+        (payload) => {
+          setChange(payload)
+        }
+      )
+
+      subscription.subscribe()
+    }
+
+    setupChannel()
+
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel)
+      }
+    }
+  }, [table, event, filter, schema])
+
+  return change
+}
+
+/**
+ * Hook for subscribing to presence (online users).
+ *
+ * @param channelName Channel name for presence
+ * @returns Object with presence state and methods
+ *
+ * @example
+ * ```tsx
+ * const { presenceState, track, untrack } = usePresence('room:lobby')
+ *
+ * useEffect(() => {
+ *   track({ user_id: userId, username: 'John' })
+ *   return () => untrack()
+ * }, [])
+ * ```
+ */
+export function usePresence<T extends Record<string, any>>(channelName: string) {
+  const [presenceState, setPresenceState] = useState<Record<string, T[]>>({})
+
+  useEffect(() => {
+    const channel = supabase.channel(channelName)
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState<T>()
+        setPresenceState(state)
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [channelName])
+
+  const track = (payload: T) => {
+    const channel = supabase.channel(channelName)
+    channel.track(payload)
+  }
+
+  const untrack = () => {
+    const channel = supabase.channel(channelName)
+    channel.untrack()
+  }
+
+  return {
+    presenceState,
+    track,
+    untrack,
+  }
+}
+
+/**
+ * Hook for broadcasting messages in a channel.
+ *
+ * @param channelName Channel name for broadcast
+ * @returns Object with messages and broadcast method
+ *
+ * @example
+ * ```tsx
+ * const { messages, broadcast } = useBroadcast<{ text: string }>('chat:room1')
+ *
+ * broadcast({ text: 'Hello!' })
+ * ```
+ */
+export function useBroadcast<T extends Record<string, any>>(channelName: string) {
+  const [messages, setMessages] = useState<T[]>([])
+
+  useEffect(() => {
+    const channel = supabase.channel(channelName)
+
+    channel
+      .on('broadcast', { event: 'message' }, ({ payload }) => {
+        setMessages((prev) => [...prev, payload as T])
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [channelName])
+
+  const broadcast = (payload: T) => {
+    const channel = supabase.channel(channelName)
+    channel.send({
+      type: 'broadcast',
+      event: 'message',
+      payload,
+    })
+  }
+
+  return {
+    messages,
+    broadcast,
+  }
+}

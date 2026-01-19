@@ -1,0 +1,81 @@
+# tests/integration/conftest.py - Integration Test Fixtures
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Fixtures for integration tests that require external services.
+"""
+
+import os
+import pytest
+from collections.abc import AsyncGenerator
+from httpx import ASGITransport, AsyncClient
+
+# Skip all tests in this module if DATABASE_URL is not set
+pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(scope="session")
+def integration_db_url() -> str:
+    """Get integration test database URL from environment."""
+    url = os.getenv("TEST_DATABASE_URL")
+    if not url:
+        pytest.skip("TEST_DATABASE_URL not set - skipping integration tests")
+    return url
+
+
+@pytest.fixture
+async def integration_client() -> AsyncGenerator[AsyncClient, None]:
+    """
+    HTTP client for integration tests against real services.
+
+    Requires the test server to be running:
+        docker compose -f docker-compose.test.yml up -d
+    """
+    base_url = os.getenv("TEST_API_URL", "http://localhost:8001")
+
+    async with AsyncClient(base_url=base_url) as client:
+        yield client
+
+
+@pytest.fixture
+async def authenticated_client(
+    integration_client: AsyncClient,
+) -> AsyncGenerator[AsyncClient, None]:
+    """
+    Authenticated client for integration tests.
+
+    Creates a test user and returns a client with auth headers.
+    """
+    # Create test user
+    register_response = await integration_client.post(
+        "/auth/register",
+        json={
+            "email": f"test_{os.urandom(4).hex()}@example.com",
+            "username": f"testuser_{os.urandom(4).hex()}",
+            "password": "TestPassword123!",
+        },
+    )
+
+    if register_response.status_code != 201:
+        pytest.fail(f"Failed to create test user: {register_response.text}")
+
+    # Login to get token
+    login_response = await integration_client.post(
+        "/auth/login",
+        data={
+            "username": register_response.json()["email"],
+            "password": "TestPassword123!",
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+
+    token = login_response.json()["access_token"]
+
+    # Set auth header
+    integration_client.headers["Authorization"] = f"Bearer {token}"
+
+    yield integration_client
+
+    # Cleanup: remove test user (if endpoint exists)
+    # await integration_client.delete(f"/users/{register_response.json()['id']}")

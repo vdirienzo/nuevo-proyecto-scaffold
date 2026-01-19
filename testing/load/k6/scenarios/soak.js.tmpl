@@ -1,0 +1,55 @@
+// soak.js - Soak Test (Endurance test for memory leaks)
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+import { Rate, Trend, Counter } from 'k6/metrics';
+
+const errorRate = new Rate('errors');
+const responseTime = new Trend('response_time');
+const requestCount = new Counter('requests');
+
+export const options = {
+  stages: [
+    { duration: '5m', target: 50 },    // Ramp up
+    { duration: '4h', target: 50 },    // Soak for 4 hours
+    { duration: '5m', target: 0 },     // Ramp down
+  ],
+  thresholds: {
+    http_req_duration: ['p(95)<1500', 'p(99)<2000'],
+    errors: ['rate<0.01'],
+    http_req_failed: ['rate<0.01'],
+  },
+  tags: {
+    testType: 'soak',
+  },
+};
+
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
+
+export default function () {
+  requestCount.add(1);
+
+  const responses = http.batch([
+    ['GET', `${BASE_URL}/api/health`],
+    ['GET', `${BASE_URL}/api/{{RESOURCE}}`],
+  ]);
+
+  responses.forEach((res, i) => {
+    responseTime.add(res.timings.duration);
+
+    const success = check(res, {
+      'status is 200': (r) => r.status === 200,
+    });
+
+    errorRate.add(!success);
+  });
+
+  // Log progress every 1000 iterations
+  if (__ITER % 1000 === 0) {
+    console.log(`VU ${__VU}: Completed ${__ITER} iterations`);
+  }
+
+  sleep(2);
+}

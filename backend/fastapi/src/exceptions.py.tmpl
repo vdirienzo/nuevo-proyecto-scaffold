@@ -1,0 +1,194 @@
+# exceptions.py - Custom Exceptions and Handlers
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Centralized exception handling for the API.
+
+Provides consistent error responses and logging for all exception types.
+"""
+
+from typing import Any
+
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from loguru import logger
+from pydantic import BaseModel
+
+
+# =============================================================================
+# Custom Exception Classes
+# =============================================================================
+
+
+class AppError(Exception):
+    """Base application exception."""
+
+    def __init__(
+        self,
+        message: str,
+        status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR,
+        error_code: str = "INTERNAL_ERROR",
+        details: dict[str, Any] | None = None,
+    ):
+        self.message = message
+        self.status_code = status_code
+        self.error_code = error_code
+        self.details = details or {}
+        super().__init__(message)
+
+
+class NotFoundError(AppError):
+    """Resource not found exception."""
+
+    def __init__(self, resource: str, identifier: str | int):
+        super().__init__(
+            message=f"{resource} with id '{identifier}' not found",
+            status_code=status.HTTP_404_NOT_FOUND,
+            error_code="NOT_FOUND",
+            details={"resource": resource, "identifier": str(identifier)},
+        )
+
+
+class ConflictError(AppError):
+    """Resource conflict exception (e.g., duplicate)."""
+
+    def __init__(self, message: str, field: str | None = None):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_409_CONFLICT,
+            error_code="CONFLICT",
+            details={"field": field} if field else {},
+        )
+
+
+class AuthenticationError(AppError):
+    """Authentication failure exception."""
+
+    def __init__(self, message: str = "Invalid credentials"):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            error_code="AUTHENTICATION_FAILED",
+        )
+
+
+class AuthorizationError(AppError):
+    """Authorization failure exception."""
+
+    def __init__(self, message: str = "Insufficient permissions"):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_403_FORBIDDEN,
+            error_code="AUTHORIZATION_FAILED",
+        )
+
+
+class ValidationError(AppError):
+    """Business logic validation error."""
+
+    def __init__(self, message: str, field: str | None = None):
+        super().__init__(
+            message=message,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            error_code="VALIDATION_ERROR",
+            details={"field": field} if field else {},
+        )
+
+
+class RateLimitError(AppError):
+    """Rate limit exceeded exception."""
+
+    def __init__(self, retry_after: int = 60):
+        super().__init__(
+            message="Rate limit exceeded. Please try again later.",
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            error_code="RATE_LIMIT_EXCEEDED",
+            details={"retry_after_seconds": retry_after},
+        )
+
+
+# =============================================================================
+# Error Response Schema
+# =============================================================================
+
+
+class ErrorResponse(BaseModel):
+    """Standard error response schema."""
+
+    success: bool = False
+    error_code: str
+    message: str
+    details: dict[str, Any] = {}
+
+
+# =============================================================================
+# Exception Handlers
+# =============================================================================
+
+
+def register_exception_handlers(app: FastAPI) -> None:
+    """Register all exception handlers with the FastAPI app."""
+
+    @app.exception_handler(AppError)
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        """Handle custom application exceptions."""
+        logger.warning(
+            f"AppError: {exc.error_code} - {exc.message}",
+            extra={
+                "error_code": exc.error_code,
+                "path": str(request.url),
+                "method": request.method,
+            },
+        )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=ErrorResponse(
+                error_code=exc.error_code,
+                message=exc.message,
+                details=exc.details,
+            ).model_dump(),
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_error_handler(
+        request: Request, exc: RequestValidationError
+    ) -> JSONResponse:
+        """Handle Pydantic validation errors."""
+        errors = []
+        for error in exc.errors():
+            field = ".".join(str(loc) for loc in error["loc"])
+            errors.append({"field": field, "message": error["msg"]})
+
+        return JSONResponse(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            content=ErrorResponse(
+                error_code="VALIDATION_ERROR",
+                message="Request validation failed",
+                details={"errors": errors},
+            ).model_dump(),
+        )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
+        """Handle unexpected exceptions - log and return generic error."""
+        # Log full traceback for debugging
+        logger.exception(
+            f"Unhandled exception: {type(exc).__name__}",
+            extra={
+                "path": str(request.url),
+                "method": request.method,
+            },
+        )
+
+        # Return generic error (don't leak internal details)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content=ErrorResponse(
+                error_code="INTERNAL_ERROR",
+                message="An unexpected error occurred",
+            ).model_dump(),
+        )

@@ -1,0 +1,15 @@
+# services/__init__.py - Business Logic Services
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Service layer containing business logic.
+
+Services encapsulate complex operations and coordinate between
+repositories, external APIs, and other services.
+"""
+
+from .auth import AuthService
+from .user import UserService
+
+__all__ = ["AuthService", "UserService"]

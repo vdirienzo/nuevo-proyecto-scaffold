@@ -1,0 +1,201 @@
+-- rls-policies.sql - Row Level Security policies template
+-- Author: {{AUTHOR}}
+-- Project: {{PROJECT_NAME}}
+
+/**
+ * This file contains templates for common RLS policies.
+ * Copy and adapt these policies to your tables.
+ */
+
+-- ========================================
+-- Basic CRUD Policies (User-owned Resources)
+-- ========================================
+
+-- Example: posts table where users own their posts
+
+-- SELECT: Users can view their own posts
+CREATE POLICY "Users can view their own posts"
+    ON public.posts
+    FOR SELECT
+    USING (auth.uid() = user_id);
+
+-- INSERT: Users can create posts
+CREATE POLICY "Users can create posts"
+    ON public.posts
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+-- UPDATE: Users can update their own posts
+CREATE POLICY "Users can update their own posts"
+    ON public.posts
+    FOR UPDATE
+    USING (auth.uid() = user_id)
+    WITH CHECK (auth.uid() = user_id);
+
+-- DELETE: Users can delete their own posts
+CREATE POLICY "Users can delete their own posts"
+    ON public.posts
+    FOR DELETE
+    USING (auth.uid() = user_id);
+
+-- ========================================
+-- Public Read, Authenticated Write
+-- ========================================
+
+-- Example: blog posts visible to everyone, editable by authenticated users
+
+-- SELECT: Anyone can view published posts
+CREATE POLICY "Anyone can view published posts"
+    ON public.posts
+    FOR SELECT
+    USING (published = true OR auth.uid() = user_id);
+
+-- INSERT: Only authenticated users can create posts
+CREATE POLICY "Authenticated users can create posts"
+    ON public.posts
+    FOR INSERT
+    WITH CHECK (auth.role() = 'authenticated');
+
+-- ========================================
+-- Role-based Access Control (RBAC)
+-- ========================================
+
+-- Example: admin users have full access
+
+-- Helper function to check if user is admin
+CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.profiles
+        WHERE id = user_id AND role = 'admin'
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Admin can view all posts
+CREATE POLICY "Admins can view all posts"
+    ON public.posts
+    FOR SELECT
+    USING (is_admin(auth.uid()));
+
+-- Admin can update all posts
+CREATE POLICY "Admins can update all posts"
+    ON public.posts
+    FOR UPDATE
+    USING (is_admin(auth.uid()));
+
+-- ========================================
+-- Shared Access (Team/Organization)
+-- ========================================
+
+-- Example: team members can access team resources
+
+-- Helper function to check team membership
+CREATE OR REPLACE FUNCTION public.is_team_member(team_id UUID, user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1
+        FROM public.team_members
+        WHERE team_members.team_id = $1
+        AND team_members.user_id = $2
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Team members can view team posts
+CREATE POLICY "Team members can view team posts"
+    ON public.posts
+    FOR SELECT
+    USING (is_team_member(team_id, auth.uid()));
+
+-- ========================================
+-- Time-based Access
+-- ========================================
+
+-- Example: scheduled content becomes visible after publish_at date
+
+CREATE POLICY "Published content is visible after publish date"
+    ON public.posts
+    FOR SELECT
+    USING (
+        published = true
+        AND publish_at <= NOW()
+    );
+
+-- ========================================
+-- Hierarchical Access
+-- ========================================
+
+-- Example: users can access posts in their organization
+
+CREATE POLICY "Users can access organization posts"
+    ON public.posts
+    FOR SELECT
+    USING (
+        organization_id IN (
+            SELECT organization_id
+            FROM public.user_organizations
+            WHERE user_id = auth.uid()
+        )
+    );
+
+-- ========================================
+-- Custom Claims Access
+-- ========================================
+
+-- Example: using JWT custom claims for access control
+
+CREATE POLICY "Premium users can view premium posts"
+    ON public.posts
+    FOR SELECT
+    USING (
+        premium = false
+        OR (auth.jwt() ->> 'user_metadata')::jsonb ->> 'subscription' = 'premium'
+    );
+
+-- ========================================
+-- Testing RLS Policies
+-- ========================================
+
+/**
+ * To test RLS policies:
+ *
+ * 1. As specific user:
+ * SET LOCAL request.jwt.claims = '{"sub": "user-uuid-here"}';
+ * SELECT * FROM posts;
+ *
+ * 2. As anonymous:
+ * SET LOCAL role TO anon;
+ * SELECT * FROM posts;
+ *
+ * 3. As authenticated:
+ * SET LOCAL role TO authenticated;
+ * SELECT * FROM posts;
+ *
+ * 4. Reset:
+ * RESET ALL;
+ */
+
+-- ========================================
+-- Best Practices
+-- ========================================
+
+/**
+ * 1. Always enable RLS on tables with sensitive data:
+ *    ALTER TABLE table_name ENABLE ROW LEVEL SECURITY;
+ *
+ * 2. Test policies with different user roles
+ *
+ * 3. Use SECURITY DEFINER functions carefully
+ *
+ * 4. Create indexes on columns used in policies:
+ *    CREATE INDEX idx_posts_user_id ON posts(user_id);
+ *
+ * 5. Monitor policy performance:
+ *    EXPLAIN ANALYZE SELECT * FROM posts;
+ *
+ * 6. Consider caching for expensive policy checks
+ */

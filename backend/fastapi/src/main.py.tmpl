@@ -1,0 +1,100 @@
+# main.py - FastAPI Application Entry Point
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+FastAPI application entry point.
+
+This module configures and creates the main FastAPI application instance
+with all middleware, exception handlers, and routers.
+"""
+
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from loguru import logger
+
+from .config import settings
+from .database import init_db, close_db
+from .routes import health, auth, users
+from .middleware.logging import LoggingMiddleware
+from .middleware.security import SecurityHeadersMiddleware
+from .exceptions import register_exception_handlers
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """Application lifespan manager for startup/shutdown events."""
+    # Startup
+    logger.info("Starting {{PROJECT_NAME}} API...")
+    await init_db()
+    logger.info("Database initialized")
+
+    yield
+
+    # Shutdown
+    logger.info("Shutting down {{PROJECT_NAME}} API...")
+    await close_db()
+    logger.info("Database connection closed")
+
+
+def create_app() -> FastAPI:
+    """Factory function to create and configure the FastAPI application."""
+    app = FastAPI(
+        title="{{PROJECT_NAME}} API",
+        description="{{PROJECT_DESCRIPTION}}",
+        version="0.1.0",
+        docs_url="/docs" if settings.debug else None,
+        redoc_url="/redoc" if settings.debug else None,
+        openapi_url="/openapi.json" if settings.debug else None,
+        lifespan=lifespan,
+    )
+
+    # Security middleware (order matters - applied in reverse)
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(LoggingMiddleware)
+
+    # CORS configuration
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
+    )
+
+    # Trusted hosts (prevent host header attacks)
+    if not settings.debug:
+        app.add_middleware(
+            TrustedHostMiddleware,
+            allowed_hosts=settings.allowed_hosts,
+        )
+
+    # Register exception handlers
+    register_exception_handlers(app)
+
+    # Register routers
+    app.include_router(health.router, tags=["health"])
+    app.include_router(auth.router, prefix="/auth", tags=["auth"])
+    app.include_router(users.router, prefix="/users", tags=["users"])
+
+    return app
+
+
+app = create_app()
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "src.{{PROJECT_NAME_SNAKE}}.main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=settings.debug,
+        log_level="debug" if settings.debug else "info",
+    )

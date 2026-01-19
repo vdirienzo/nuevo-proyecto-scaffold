@@ -1,0 +1,47 @@
+# ZAP Rules Configuration
+# Author: {{AUTHOR}}
+# WARN = Warning, FAIL = Failure, IGNORE = Skip
+10010	WARN	# Cookie No HttpOnly Flag
+10011	WARN	# Cookie Without Secure Flag
+10015	WARN	# Incomplete or No Cache-control Header
+10016	WARN	# Web Browser XSS Protection Not Enabled
+10017	WARN	# Cross-Domain JavaScript Source File Inclusion
+10019	FAIL	# Content-Type Header Missing
+10020	FAIL	# X-Frame-Options Header Not Set
+10021	FAIL	# X-Content-Type-Options Header Missing
+10023	WARN	# Information Disclosure - Debug Error Messages
+10024	WARN	# Information Disclosure - Sensitive Information in URL
+10025	WARN	# Information Disclosure - Sensitive Information in HTTP Referrer Header
+10026	WARN	# HTTP Parameter Override
+10027	WARN	# Information Disclosure - Suspicious Comments
+10028	WARN	# Open Redirect
+10029	WARN	# Cookie Poisoning
+10030	WARN	# User Controllable Charset
+10031	WARN	# User Controllable HTML Element Attribute
+10032	WARN	# Viewstate
+10033	WARN	# Directory Browsing
+10034	WARN	# Heartbleed OpenSSL Vulnerability
+10035	FAIL	# Strict-Transport-Security Header Not Set
+10036	WARN	# HTTP Server Response Header
+10037	WARN	# Server Leaks Information via "X-Powered-By"
+10038	FAIL	# Content Security Policy (CSP) Header Not Set
+10039	WARN	# X-Backend-Server Header Information Leak
+10040	FAIL	# Secure Pages Include Mixed Content
+10054	FAIL	# Cookie without SameSite Attribute
+10055	FAIL	# CSP: Wildcard Directive
+10056	FAIL	# CSP: script-src unsafe-inline
+10057	FAIL	# CSP: style-src unsafe-inline
+10096	WARN	# Timestamp Disclosure
+10097	WARN	# Hash Disclosure
+10098	WARN	# Cross-Domain Misconfiguration
+40012	FAIL	# Cross Site Scripting (Reflected)
+40014	FAIL	# Cross Site Scripting (Persistent)
+40016	FAIL	# Cross Site Scripting (Persistent) - Prime
+40017	FAIL	# Cross Site Scripting (Persistent) - Spider
+40018	FAIL	# SQL Injection
+40019	FAIL	# SQL Injection - MySQL
+40020	FAIL	# SQL Injection - Hypersonic SQL
+40021	FAIL	# SQL Injection - Oracle
+40022	FAIL	# SQL Injection - PostgreSQL
+90019	FAIL	# Server Side Code Injection
+90020	FAIL	# Remote OS Command Injection

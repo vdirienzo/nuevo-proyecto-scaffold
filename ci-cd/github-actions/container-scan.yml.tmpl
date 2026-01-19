@@ -1,0 +1,100 @@
+# container-scan.yml - Container Security Scanning
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+name: Container Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**/Dockerfile*'
+      - '**/docker-compose*.yml'
+  pull_request:
+    paths:
+      - '**/Dockerfile*'
+  schedule:
+    - cron: '0 5 * * *'  # Daily at 5 AM
+
+jobs:
+  build-and-scan:
+    name: Build & Scan Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image:
+          - name: api
+            dockerfile: apps/api/Dockerfile
+            context: apps/api
+          - name: web
+            dockerfile: apps/web/Dockerfile
+            context: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.image.context }}
+          file: ${{ matrix.image.dockerfile }}
+          push: false
+          load: true
+          tags: {{PROJECT_NAME}}/${{ matrix.image.name }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy Vulnerability Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '{{PROJECT_NAME}}/${{ matrix.image.name }}:${{ github.sha }}'
+          format: 'sarif'
+          output: 'trivy-${{ matrix.image.name }}.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Trivy SBOM
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: '{{PROJECT_NAME}}/${{ matrix.image.name }}:${{ github.sha }}'
+          format: 'cyclonedx'
+          output: 'sbom-${{ matrix.image.name }}.json'
+
+      - name: Grype Scan
+        uses: anchore/scan-action@v3
+        with:
+          image: '{{PROJECT_NAME}}/${{ matrix.image.name }}:${{ github.sha }}'
+          fail-build: true
+          severity-cutoff: high
+          output-format: sarif
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-${{ matrix.image.name }}.sarif'
+          category: 'trivy-${{ matrix.image.name }}'
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image.name }}
+          path: sbom-${{ matrix.image.name }}.json
+
+  dockerfile-lint:
+    name: Dockerfile Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: apps/api/Dockerfile
+          failure-threshold: warning
+
+      - name: Hadolint Web
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: apps/web/Dockerfile
+          failure-threshold: warning

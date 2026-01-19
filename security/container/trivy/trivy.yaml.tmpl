@@ -1,0 +1,35 @@
+# trivy.yaml - Trivy Container Scanner Config
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+scan:
+  scanners:
+    - vuln
+    - secret
+    - misconfig
+  severity:
+    - CRITICAL
+    - HIGH
+    - MEDIUM
+  ignore-unfixed: false
+
+vulnerability:
+  type:
+    - os
+    - library
+
+secret:
+  config: trivy-secret.yaml
+
+misconfig:
+  scanners:
+    - dockerfile
+    - kubernetes
+
+cache:
+  dir: .trivy-cache
+
+format: sarif
+output: trivy-results.sarif
+
+exit-code: 1

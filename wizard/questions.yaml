@@ -1,0 +1,806 @@
+# Wizard Configuration for nuevo-proyecto
+# Author: Homero Thompson del Lago del Terror
+# Version: 3.0.0 - State of the Art Edition
+# Last Updated: 2026-01-19
+
+phases:
+  # ============================================
+  # PHASE 1: Project Metadata (Enhanced)
+  # ============================================
+  - id: metadata
+    title: "Project Configuration"
+    questions:
+      - id: project_name
+        type: text
+        prompt: "Project name (kebab-case)"
+        validation: "^[a-z][a-z0-9-]*$"
+        required: true
+
+      - id: project_description
+        type: text
+        prompt: "Brief project description"
+        required: true
+
+      - id: project_author
+        type: text
+        prompt: "Author"
+        default: "Homero Thompson del Lago del Terror"
+        required: true
+
+      - id: project_license
+        type: select
+        prompt: "License"
+        required: true
+        options:
+          - value: mit
+            label: "MIT"
+            description: "Permissive, commercial-friendly"
+          - value: apache-2.0
+            label: "Apache 2.0"
+            description: "Permissive with patent protection"
+          - value: proprietary
+            label: "Proprietary"
+            description: "All rights reserved"
+          - value: gpl-3.0
+            label: "GPL 3.0"
+            description: "Copyleft, open source required"
+
+      - id: repo_url
+        type: text
+        prompt: "Repository URL (optional)"
+        required: false
+        validation: "^(https?://)?[\\w.-]+(/[\\w.-]+)*$"
+
+  # ============================================
+  # PHASE 2: Scale & Compliance
+  # ============================================
+  - id: scale
+    title: "Scale & Compliance"
+    questions:
+      - id: scale_level
+        type: select
+        prompt: "Target project scale"
+        required: true
+        options:
+          - value: mvp
+            label: "MVP - Minimum Viable Product"
+            description: |
+              - Testing: Unit + Integration
+              - Security: SAST + Secrets scanning
+              - Deploy: Vercel/basic containers
+              - Team: 1-2 developers
+              - Users: < 1,000
+
+          - value: scale-up
+            label: "Scale-up - Growing Startup"
+            description: |
+              - Testing: + E2E + Contract testing
+              - Security: + SCA + Container scanning
+              - Deploy: Docker Compose / Cloud Run
+              - Team: 3-10 developers
+              - Users: 1,000 - 100,000
+
+          - value: enterprise
+            label: "Enterprise - Corporate"
+            description: |
+              - Testing: + Load + Visual regression
+              - Security: + DAST + SBOM + Compliance
+              - Deploy: Kubernetes (GKE/EKS/AKS)
+              - Observability: Full stack
+              - Team: 10-50 developers
+              - Users: 100,000 - 1M
+
+          - value: netflix
+            label: "Netflix Scale - Hyperscale"
+            description: |
+              - Testing: + Chaos + Mutation + A11y
+              - Security: Zero-trust + Runtime
+              - Deploy: Multi-region Kubernetes
+              - Resilience: Chaos engineering
+              - Team: 50+ developers
+              - Users: 1M+
+
+      - id: compliance_requirements
+        type: multiselect
+        prompt: "Compliance requirements (if any)"
+        required: false
+        options:
+          - value: gdpr
+            label: "GDPR"
+            description: "EU data protection"
+          - value: hipaa
+            label: "HIPAA"
+            description: "Healthcare data (US)"
+          - value: soc2
+            label: "SOC 2"
+            description: "Service organization controls"
+          - value: pci-dss
+            label: "PCI-DSS"
+            description: "Payment card data"
+          - value: iso27001
+            label: "ISO 27001"
+            description: "Information security"
+
+      - id: data_sensitivity
+        type: select
+        prompt: "Data sensitivity level"
+        required: true
+        options:
+          - value: public
+            label: "Public"
+            description: "No sensitive data"
+          - value: internal
+            label: "Internal"
+            description: "Business data, non-PII"
+          - value: confidential
+            label: "Confidential"
+            description: "PII, financial data"
+          - value: restricted
+            label: "Restricted"
+            description: "Healthcare, payment, secrets"
+
+  # ============================================
+  # PHASE 3: Stack Selection (Enhanced)
+  # ============================================
+  - id: stack
+    title: "Technology Stack"
+    questions:
+      - id: backend_framework
+        type: select
+        prompt: "Backend framework"
+        required: true
+        options:
+          - value: fastapi
+            label: "FastAPI (Python)"
+            description: "Async-first, type-safe, auto docs, ML-friendly"
+          - value: nestjs
+            label: "NestJS (TypeScript)"
+            description: "Enterprise-grade, modular, DI container"
+          - value: go
+            label: "Go (Gin/Echo)"
+            description: "High performance, low memory, microservices"
+          - value: none
+            label: "API-less (BaaS direct)"
+            description: "Frontend direct to Supabase/Firebase"
+
+      - id: frontend_framework
+        type: select
+        prompt: "Frontend framework"
+        required: true
+        options:
+          - value: nextjs
+            label: "Next.js 15 (App Router)"
+            description: "React 19 + SSR/SSG + Server Actions"
+          - value: react-spa
+            label: "React SPA (Vite)"
+            description: "Client-side only, simpler deployment"
+          - value: none
+            label: "No frontend (API only)"
+            description: "Backend service or CLI tool"
+
+      - id: mobile_platform
+        type: select
+        prompt: "Mobile platform (optional)"
+        required: false
+        options:
+          - value: none
+            label: "No mobile app"
+            description: "Web only"
+          - value: react-native
+            label: "React Native (Expo)"
+            description: "Cross-platform, shared logic with web"
+          - value: pwa
+            label: "PWA"
+            description: "Installable web app"
+
+      - id: api_style
+        type: select
+        prompt: "API style"
+        required: true
+        options:
+          - value: rest
+            label: "REST"
+            description: "Standard HTTP/JSON, OpenAPI docs"
+          - value: graphql
+            label: "GraphQL"
+            description: "Flexible queries, type-safe schema"
+          - value: grpc
+            label: "gRPC"
+            description: "High-performance, protobuf, streaming"
+          - value: trpc
+            label: "tRPC"
+            description: "End-to-end type safety, TypeScript only"
+
+      - id: database
+        type: select
+        prompt: "Primary database"
+        required: true
+        options:
+          - value: supabase
+            label: "Supabase"
+            description: "PostgreSQL + Auth + Storage + Realtime"
+          - value: postgresql
+            label: "PostgreSQL"
+            description: "Self-hosted, maximum control"
+          - value: firebase
+            label: "Firebase"
+            description: "NoSQL (Firestore), realtime, serverless"
+          - value: mongodb
+            label: "MongoDB"
+            description: "Document DB, flexible schema"
+
+      - id: cache_layer
+        type: select
+        prompt: "Cache layer"
+        required: false
+        options:
+          - value: none
+            label: "No cache"
+            description: "Database queries only"
+          - value: redis
+            label: "Redis"
+            description: "In-memory cache + sessions + queues"
+          - value: dragonfly
+            label: "Dragonfly"
+            description: "Redis-compatible, better performance"
+
+  # ============================================
+  # PHASE 4: Authentication & Authorization
+  # ============================================
+  - id: auth
+    title: "Authentication & Authorization"
+    questions:
+      - id: auth_provider
+        type: select
+        prompt: "Authentication provider"
+        required: true
+        options:
+          - value: supabase-auth
+            label: "Supabase Auth"
+            description: "Built-in with Supabase, social logins"
+          - value: firebase-auth
+            label: "Firebase Auth"
+            description: "Built-in with Firebase, social logins"
+          - value: auth0
+            label: "Auth0"
+            description: "Enterprise SSO, MFA, compliance"
+          - value: clerk
+            label: "Clerk"
+            description: "Modern DX, React components"
+          - value: custom-jwt
+            label: "Custom JWT"
+            description: "Self-implemented, full control"
+
+      - id: auth_methods
+        type: multiselect
+        prompt: "Authentication methods"
+        required: true
+        options:
+          - value: email-password
+            label: "Email/Password"
+            description: "Traditional login"
+          - value: magic-link
+            label: "Magic Link"
+            description: "Passwordless email"
+          - value: oauth-google
+            label: "Google OAuth"
+            description: "Sign in with Google"
+          - value: oauth-github
+            label: "GitHub OAuth"
+            description: "Sign in with GitHub"
+          - value: oauth-microsoft
+            label: "Microsoft OAuth"
+            description: "Azure AD / Microsoft accounts"
+          - value: saml
+            label: "SAML SSO"
+            description: "Enterprise identity providers"
+            scales: ["enterprise", "netflix"]
+          - value: mfa
+            label: "MFA/2FA"
+            description: "TOTP, SMS, or hardware keys"
+            scales: ["enterprise", "netflix"]
+
+      - id: authorization_model
+        type: select
+        prompt: "Authorization model"
+        required: true
+        options:
+          - value: simple-roles
+            label: "Simple Roles"
+            description: "Admin, User, Guest"
+          - value: rbac
+            label: "RBAC"
+            description: "Role-Based Access Control"
+          - value: abac
+            label: "ABAC"
+            description: "Attribute-Based Access Control"
+          - value: rls
+            label: "Row-Level Security"
+            description: "Database-enforced (Supabase/Postgres)"
+
+  # ============================================
+  # PHASE 5: Testing Strategy (Enhanced)
+  # ============================================
+  - id: testing
+    title: "Testing Strategy"
+    questions:
+      - id: testing_level
+        type: multiselect
+        prompt: "Testing types (scale-based recommendations)"
+        required: true
+        options:
+          - value: unit
+            label: "Unit Testing"
+            description: "Vitest/Jest (frontend), pytest (backend)"
+            scales: ["mvp", "scale-up", "enterprise", "netflix"]
+
+          - value: integration
+            label: "Integration Testing"
+            description: "API, database, service integration"
+            scales: ["mvp", "scale-up", "enterprise", "netflix"]
+
+          - value: component
+            label: "Component Testing"
+            description: "Isolated UI components (Testing Library)"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: e2e
+            label: "E2E Testing"
+            description: "Playwright for full user flows"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: api
+            label: "API Testing"
+            description: "Contract validation, schema testing"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: contract
+            label: "Contract Testing"
+            description: "Pact for service boundaries"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: load
+            label: "Load Testing"
+            description: "k6 for performance under load"
+            scales: ["enterprise", "netflix"]
+
+          - value: visual
+            label: "Visual Regression"
+            description: "Chromatic/Percy for UI changes"
+            scales: ["enterprise", "netflix"]
+
+          - value: chaos
+            label: "Chaos Engineering"
+            description: "Chaos Mesh for resilience"
+            scales: ["netflix"]
+
+          - value: mutation
+            label: "Mutation Testing"
+            description: "Stryker for test quality"
+            scales: ["netflix"]
+
+          - value: accessibility
+            label: "Accessibility Testing"
+            description: "axe-core for WCAG compliance"
+            scales: ["enterprise", "netflix"]
+
+          - value: property
+            label: "Property-Based Testing"
+            description: "Hypothesis/fast-check for edge cases"
+            scales: ["netflix"]
+
+      - id: coverage_target
+        type: select
+        prompt: "Code coverage target"
+        required: true
+        options:
+          - value: "70"
+            label: "70% (MVP)"
+            description: "Minimum viable coverage"
+          - value: "80"
+            label: "80% (Standard)"
+            description: "Industry standard"
+          - value: "90"
+            label: "90% (Enterprise)"
+            description: "High confidence"
+
+  # ============================================
+  # PHASE 6: Security (Enhanced)
+  # ============================================
+  - id: security
+    title: "Security Configuration"
+    questions:
+      - id: security_level
+        type: multiselect
+        prompt: "Security tools and practices"
+        required: true
+        options:
+          - value: sast
+            label: "SAST - Static Analysis"
+            description: "Semgrep, CodeQL, ESLint security"
+            scales: ["mvp", "scale-up", "enterprise", "netflix"]
+
+          - value: secrets
+            label: "Secrets Scanning"
+            description: "TruffleHog, Gitleaks, pre-commit"
+            scales: ["mvp", "scale-up", "enterprise", "netflix"]
+
+          - value: sca
+            label: "SCA - Dependency Scanning"
+            description: "Snyk, Dependabot, npm audit"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: container
+            label: "Container Scanning"
+            description: "Trivy, Grype for Docker images"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: dast
+            label: "DAST - Dynamic Analysis"
+            description: "OWASP ZAP, Nuclei"
+            scales: ["enterprise", "netflix"]
+
+          - value: sbom
+            label: "SBOM Generation"
+            description: "Syft for software bill of materials"
+            scales: ["enterprise", "netflix"]
+
+          - value: api-security
+            label: "API Security"
+            description: "Rate limiting, input validation, CORS"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: waf
+            label: "WAF - Web Application Firewall"
+            description: "Cloudflare, AWS WAF"
+            scales: ["enterprise", "netflix"]
+
+          - value: runtime
+            label: "Runtime Security"
+            description: "Falco for threat detection"
+            scales: ["netflix"]
+
+          - value: network-policies
+            label: "Network Policies"
+            description: "Zero-trust networking in K8s"
+            scales: ["netflix"]
+
+      - id: encryption
+        type: multiselect
+        prompt: "Encryption requirements"
+        required: true
+        options:
+          - value: tls
+            label: "TLS/HTTPS"
+            description: "Transport encryption (required)"
+            default: true
+          - value: at-rest
+            label: "Encryption at Rest"
+            description: "Database and storage encryption"
+          - value: field-level
+            label: "Field-Level Encryption"
+            description: "Sensitive fields encrypted in DB"
+            scales: ["enterprise", "netflix"]
+          - value: e2ee
+            label: "End-to-End Encryption"
+            description: "Client-side encryption"
+            scales: ["netflix"]
+
+  # ============================================
+  # PHASE 7: Infrastructure & Deployment
+  # ============================================
+  - id: deployment
+    title: "Infrastructure & Deployment"
+    questions:
+      - id: deploy_target
+        type: select
+        prompt: "Deployment target"
+        required: true
+        options:
+          - value: vercel
+            label: "Vercel"
+            description: "Serverless, edge functions, simple"
+            recommended_scales: ["mvp"]
+
+          - value: docker
+            label: "Docker Compose"
+            description: "Self-hosted, single server"
+            recommended_scales: ["mvp", "scale-up"]
+
+          - value: cloud-run
+            label: "Google Cloud Run"
+            description: "Serverless containers, auto-scaling"
+            recommended_scales: ["scale-up", "enterprise"]
+
+          - value: aws-ecs
+            label: "AWS ECS/Fargate"
+            description: "Managed containers on AWS"
+            recommended_scales: ["scale-up", "enterprise"]
+
+          - value: kubernetes
+            label: "Kubernetes"
+            description: "Full orchestration, multi-region capable"
+            recommended_scales: ["enterprise", "netflix"]
+
+      - id: iac_tool
+        type: select
+        prompt: "Infrastructure as Code"
+        required: false
+        options:
+          - value: none
+            label: "No IaC"
+            description: "Manual or platform-managed"
+          - value: terraform
+            label: "Terraform"
+            description: "Multi-cloud, mature ecosystem"
+          - value: pulumi
+            label: "Pulumi"
+            description: "Code-first (TypeScript/Python)"
+          - value: cdk
+            label: "AWS CDK"
+            description: "AWS-native, TypeScript"
+
+      - id: ci_cd
+        type: multiselect
+        prompt: "CI/CD features"
+        required: true
+        options:
+          - value: basic-ci
+            label: "Basic CI"
+            description: "Build, test, deploy on push"
+            default: true
+
+          - value: multi-stage
+            label: "Multi-stage Pipeline"
+            description: "Dev → Staging → Production"
+            recommended_scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: preview-envs
+            label: "Preview Environments"
+            description: "Per-PR deployments"
+            recommended_scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: gitops
+            label: "GitOps (ArgoCD/Flux)"
+            description: "Declarative deployments"
+            recommended_scales: ["enterprise", "netflix"]
+
+          - value: progressive
+            label: "Progressive Delivery"
+            description: "Canary, blue-green, feature flags"
+            recommended_scales: ["netflix"]
+
+  # ============================================
+  # PHASE 8: Observability
+  # ============================================
+  - id: observability
+    title: "Observability & Monitoring"
+    questions:
+      - id: observability_stack
+        type: multiselect
+        prompt: "Observability components"
+        required: true
+        options:
+          - value: logging
+            label: "Centralized Logging"
+            description: "Structured logs, log aggregation"
+            scales: ["mvp", "scale-up", "enterprise", "netflix"]
+
+          - value: error-tracking
+            label: "Error Tracking"
+            description: "Sentry for exceptions and crashes"
+            scales: ["mvp", "scale-up", "enterprise", "netflix"]
+
+          - value: apm
+            label: "APM - Application Monitoring"
+            description: "DataDog, New Relic, or Grafana"
+            scales: ["scale-up", "enterprise", "netflix"]
+
+          - value: tracing
+            label: "Distributed Tracing"
+            description: "OpenTelemetry, Jaeger"
+            scales: ["enterprise", "netflix"]
+
+          - value: metrics
+            label: "Metrics & Dashboards"
+            description: "Prometheus + Grafana"
+            scales: ["enterprise", "netflix"]
+
+          - value: slo
+            label: "SLO Monitoring"
+            description: "Service Level Objectives tracking"
+            scales: ["netflix"]
+
+          - value: real-user
+            label: "Real User Monitoring"
+            description: "Frontend performance metrics"
+            scales: ["enterprise", "netflix"]
+
+      - id: alerting
+        type: select
+        prompt: "Alerting strategy"
+        required: true
+        options:
+          - value: basic
+            label: "Basic Alerts"
+            description: "Email/Slack on errors"
+          - value: pagerduty
+            label: "PagerDuty"
+            description: "On-call rotation, escalation"
+          - value: opsgenie
+            label: "OpsGenie"
+            description: "Incident management"
+
+  # ============================================
+  # PHASE 9: Developer Experience
+  # ============================================
+  - id: developer_experience
+    title: "Developer Experience"
+    questions:
+      - id: dev_tools
+        type: multiselect
+        prompt: "Development tools"
+        required: true
+        options:
+          - value: devcontainers
+            label: "Dev Containers"
+            description: "VS Code dev containers for consistency"
+
+          - value: hot-reload
+            label: "Hot Reload"
+            description: "Fast refresh for frontend and backend"
+            default: true
+
+          - value: api-docs
+            label: "API Documentation"
+            description: "OpenAPI/Swagger or GraphQL Playground"
+            default: true
+
+          - value: storybook
+            label: "Storybook"
+            description: "Component documentation and testing"
+
+          - value: mock-server
+            label: "Mock Server"
+            description: "MSW for frontend development"
+
+          - value: seed-data
+            label: "Seed Data Scripts"
+            description: "Development data generation"
+
+      - id: code_quality
+        type: multiselect
+        prompt: "Code quality tools"
+        required: true
+        options:
+          - value: eslint
+            label: "ESLint"
+            description: "JavaScript/TypeScript linting"
+            default: true
+
+          - value: prettier
+            label: "Prettier"
+            description: "Code formatting"
+            default: true
+
+          - value: ruff
+            label: "Ruff"
+            description: "Python linting (replaces black+isort)"
+            default: true
+
+          - value: husky
+            label: "Husky + lint-staged"
+            description: "Pre-commit hooks"
+            default: true
+
+          - value: commitlint
+            label: "Commitlint"
+            description: "Conventional commits enforcement"
+
+          - value: codeowners
+            label: "CODEOWNERS"
+            description: "Automatic PR reviewers"
+
+  # ============================================
+  # PHASE 10: Additional Features
+  # ============================================
+  - id: extras
+    title: "Additional Features"
+    questions:
+      - id: additional_features
+        type: multiselect
+        prompt: "Select additional features"
+        required: false
+        options:
+          - value: email
+            label: "Email Service"
+            description: "Resend/SendGrid integration"
+
+          - value: storage
+            label: "File Storage"
+            description: "S3/Supabase/Firebase Storage"
+
+          - value: queues
+            label: "Background Jobs"
+            description: "BullMQ/Celery for async tasks"
+
+          - value: feature-flags
+            label: "Feature Flags"
+            description: "LaunchDarkly/Unleash/Flagsmith"
+
+          - value: analytics
+            label: "Product Analytics"
+            description: "PostHog/Mixpanel/Amplitude"
+
+          - value: search
+            label: "Full-Text Search"
+            description: "Meilisearch/Algolia/Typesense"
+
+          - value: ai-integration
+            label: "AI/LLM Integration"
+            description: "OpenAI/Anthropic/AWS Bedrock"
+
+          - value: i18n
+            label: "Internationalization"
+            description: "next-intl for multi-language"
+
+          - value: cms
+            label: "Headless CMS"
+            description: "Sanity/Strapi/Contentful"
+
+          - value: payments
+            label: "Payments"
+            description: "Stripe integration"
+
+# ============================================
+# Scale-Based Defaults
+# ============================================
+scale_defaults:
+  mvp:
+    testing_level: ["unit", "integration"]
+    coverage_target: "70"
+    security_level: ["sast", "secrets"]
+    encryption: ["tls"]
+    deploy_target: "vercel"
+    ci_cd: ["basic-ci"]
+    observability_stack: ["logging", "error-tracking"]
+    alerting: "basic"
+    dev_tools: ["hot-reload", "api-docs"]
+    code_quality: ["eslint", "prettier", "ruff", "husky"]
+
+  scale-up:
+    testing_level: ["unit", "integration", "component", "e2e", "api", "contract"]
+    coverage_target: "80"
+    security_level: ["sast", "secrets", "sca", "container", "api-security"]
+    encryption: ["tls", "at-rest"]
+    deploy_target: "docker"
+    ci_cd: ["basic-ci", "multi-stage", "preview-envs"]
+    observability_stack: ["logging", "error-tracking", "apm"]
+    alerting: "basic"
+    dev_tools: ["hot-reload", "api-docs", "storybook", "seed-data"]
+    code_quality: ["eslint", "prettier", "ruff", "husky", "commitlint"]
+
+  enterprise:
+    testing_level: ["unit", "integration", "component", "e2e", "api", "contract", "load", "visual", "accessibility"]
+    coverage_target: "90"
+    security_level: ["sast", "secrets", "sca", "container", "dast", "sbom", "api-security", "waf"]
+    encryption: ["tls", "at-rest", "field-level"]
+    deploy_target: "kubernetes"
+    ci_cd: ["basic-ci", "multi-stage", "preview-envs", "gitops"]
+    observability_stack: ["logging", "error-tracking", "apm", "tracing", "metrics", "real-user"]
+    alerting: "pagerduty"
+    dev_tools: ["devcontainers", "hot-reload", "api-docs", "storybook", "mock-server", "seed-data"]
+    code_quality: ["eslint", "prettier", "ruff", "husky", "commitlint", "codeowners"]
+
+  netflix:
+    testing_level: ["unit", "integration", "component", "e2e", "api", "contract", "load", "visual", "chaos", "mutation", "accessibility", "property"]
+    coverage_target: "90"
+    security_level: ["sast", "secrets", "sca", "container", "dast", "sbom", "api-security", "waf", "runtime", "network-policies"]
+    encryption: ["tls", "at-rest", "field-level", "e2ee"]
+    deploy_target: "kubernetes"
+    ci_cd: ["basic-ci", "multi-stage", "preview-envs", "gitops", "progressive"]
+    observability_stack: ["logging", "error-tracking", "apm", "tracing", "metrics", "slo", "real-user"]
+    alerting: "pagerduty"
+    dev_tools: ["devcontainers", "hot-reload", "api-docs", "storybook", "mock-server", "seed-data"]
+    code_quality: ["eslint", "prettier", "ruff", "husky", "commitlint", "codeowners"]
+    additional_features: ["feature-flags", "queues"]

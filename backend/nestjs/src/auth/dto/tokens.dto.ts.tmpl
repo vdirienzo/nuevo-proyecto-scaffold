@@ -1,0 +1,19 @@
+// auth/dto/tokens.dto.ts - Tokens Response DTO
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { ApiProperty } from '@nestjs/swagger';
+
+export class TokensDto {
+  @ApiProperty({ description: 'JWT access token' })
+  accessToken: string;
+
+  @ApiProperty({ description: 'JWT refresh token' })
+  refreshToken: string;
+
+  @ApiProperty({ example: 'bearer' })
+  tokenType: string;
+
+  @ApiProperty({ example: 1800, description: 'Token expiration in seconds' })
+  expiresIn: number;
+}

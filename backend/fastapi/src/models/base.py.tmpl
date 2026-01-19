@@ -1,0 +1,31 @@
+# models/base.py - Base Model Mixins
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Base model mixins providing common fields and functionality.
+"""
+
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+
+from sqlmodel import Field
+
+if TYPE_CHECKING:
+    pass
+
+
+class TimestampMixin:
+    """Mixin providing created_at and updated_at timestamp fields."""
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        description="Record creation timestamp (UTC)",
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+        nullable=False,
+        description="Record last update timestamp (UTC)",
+    )

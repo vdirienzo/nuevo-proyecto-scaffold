@@ -1,0 +1,384 @@
+// use-storage.ts - Firebase Storage hook
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { useState, useCallback } from 'react';
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+  listAll,
+  getMetadata,
+  type UploadTaskSnapshot,
+  type StorageReference,
+  type FullMetadata,
+  type ListResult,
+} from 'firebase/storage';
+import { storage } from '../firebase-config';
+
+interface UploadState {
+  progress: number;
+  loading: boolean;
+  error: Error | null;
+  downloadURL: string | null;
+}
+
+interface UseStorageReturn {
+  uploadFile: (
+    file: File,
+    path: string,
+    metadata?: Record<string, string>
+  ) => Promise<string>;
+  uploadState: UploadState;
+  cancelUpload: () => void;
+}
+
+interface UseDownloadURLReturn {
+  url: string | null;
+  loading: boolean;
+  error: Error | null;
+  refresh: () => Promise<void>;
+}
+
+interface UseDeleteFileReturn {
+  deleteFile: (path: string) => Promise<void>;
+  loading: boolean;
+  error: Error | null;
+}
+
+interface FileListItem {
+  name: string;
+  fullPath: string;
+  downloadURL?: string;
+  metadata?: FullMetadata;
+}
+
+interface UseListFilesReturn {
+  files: FileListItem[];
+  loading: boolean;
+  error: Error | null;
+  refresh: () => Promise<void>;
+}
+
+// Hook for uploading files with progress tracking
+export function useStorage(): UseStorageReturn {
+  const [uploadState, setUploadState] = useState<UploadState>({
+    progress: 0,
+    loading: false,
+    error: null,
+    downloadURL: null,
+  });
+
+  const [uploadTask, setUploadTask] = useState<ReturnType<
+    typeof uploadBytesResumable
+  > | null>(null);
+
+  const uploadFile = useCallback(
+    async (
+      file: File,
+      path: string,
+      customMetadata?: Record<string, string>
+    ): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        try {
+          setUploadState({
+            progress: 0,
+            loading: true,
+            error: null,
+            downloadURL: null,
+          });
+
+          const storageRef = ref(storage, path);
+          const metadata = {
+            contentType: file.type,
+            customMetadata: customMetadata || {},
+          };
+
+          const task = uploadBytesResumable(storageRef, file, metadata);
+          setUploadTask(task);
+
+          task.on(
+            'state_changed',
+            (snapshot: UploadTaskSnapshot) => {
+              const progress =
+                (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadState((prev) => ({
+                ...prev,
+                progress,
+                loading: true,
+              }));
+            },
+            (error) => {
+              setUploadState({
+                progress: 0,
+                loading: false,
+                error: error as Error,
+                downloadURL: null,
+              });
+              reject(error);
+            },
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(task.snapshot.ref);
+                setUploadState({
+                  progress: 100,
+                  loading: false,
+                  error: null,
+                  downloadURL,
+                });
+                resolve(downloadURL);
+              } catch (error) {
+                setUploadState({
+                  progress: 0,
+                  loading: false,
+                  error: error as Error,
+                  downloadURL: null,
+                });
+                reject(error);
+              }
+            }
+          );
+        } catch (error) {
+          setUploadState({
+            progress: 0,
+            loading: false,
+            error: error as Error,
+            downloadURL: null,
+          });
+          reject(error);
+        }
+      });
+    },
+    []
+  );
+
+  const cancelUpload = useCallback(() => {
+    if (uploadTask) {
+      uploadTask.cancel();
+      setUploadState({
+        progress: 0,
+        loading: false,
+        error: new Error('Upload cancelled by user'),
+        downloadURL: null,
+      });
+    }
+  }, [uploadTask]);
+
+  return {
+    uploadFile,
+    uploadState,
+    cancelUpload,
+  };
+}
+
+// Hook for getting download URL
+export function useDownloadURL(path: string | null): UseDownloadURLReturn {
+  const [state, setState] = useState<{
+    url: string | null;
+    loading: boolean;
+    error: Error | null;
+  }>({
+    url: null,
+    loading: false,
+    error: null,
+  });
+
+  const fetchURL = useCallback(async () => {
+    if (!path) {
+      setState({ url: null, loading: false, error: null });
+      return;
+    }
+
+    try {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+      const storageRef = ref(storage, path);
+      const url = await getDownloadURL(storageRef);
+      setState({ url, loading: false, error: null });
+    } catch (error) {
+      setState({
+        url: null,
+        loading: false,
+        error: error as Error,
+      });
+    }
+  }, [path]);
+
+  const refresh = useCallback(async () => {
+    await fetchURL();
+  }, [fetchURL]);
+
+  // Fetch on mount and when path changes
+  useState(() => {
+    fetchURL();
+  });
+
+  return { ...state, refresh };
+}
+
+// Hook for deleting files
+export function useDeleteFile(): UseDeleteFileReturn {
+  const [state, setState] = useState<{
+    loading: boolean;
+    error: Error | null;
+  }>({
+    loading: false,
+    error: null,
+  });
+
+  const deleteFile = useCallback(async (path: string): Promise<void> => {
+    try {
+      setState({ loading: true, error: null });
+      const storageRef = ref(storage, path);
+      await deleteObject(storageRef);
+      setState({ loading: false, error: null });
+    } catch (error) {
+      setState({ loading: false, error: error as Error });
+      throw error;
+    }
+  }, []);
+
+  return { deleteFile, ...state };
+}
+
+// Hook for listing files in a path
+export function useListFiles(path: string): UseListFilesReturn {
+  const [state, setState] = useState<{
+    files: FileListItem[];
+    loading: boolean;
+    error: Error | null;
+  }>({
+    files: [],
+    loading: true,
+    error: null,
+  });
+
+  const fetchFiles = useCallback(async () => {
+    try {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+      const storageRef = ref(storage, path);
+      const result: ListResult = await listAll(storageRef);
+
+      const filesWithMetadata = await Promise.all(
+        result.items.map(async (itemRef: StorageReference) => {
+          try {
+            const [downloadURL, metadata] = await Promise.all([
+              getDownloadURL(itemRef),
+              getMetadata(itemRef),
+            ]);
+
+            return {
+              name: itemRef.name,
+              fullPath: itemRef.fullPath,
+              downloadURL,
+              metadata,
+            };
+          } catch (error) {
+            // If getting metadata or URL fails, return basic info
+            return {
+              name: itemRef.name,
+              fullPath: itemRef.fullPath,
+            };
+          }
+        })
+      );
+
+      setState({
+        files: filesWithMetadata,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      setState({
+        files: [],
+        loading: false,
+        error: error as Error,
+      });
+    }
+  }, [path]);
+
+  const refresh = useCallback(async () => {
+    await fetchFiles();
+  }, [fetchFiles]);
+
+  // Fetch on mount and when path changes
+  useState(() => {
+    fetchFiles();
+  });
+
+  return { ...state, refresh };
+}
+
+// Hook for getting file metadata
+export function useFileMetadata(path: string | null) {
+  const [state, setState] = useState<{
+    metadata: FullMetadata | null;
+    loading: boolean;
+    error: Error | null;
+  }>({
+    metadata: null,
+    loading: false,
+    error: null,
+  });
+
+  const fetchMetadata = useCallback(async () => {
+    if (!path) {
+      setState({ metadata: null, loading: false, error: null });
+      return;
+    }
+
+    try {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+      const storageRef = ref(storage, path);
+      const metadata = await getMetadata(storageRef);
+      setState({ metadata, loading: false, error: null });
+    } catch (error) {
+      setState({
+        metadata: null,
+        loading: false,
+        error: error as Error,
+      });
+    }
+  }, [path]);
+
+  // Fetch on mount and when path changes
+  useState(() => {
+    fetchMetadata();
+  });
+
+  return state;
+}
+
+// Utility function to generate unique file paths
+export function generateFilePath(
+  userId: string,
+  folder: string,
+  fileName: string
+): string {
+  const timestamp = Date.now();
+  const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+  return `${folder}/${userId}/${timestamp}_${sanitizedFileName}`;
+}
+
+// Utility function to validate file type
+export function validateFileType(
+  file: File,
+  allowedTypes: string[]
+): boolean {
+  return allowedTypes.some((type) => {
+    if (type.endsWith('/*')) {
+      const category = type.split('/')[0];
+      return file.type.startsWith(category + '/');
+    }
+    return file.type === type;
+  });
+}
+
+// Utility function to validate file size
+export function validateFileSize(
+  file: File,
+  maxSizeMB: number
+): boolean {
+  const maxSizeBytes = maxSizeMB * 1024 * 1024;
+  return file.size <= maxSizeBytes;
+}

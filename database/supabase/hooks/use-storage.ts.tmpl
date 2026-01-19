@@ -1,0 +1,221 @@
+// use-storage.ts - React hook for Supabase storage operations
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+'use client'
+
+import { useState } from 'react'
+import { supabase } from '../client'
+import type { StorageError } from '@supabase/storage-js'
+
+interface UploadOptions {
+  bucket: string
+  path: string
+  file: File
+  upsert?: boolean
+}
+
+interface DownloadOptions {
+  bucket: string
+  path: string
+}
+
+interface ListOptions {
+  bucket: string
+  path?: string
+  limit?: number
+  offset?: number
+  sortBy?: {
+    column: 'name' | 'updated_at' | 'created_at'
+    order: 'asc' | 'desc'
+  }
+}
+
+interface DeleteOptions {
+  bucket: string
+  paths: string[]
+}
+
+interface UseStorageReturn {
+  uploading: boolean
+  downloading: boolean
+  listing: boolean
+  deleting: boolean
+  progress: number
+  upload: (options: UploadOptions) => Promise<{ data: { path: string } | null; error: StorageError | null }>
+  download: (options: DownloadOptions) => Promise<{ data: Blob | null; error: StorageError | null }>
+  getPublicUrl: (bucket: string, path: string) => string
+  list: (options: ListOptions) => Promise<{ data: any[] | null; error: StorageError | null }>
+  remove: (options: DeleteOptions) => Promise<{ data: any | null; error: StorageError | null }>
+}
+
+/**
+ * Hook for managing Supabase Storage operations.
+ *
+ * Features:
+ * - File upload with progress
+ * - File download
+ * - Public URL generation
+ * - List files in bucket
+ * - Delete files
+ * - Loading states
+ *
+ * @returns Storage operations and states
+ *
+ * @example
+ * ```tsx
+ * const { upload, uploading, progress } = useStorage()
+ *
+ * const handleUpload = async (file: File) => {
+ *   const { data, error } = await upload({
+ *     bucket: 'avatars',
+ *     path: `${userId}/avatar.png`,
+ *     file
+ *   })
+ * }
+ * ```
+ */
+export function useStorage(): UseStorageReturn {
+  const [uploading, setUploading] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [listing, setListing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [progress, setProgress] = useState(0)
+
+  /**
+   * Upload a file to Supabase Storage.
+   */
+  const upload = async ({ bucket, path, file, upsert = false }: UploadOptions) => {
+    setUploading(true)
+    setProgress(0)
+
+    try {
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .upload(path, file, {
+          upsert,
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            )
+            setProgress(percentCompleted)
+          },
+        })
+
+      return { data, error }
+    } finally {
+      setUploading(false)
+      setProgress(0)
+    }
+  }
+
+  /**
+   * Download a file from Supabase Storage.
+   */
+  const download = async ({ bucket, path }: DownloadOptions) => {
+    setDownloading(true)
+
+    try {
+      const { data, error } = await supabase.storage.from(bucket).download(path)
+      return { data, error }
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  /**
+   * Get public URL for a file.
+   * Note: The bucket must have public access enabled.
+   */
+  const getPublicUrl = (bucket: string, path: string): string => {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path)
+    return data.publicUrl
+  }
+
+  /**
+   * List files in a bucket.
+   */
+  const list = async ({ bucket, path = '', limit = 100, offset = 0, sortBy }: ListOptions) => {
+    setListing(true)
+
+    try {
+      const { data, error } = await supabase.storage.from(bucket).list(path, {
+        limit,
+        offset,
+        sortBy,
+      })
+      return { data, error }
+    } finally {
+      setListing(false)
+    }
+  }
+
+  /**
+   * Delete files from storage.
+   */
+  const remove = async ({ bucket, paths }: DeleteOptions) => {
+    setDeleting(true)
+
+    try {
+      const { data, error } = await supabase.storage.from(bucket).remove(paths)
+      return { data, error }
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  return {
+    uploading,
+    downloading,
+    listing,
+    deleting,
+    progress,
+    upload,
+    download,
+    getPublicUrl,
+    list,
+    remove,
+  }
+}
+
+/**
+ * Helper function to create signed URLs for private files.
+ *
+ * @param bucket Bucket name
+ * @param path File path
+ * @param expiresIn Expiration time in seconds (default: 3600)
+ * @returns Signed URL
+ */
+export async function createSignedUrl(
+  bucket: string,
+  path: string,
+  expiresIn: number = 3600
+): Promise<{ signedUrl: string | null; error: StorageError | null }> {
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .createSignedUrl(path, expiresIn)
+
+  return {
+    signedUrl: data?.signedUrl ?? null,
+    error,
+  }
+}
+
+/**
+ * Helper function to get file metadata.
+ *
+ * @param bucket Bucket name
+ * @param path File path
+ * @returns File metadata
+ */
+export async function getFileMetadata(bucket: string, path: string) {
+  const { data, error } = await supabase.storage.from(bucket).list(path, {
+    limit: 1,
+  })
+
+  if (error || !data || data.length === 0) {
+    return { data: null, error: error ?? new Error('File not found') }
+  }
+
+  return { data: data[0], error: null }
+}

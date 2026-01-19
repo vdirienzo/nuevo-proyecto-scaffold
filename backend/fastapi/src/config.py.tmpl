@@ -1,0 +1,85 @@
+# config.py - Application Configuration
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Pydantic Settings for type-safe configuration from environment variables.
+
+All sensitive values are loaded from environment variables, never hardcoded.
+See .env.example for required variables.
+"""
+
+from functools import lru_cache
+from typing import Literal
+
+from pydantic import field_validator, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    """Application settings with validation."""
+
+    # Environment
+    environment: Literal["development", "staging", "production"] = "development"
+    debug: bool = False
+    log_level: str = "INFO"
+
+    # Database
+    database_url: SecretStr
+    database_pool_size: int = 5
+    database_max_overflow: int = 10
+
+    # Security
+    secret_key: SecretStr
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 30
+    jwt_refresh_token_expire_days: int = 7
+
+    # CORS
+    cors_origins: list[str] = ["http://localhost:3000"]
+    allowed_hosts: list[str] = ["localhost", "127.0.0.1"]
+
+    # Rate limiting
+    rate_limit_requests: int = 100
+    rate_limit_window_seconds: int = 60
+
+    # External services (optional)
+    supabase_url: str | None = None
+    supabase_key: SecretStr | None = None
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
+        """Parse CORS origins from comma-separated string or list."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
+
+    @field_validator("allowed_hosts", mode="before")
+    @classmethod
+    def parse_allowed_hosts(cls, v: str | list[str]) -> list[str]:
+        """Parse allowed hosts from comma-separated string or list."""
+        if isinstance(v, str):
+            return [host.strip() for host in v.split(",")]
+        return v
+
+    @property
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.environment == "production"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Get cached settings instance."""
+    return Settings()
+
+
+settings = get_settings()

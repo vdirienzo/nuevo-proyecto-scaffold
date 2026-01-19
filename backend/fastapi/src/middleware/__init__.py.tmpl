@@ -1,0 +1,12 @@
+# middleware/__init__.py - Custom Middleware
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Custom middleware for request/response processing.
+"""
+
+from .logging import LoggingMiddleware
+from .security import SecurityHeadersMiddleware
+
+__all__ = ["LoggingMiddleware", "SecurityHeadersMiddleware"]

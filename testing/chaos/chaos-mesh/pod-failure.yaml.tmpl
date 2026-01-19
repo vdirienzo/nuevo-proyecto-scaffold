@@ -1,0 +1,41 @@
+# pod-failure.yaml - Pod Failure Chaos Experiment
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: {{PROJECT_NAME}}-pod-failure
+  namespace: {{NAMESPACE}}
+  labels:
+    app: {{PROJECT_NAME}}
+    chaos-type: pod-failure
+spec:
+  action: pod-failure
+  mode: one
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+      component: api
+  duration: "60s"
+  scheduler:
+    cron: "@every 2h"
+---
+# Pod Kill - More aggressive
+apiVersion: chaos-mesh.org/v1alpha1
+kind: PodChaos
+metadata:
+  name: {{PROJECT_NAME}}-pod-kill
+  namespace: {{NAMESPACE}}
+spec:
+  action: pod-kill
+  mode: fixed-percent
+  value: "30"
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+  duration: "30s"

@@ -1,0 +1,117 @@
+# database.py - Database Configuration and Session Management
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+"""
+Async database configuration using SQLModel and SQLAlchemy.
+
+Provides connection pooling, session management, and lifecycle hooks.
+"""
+
+from collections.abc import AsyncGenerator
+from typing import Annotated
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.pool import NullPool
+from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession
+from loguru import logger
+
+from .config import settings
+
+
+# Global engine instance
+_engine: AsyncEngine | None = None
+_async_session: async_sessionmaker[AsyncSession] | None = None
+
+
+def get_engine() -> AsyncEngine:
+    """Get or create the database engine."""
+    global _engine
+
+    if _engine is None:
+        # Convert sync URL to async if needed
+        db_url = settings.database_url.get_secret_value()
+        if db_url.startswith("postgresql://"):
+            db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+        # Use NullPool in testing, connection pool in production
+        pool_class = NullPool if settings.environment == "development" else None
+
+        _engine = create_async_engine(
+            db_url,
+            echo=settings.debug,
+            pool_size=settings.database_pool_size,
+            max_overflow=settings.database_max_overflow,
+            poolclass=pool_class,
+            # Security: prevent SQL injection via connect_args
+            connect_args={
+                "server_settings": {
+                    "application_name": "{{PROJECT_NAME}}-api",
+                }
+            },
+        )
+
+    return _engine
+
+
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """Get or create the session factory."""
+    global _async_session
+
+    if _async_session is None:
+        _async_session = async_sessionmaker(
+            get_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autocommit=False,
+            autoflush=False,
+        )
+
+    return _async_session
+
+
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    """Dependency to get a database session with automatic cleanup."""
+    session_factory = get_session_factory()
+    async with session_factory() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+# Type alias for dependency injection
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+async def init_db() -> None:
+    """Initialize database - create tables if they don't exist."""
+    engine = get_engine()
+
+    async with engine.begin() as conn:
+        # Import models to register them with SQLModel.metadata
+        from . import models  # noqa: F401
+
+        await conn.run_sync(SQLModel.metadata.create_all)
+        logger.info("Database tables created/verified")
+
+
+async def close_db() -> None:
+    """Close database connection pool."""
+    global _engine, _async_session
+
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+        _async_session = None
+        logger.info("Database connection pool closed")

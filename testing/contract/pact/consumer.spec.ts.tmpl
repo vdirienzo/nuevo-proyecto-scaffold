@@ -1,0 +1,87 @@
+// {{FEATURE_NAME}}.consumer.spec.ts - Consumer Contract Test
+// Author: {{AUTHOR}}
+
+import { createPact, Matchers } from '../pact.config';
+import { {{SERVICE_NAME}}Client } from '@/services/{{SERVICE_NAME_KEBAB}}';
+
+const { like, eachLike, string, integer } = Matchers;
+
+describe('{{FEATURE_NAME}} Consumer Contract', () => {
+  const pact = createPact();
+
+  describe('GET /api/{{RESOURCE}}', () => {
+    it('returns a list of {{RESOURCE}}', async () => {
+      // Arrange
+      await pact
+        .given('{{RESOURCE}} exist')
+        .uponReceiving('a request for all {{RESOURCE}}')
+        .withRequest({
+          method: 'GET',
+          path: '/api/{{RESOURCE}}',
+          headers: {
+            Accept: 'application/json',
+          },
+        })
+        .willRespondWith({
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: eachLike({
+            id: integer(1),
+            name: string('Example'),
+            createdAt: string('2026-01-17T00:00:00Z'),
+          }),
+        });
+
+      // Act & Assert
+      await pact.executeTest(async (mockServer) => {
+        const client = new {{SERVICE_NAME}}Client(mockServer.url);
+        const result = await client.getAll();
+
+        expect(result).toBeInstanceOf(Array);
+        expect(result[0]).toHaveProperty('id');
+        expect(result[0]).toHaveProperty('name');
+      });
+    });
+  });
+
+  describe('POST /api/{{RESOURCE}}', () => {
+    it('creates a new {{RESOURCE_SINGULAR}}', async () => {
+      const new{{RESOURCE_SINGULAR}} = {
+        name: 'New {{RESOURCE_SINGULAR}}',
+      };
+
+      await pact
+        .given('the system is ready')
+        .uponReceiving('a request to create a {{RESOURCE_SINGULAR}}')
+        .withRequest({
+          method: 'POST',
+          path: '/api/{{RESOURCE}}',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: new{{RESOURCE_SINGULAR}},
+        })
+        .willRespondWith({
+          status: 201,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: like({
+            id: integer(1),
+            name: string('New {{RESOURCE_SINGULAR}}'),
+            createdAt: string('2026-01-17T00:00:00Z'),
+          }),
+        });
+
+      await pact.executeTest(async (mockServer) => {
+        const client = new {{SERVICE_NAME}}Client(mockServer.url);
+        const result = await client.create(new{{RESOURCE_SINGULAR}});
+
+        expect(result).toHaveProperty('id');
+        expect(result.name).toBe('New {{RESOURCE_SINGULAR}}');
+      });
+    });
+  });
+});

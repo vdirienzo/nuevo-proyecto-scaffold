@@ -1,0 +1,342 @@
+// collections.ts - Firestore Collection Schemas
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import {
+  DocumentData,
+  FirestoreDataConverter,
+  QueryDocumentSnapshot,
+  Timestamp,
+  WithFieldValue,
+} from 'firebase/firestore';
+
+// ============================================================
+// TYPES
+// ============================================================
+
+/**
+ * Base timestamps for all documents
+ */
+export interface BaseTimestamps {
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/**
+ * Helper type to convert Timestamp to Date for client use
+ */
+export type WithDates<T> = {
+  [K in keyof T]: T[K] extends Timestamp ? Date : T[K];
+};
+
+// ============================================================
+// COLLECTION NAMES
+// ============================================================
+
+export const COLLECTIONS = {
+  USERS: 'users',
+  POSTS: 'posts',
+  COMMENTS: 'comments',
+  NOTIFICATIONS: 'notifications',
+  SETTINGS: 'settings',
+} as const;
+
+export const SUBCOLLECTIONS = {
+  USERS: {
+    PRIVATE: 'private',
+  },
+  POSTS: {
+    COMMENTS: 'comments',
+    ATTACHMENTS: 'attachments',
+  },
+} as const;
+
+// ============================================================
+// USER SCHEMA
+// ============================================================
+
+export interface User extends BaseTimestamps {
+  id: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  bio?: string;
+  role: 'user' | 'admin';
+  emailVerified: boolean;
+}
+
+export interface UserPrivate extends BaseTimestamps {
+  notificationSettings: {
+    email: boolean;
+    push: boolean;
+  };
+  preferences: Record<string, unknown>;
+}
+
+// ============================================================
+// POST SCHEMA
+// ============================================================
+
+export interface Post extends BaseTimestamps {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  published: boolean;
+  tags?: string[];
+  viewCount?: number;
+  likeCount?: number;
+}
+
+// ============================================================
+// COMMENT SCHEMA
+// ============================================================
+
+export interface Comment extends BaseTimestamps {
+  id: string;
+  postId: string;
+  userId: string;
+  content: string;
+  edited: boolean;
+}
+
+// ============================================================
+// NOTIFICATION SCHEMA
+// ============================================================
+
+export interface Notification extends BaseTimestamps {
+  id: string;
+  userId: string;
+  type: 'comment' | 'like' | 'follow' | 'system';
+  title: string;
+  message: string;
+  read: boolean;
+  actionUrl?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================
+// SETTINGS SCHEMA
+// ============================================================
+
+export interface Settings extends BaseTimestamps {
+  id: string;
+  key: string;
+  value: unknown;
+  description?: string;
+}
+
+// ============================================================
+// FIRESTORE CONVERTERS (TYPE-SAFE)
+// ============================================================
+
+/**
+ * Generic converter for Firestore documents
+ * Adds id field from document ID and converts Timestamps to Dates
+ */
+export function createConverter<T extends { id: string }>(): FirestoreDataConverter<T> {
+  return {
+    toFirestore(doc: WithFieldValue<T>): DocumentData {
+      const { id, ...data } = doc as T;
+      return data;
+    },
+    fromFirestore(snapshot: QueryDocumentSnapshot): T {
+      const data = snapshot.data();
+      return {
+        id: snapshot.id,
+        ...data,
+      } as T;
+    },
+  };
+}
+
+/**
+ * User converter
+ */
+export const userConverter = createConverter<User>();
+
+/**
+ * Post converter
+ */
+export const postConverter = createConverter<Post>();
+
+/**
+ * Comment converter
+ */
+export const commentConverter = createConverter<Comment>();
+
+/**
+ * Notification converter
+ */
+export const notificationConverter = createConverter<Notification>();
+
+/**
+ * Settings converter
+ */
+export const settingsConverter = createConverter<Settings>();
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+/**
+ * Create base timestamps for new documents
+ */
+export function createTimestamps(): BaseTimestamps {
+  const now = Timestamp.now();
+  return {
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+/**
+ * Update timestamp for document updates
+ */
+export function updateTimestamp(): Pick<BaseTimestamps, 'updatedAt'> {
+  return {
+    updatedAt: Timestamp.now(),
+  };
+}
+
+/**
+ * Convert Timestamp to Date
+ */
+export function timestampToDate(timestamp: Timestamp): Date {
+  return timestamp.toDate();
+}
+
+/**
+ * Convert document with Timestamps to document with Dates
+ */
+export function convertTimestamps<T extends BaseTimestamps>(doc: T): WithDates<T> {
+  return {
+    ...doc,
+    createdAt: doc.createdAt.toDate(),
+    updatedAt: doc.updatedAt.toDate(),
+  } as WithDates<T>;
+}
+
+// ============================================================
+// TYPE GUARDS
+// ============================================================
+
+/**
+ * Check if value is a Timestamp
+ */
+export function isTimestamp(value: unknown): value is Timestamp {
+  return value instanceof Timestamp;
+}
+
+/**
+ * Check if user has admin role
+ */
+export function isAdmin(user: User): boolean {
+  return user.role === 'admin';
+}
+
+// ============================================================
+// QUERY BUILDERS (TYPE-SAFE)
+// ============================================================
+
+import {
+  collection,
+  CollectionReference,
+  doc,
+  DocumentReference,
+  Firestore,
+} from 'firebase/firestore';
+
+/**
+ * Get users collection reference
+ */
+export function getUsersCollection(db: Firestore): CollectionReference<User> {
+  return collection(db, COLLECTIONS.USERS).withConverter(userConverter);
+}
+
+/**
+ * Get user document reference
+ */
+export function getUserDoc(db: Firestore, userId: string): DocumentReference<User> {
+  return doc(db, COLLECTIONS.USERS, userId).withConverter(userConverter);
+}
+
+/**
+ * Get posts collection reference
+ */
+export function getPostsCollection(db: Firestore): CollectionReference<Post> {
+  return collection(db, COLLECTIONS.POSTS).withConverter(postConverter);
+}
+
+/**
+ * Get post document reference
+ */
+export function getPostDoc(db: Firestore, postId: string): DocumentReference<Post> {
+  return doc(db, COLLECTIONS.POSTS, postId).withConverter(postConverter);
+}
+
+/**
+ * Get comments subcollection for a post
+ */
+export function getCommentsCollection(
+  db: Firestore,
+  postId: string
+): CollectionReference<Comment> {
+  return collection(
+    db,
+    COLLECTIONS.POSTS,
+    postId,
+    SUBCOLLECTIONS.POSTS.COMMENTS
+  ).withConverter(commentConverter);
+}
+
+/**
+ * Get notifications collection for a user
+ */
+export function getNotificationsCollection(
+  db: Firestore
+): CollectionReference<Notification> {
+  return collection(db, COLLECTIONS.NOTIFICATIONS).withConverter(notificationConverter);
+}
+
+/**
+ * Get settings collection reference (admin only)
+ */
+export function getSettingsCollection(db: Firestore): CollectionReference<Settings> {
+  return collection(db, COLLECTIONS.SETTINGS).withConverter(settingsConverter);
+}
+
+// ============================================================
+// EXAMPLE USAGE
+// ============================================================
+
+/*
+import { getFirestore } from 'firebase/firestore';
+import { getUsersCollection, createTimestamps } from './schema/collections';
+
+// Get typed collection reference
+const db = getFirestore();
+const usersRef = getUsersCollection(db);
+
+// Create new user (type-safe)
+const newUser: Omit<User, 'id'> = {
+  email: 'user@example.com',
+  displayName: 'John Doe',
+  role: 'user',
+  emailVerified: false,
+  ...createTimestamps(),
+};
+
+// Add document
+await addDoc(usersRef, newUser);
+
+// Query documents (type-safe)
+const querySnapshot = await getDocs(
+  query(usersRef, where('role', '==', 'admin'))
+);
+
+querySnapshot.forEach((doc) => {
+  const user = doc.data(); // Type: User
+  console.log(user.displayName);
+});
+*/

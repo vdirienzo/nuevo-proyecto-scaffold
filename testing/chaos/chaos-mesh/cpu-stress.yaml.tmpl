@@ -1,0 +1,40 @@
+# cpu-stress.yaml - CPU Stress Chaos
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: {{PROJECT_NAME}}-cpu-stress
+  namespace: {{NAMESPACE}}
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+  stressors:
+    cpu:
+      workers: 2
+      load: 80
+  duration: "2m"
+---
+# Memory Stress
+apiVersion: chaos-mesh.org/v1alpha1
+kind: StressChaos
+metadata:
+  name: {{PROJECT_NAME}}-memory-stress
+  namespace: {{NAMESPACE}}
+spec:
+  mode: one
+  selector:
+    namespaces:
+      - {{NAMESPACE}}
+    labelSelectors:
+      app: {{PROJECT_NAME}}
+  stressors:
+    memory:
+      workers: 2
+      size: "256MB"
+  duration: "2m"

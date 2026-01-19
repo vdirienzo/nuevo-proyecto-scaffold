@@ -1,0 +1,38 @@
+// k6.config.js - k6 Base Configuration
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+export const config = {
+  baseUrl: __ENV.BASE_URL || 'http://localhost:3000',
+  apiToken: __ENV.API_TOKEN || '',
+
+  thresholds: {
+    default: {
+      http_req_duration: ['p(95)<500', 'p(99)<1000'],
+      http_req_failed: ['rate<0.01'],
+    },
+    strict: {
+      http_req_duration: ['p(95)<200', 'p(99)<500'],
+      http_req_failed: ['rate<0.001'],
+    },
+    relaxed: {
+      http_req_duration: ['p(95)<2000', 'p(99)<5000'],
+      http_req_failed: ['rate<0.05'],
+    },
+  },
+
+  scenarios: {
+    smoke: { duration: '1m', vus: 1 },
+    load: { duration: '10m', vus: 50 },
+    stress: { duration: '30m', vus: 200 },
+    spike: { duration: '10m', vus: 1000 },
+    soak: { duration: '4h', vus: 50 },
+  },
+};
+
+export function getHeaders(token = config.apiToken) {
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : '',
+  };
+}

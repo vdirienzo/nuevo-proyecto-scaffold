@@ -1,0 +1,81 @@
+# docker-compose.test.yml - Testing Environment
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d
+#   docker compose -f docker-compose.test.yml down -v
+
+services:
+  # ==========================================================================
+  # API for Testing
+  # ==========================================================================
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: {{PROJECT_NAME}}-api-test
+    ports:
+      - "8001:8000"
+    environment:
+      - ENVIRONMENT=testing
+      - DEBUG=false
+      - DATABASE_URL=postgresql://postgres:postgres@db-test:5432/{{PROJECT_NAME_SNAKE}}_test
+      - SECRET_KEY=test-secret-key-for-testing-only
+      - CORS_ORIGINS=http://localhost:3001
+    depends_on:
+      db-test:
+        condition: service_healthy
+    networks:
+      - {{PROJECT_NAME}}-test-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ==========================================================================
+  # Web for Testing
+  # ==========================================================================
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: {{PROJECT_NAME}}-web-test
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+    depends_on:
+      - api
+    networks:
+      - {{PROJECT_NAME}}-test-network
+
+  # ==========================================================================
+  # Test Database (Ephemeral)
+  # ==========================================================================
+  db-test:
+    image: postgres:16-alpine
+    container_name: {{PROJECT_NAME}}-db-test
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: {{PROJECT_NAME_SNAKE}}_test
+    # No volume - ephemeral for testing
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - {{PROJECT_NAME}}-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+networks:
+  {{PROJECT_NAME}}-test-network:
+    driver: bridge

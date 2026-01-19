@@ -1,0 +1,45 @@
+// {{FEATURE_NAME}}.provider.spec.ts - Provider Contract Verification
+// Author: {{AUTHOR}}
+
+import { Verifier } from '@pact-foundation/pact';
+import path from 'path';
+import { app } from '@/main';
+
+describe('{{FEATURE_NAME}} Provider Contract Verification', () => {
+  const server = app.listen(0);
+  const port = (server.address() as any).port;
+
+  afterAll(() => {
+    server.close();
+  });
+
+  it('validates the expectations of {{PROJECT_NAME}}-web', async () => {
+    const verifier = new Verifier({
+      providerBaseUrl: `http://localhost:${port}`,
+      pactUrls: [
+        path.resolve(
+          process.cwd(),
+          'pacts',
+          '{{PROJECT_NAME}}-web-{{PROJECT_NAME}}-api.json'
+        ),
+      ],
+      providerVersion: process.env.GIT_COMMIT || '1.0.0',
+      publishVerificationResult: process.env.CI === 'true',
+      stateHandlers: {
+        '{{RESOURCE}} exist': async () => {
+          // Setup test data
+          await seedTestData();
+        },
+        'the system is ready': async () => {
+          // No setup needed
+        },
+      },
+    });
+
+    await verifier.verifyProvider();
+  });
+});
+
+async function seedTestData() {
+  // Implement test data seeding
+}

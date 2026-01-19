@@ -1,0 +1,88 @@
+# dast-scan.yml - DAST with OWASP ZAP
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+name: DAST Security Scan
+
+on:
+  schedule:
+    - cron: '0 4 * * 1'  # Mondays at 4 AM
+  workflow_dispatch:
+    inputs:
+      scan_type:
+        description: 'Scan type'
+        required: true
+        default: 'baseline'
+        type: choice
+        options:
+          - baseline
+          - api
+          - full
+
+jobs:
+  dast-scan:
+    name: OWASP ZAP Scan
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start Application
+        run: |
+          docker compose -f docker-compose.test.yml up -d
+          sleep 30
+
+      - name: ZAP Baseline Scan
+        if: inputs.scan_type == 'baseline' || inputs.scan_type == ''
+        uses: zaproxy/action-baseline@v0.10.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: 'security/dast/zap/zap-rules.tsv'
+
+      - name: ZAP API Scan
+        if: inputs.scan_type == 'api'
+        uses: zaproxy/action-api-scan@v0.6.0
+        with:
+          target: 'http://localhost:8000/openapi.json'
+          rules_file_name: 'security/dast/zap/zap-rules.tsv'
+
+      - name: ZAP Full Scan
+        if: inputs.scan_type == 'full'
+        uses: zaproxy/action-full-scan@v0.8.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: 'security/dast/zap/zap-rules.tsv'
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: zap-results.sarif
+
+      - name: Stop Application
+        if: always()
+        run: docker compose -f docker-compose.test.yml down
+
+  notify:
+    name: Security Alert
+    runs-on: ubuntu-latest
+    needs: dast-scan
+    if: failure()
+    steps:
+      - uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "🚨 DAST scan found vulnerabilities in {{PROJECT_NAME}}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Security Alert*\nDAST scan detected potential vulnerabilities.\n<${{ github.server_url }}/${{ github.repository }}/security/code-scanning|View Findings>"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_SECURITY_WEBHOOK }}
