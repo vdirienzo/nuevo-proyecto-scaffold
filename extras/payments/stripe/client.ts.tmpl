@@ -1,0 +1,99 @@
+/**
+ * Stripe Client
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: '2024-12-18.acacia',
+});
+
+/**
+ * Get or create customer
+ */
+export async function getOrCreateCustomer(
+  email: string,
+  metadata?: Record<string, string>
+) {
+  const existing = await stripe.customers.list({
+    email,
+    limit: 1,
+  });
+
+  if (existing.data.length > 0) {
+    return existing.data[0];
+  }
+
+  return stripe.customers.create({
+    email,
+    metadata,
+  });
+}
+
+/**
+ * Create payment intent
+ */
+export async function createPaymentIntent(
+  amount: number,
+  currency: string = 'usd',
+  options?: {
+    customerId?: string;
+    metadata?: Record<string, string>;
+    description?: string;
+  }
+) {
+  return stripe.paymentIntents.create({
+    amount: Math.round(amount * 100), // Convert to cents
+    currency,
+    customer: options?.customerId,
+    metadata: options?.metadata,
+    description: options?.description,
+    automatic_payment_methods: {
+      enabled: true,
+    },
+  });
+}
+
+/**
+ * Retrieve payment intent
+ */
+export async function retrievePaymentIntent(paymentIntentId: string) {
+  return stripe.paymentIntents.retrieve(paymentIntentId);
+}
+
+/**
+ * Cancel payment intent
+ */
+export async function cancelPaymentIntent(paymentIntentId: string) {
+  return stripe.paymentIntents.cancel(paymentIntentId);
+}
+
+/**
+ * Create refund
+ */
+export async function createRefund(
+  paymentIntentId: string,
+  amount?: number,
+  reason?: 'duplicate' | 'fraudulent' | 'requested_by_customer'
+) {
+  return stripe.refunds.create({
+    payment_intent: paymentIntentId,
+    amount: amount ? Math.round(amount * 100) : undefined,
+    reason,
+  });
+}
+
+/**
+ * Get customer payment methods
+ */
+export async function getCustomerPaymentMethods(customerId: string) {
+  return stripe.paymentMethods.list({
+    customer: customerId,
+    type: 'card',
+  });
+}
+
+export { stripe };

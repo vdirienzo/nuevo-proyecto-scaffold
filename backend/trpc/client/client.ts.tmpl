@@ -1,0 +1,71 @@
+/**
+ * client.ts.tmpl - tRPC client setup
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { createTRPCProxyClient, httpBatchLink, loggerLink } from '@trpc/client';
+import superjson from 'superjson';
+
+import type { AppRouter } from '../server/routers';
+
+/**
+ * Create a tRPC client with authentication
+ */
+export function createTRPCClient(config: {
+  url: string;
+  getToken?: () => string | null;
+}) {
+  return createTRPCProxyClient<AppRouter>({
+    transformer: superjson,
+    links: [
+      loggerLink({
+        enabled: (opts) =>
+          process.env.NODE_ENV === 'development' ||
+          (opts.direction === 'down' && opts.result instanceof Error),
+      }),
+      httpBatchLink({
+        url: config.url,
+        headers() {
+          const token = config.getToken?.();
+          return token
+            ? {
+                authorization: `Bearer ${token}`,
+              }
+            : {};
+        },
+      }),
+    ],
+  });
+}
+
+/**
+ * Vanilla JavaScript example
+ */
+export const trpc = createTRPCClient({
+  url: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/trpc',
+  getToken: () => {
+    // Get token from localStorage, cookies, or auth provider
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('token');
+    }
+    return null;
+  },
+});
+
+/**
+ * Usage example:
+ *
+ * // Query
+ * const user = await trpc.user.me.query();
+ *
+ * // Mutation
+ * const result = await trpc.auth.login.mutate({
+ *   email: 'user@example.com',
+ *   password: 'password',
+ * });
+ *
+ * // Set token after login
+ * localStorage.setItem('token', result.accessToken);
+ */

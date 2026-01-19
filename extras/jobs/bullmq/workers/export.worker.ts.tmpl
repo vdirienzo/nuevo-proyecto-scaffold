@@ -1,0 +1,157 @@
+/**
+ * Export Worker
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Worker, Job } from 'bullmq';
+import { writeFile } from 'fs/promises';
+import { join } from 'path';
+import { connection } from '../queue';
+
+interface ExportJob {
+  userId: string;
+  format: 'csv' | 'json' | 'xlsx';
+  type: 'users' | 'orders' | 'products';
+  filters?: Record<string, any>;
+}
+
+/**
+ * Export worker processor
+ */
+const exportWorker = new Worker(
+  'export',
+  async (job: Job<ExportJob>) => {
+    const { data } = job;
+
+    console.log(`Processing export job: ${job.id}`);
+
+    try {
+      // Update progress
+      await job.updateProgress(10);
+
+      // Fetch data
+      const records = await fetchData(data.type, data.filters);
+      await job.updateProgress(50);
+
+      // Format data
+      const formatted = await formatData(records, data.format);
+      await job.updateProgress(75);
+
+      // Save file
+      const filename = `export-${data.type}-${Date.now()}.${data.format}`;
+      const filepath = join(process.cwd(), 'exports', filename);
+
+      await writeFile(filepath, formatted);
+      await job.updateProgress(90);
+
+      // Notify user (add to email queue)
+      const { addJob } = await import('../queue');
+      await addJob('email', 'send-email', {
+        to: data.userId,
+        subject: 'Your export is ready',
+        html: `<p>Your ${data.type} export is ready. <a href="/downloads/${filename}">Download here</a></p>`,
+      });
+
+      await job.updateProgress(100);
+
+      console.log(`✅ Export job completed: ${job.id}`);
+
+      return {
+        filename,
+        filepath,
+        recordCount: records.length,
+      };
+    } catch (error) {
+      console.error(`❌ Export job failed: ${job.id}`, error);
+      throw error;
+    }
+  },
+  {
+    connection,
+    concurrency: 2, // Limit concurrent exports
+  }
+);
+
+/**
+ * Fetch data to export
+ */
+async function fetchData(
+  type: string,
+  filters?: Record<string, any>
+): Promise<any[]> {
+  // TODO: Implement data fetching based on type
+  // Example:
+  // switch (type) {
+  //   case 'users':
+  //     return db.user.findMany({ where: filters });
+  //   case 'orders':
+  //     return db.order.findMany({ where: filters });
+  //   default:
+  //     throw new Error(`Unknown export type: ${type}`);
+  // }
+
+  return [];
+}
+
+/**
+ * Format data for export
+ */
+async function formatData(records: any[], format: string): Promise<string> {
+  switch (format) {
+    case 'csv':
+      return formatAsCSV(records);
+    case 'json':
+      return JSON.stringify(records, null, 2);
+    case 'xlsx':
+      return formatAsXLSX(records);
+    default:
+      throw new Error(`Unknown format: ${format}`);
+  }
+}
+
+/**
+ * Format as CSV
+ */
+function formatAsCSV(records: any[]): string {
+  if (records.length === 0) return '';
+
+  const headers = Object.keys(records[0]);
+  const rows = records.map((record) =>
+    headers.map((header) => {
+      const value = record[header];
+      return typeof value === 'string' && value.includes(',')
+        ? `"${value}"`
+        : value;
+    })
+  );
+
+  return [headers.join(','), ...rows.map((row) => row.join(','))].join('\n');
+}
+
+/**
+ * Format as XLSX
+ */
+function formatAsXLSX(records: any[]): string {
+  // TODO: Implement XLSX formatting
+  // You might want to use a library like 'xlsx' for this
+  throw new Error('XLSX format not implemented yet');
+}
+
+/**
+ * Worker event handlers
+ */
+exportWorker.on('completed', (job) => {
+  console.log(`Export job ${job.id} completed`);
+});
+
+exportWorker.on('failed', (job, err) => {
+  console.error(`Export job ${job?.id} failed:`, err);
+});
+
+exportWorker.on('progress', (job, progress) => {
+  console.log(`Export job ${job.id} progress: ${progress}%`);
+});
+
+export default exportWorker;

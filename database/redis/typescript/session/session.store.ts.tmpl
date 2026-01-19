@@ -1,0 +1,206 @@
+/**
+ * Redis Session Store
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Redis } from 'ioredis';
+import { redisClient } from '../client';
+import { REDIS_KEYS, REDIS_TTL } from '../config';
+import { logger } from '@/lib/logger';
+
+export interface SessionData {
+  userId: string;
+  email?: string;
+  roles?: string[];
+  metadata?: Record<string, any>;
+  createdAt: Date;
+  lastAccessedAt: Date;
+}
+
+export class SessionStore {
+  private client: Redis;
+  private prefix: string;
+  private ttl: number;
+
+  constructor(ttl: number = REDIS_TTL.VERY_LONG) {
+    this.client = redisClient;
+    this.prefix = REDIS_KEYS.SESSION;
+    this.ttl = ttl;
+  }
+
+  /**
+   * Build session key
+   */
+  private buildKey(sessionId: string): string {
+    return `${this.prefix}${sessionId}`;
+  }
+
+  /**
+   * Create new session
+   */
+  async create(sessionId: string, data: Omit<SessionData, 'createdAt' | 'lastAccessedAt'>): Promise<void> {
+    try {
+      const now = new Date();
+      const sessionData: SessionData = {
+        ...data,
+        createdAt: now,
+        lastAccessedAt: now,
+      };
+
+      const key = this.buildKey(sessionId);
+      await this.client.setex(key, this.ttl, JSON.stringify(sessionData));
+
+      logger.debug(`Session created: ${sessionId}`);
+    } catch (error) {
+      logger.error(`Session create error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get session data
+   */
+  async get(sessionId: string): Promise<SessionData | null> {
+    try {
+      const key = this.buildKey(sessionId);
+      const data = await this.client.get(key);
+
+      if (!data) {
+        return null;
+      }
+
+      const sessionData = JSON.parse(data) as SessionData;
+
+      // Update last accessed time
+      sessionData.lastAccessedAt = new Date();
+      await this.client.setex(key, this.ttl, JSON.stringify(sessionData));
+
+      return sessionData;
+    } catch (error) {
+      logger.error(`Session get error:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Update session data
+   */
+  async update(sessionId: string, updates: Partial<SessionData>): Promise<boolean> {
+    try {
+      const key = this.buildKey(sessionId);
+      const existing = await this.get(sessionId);
+
+      if (!existing) {
+        return false;
+      }
+
+      const updated: SessionData = {
+        ...existing,
+        ...updates,
+        lastAccessedAt: new Date(),
+      };
+
+      await this.client.setex(key, this.ttl, JSON.stringify(updated));
+      logger.debug(`Session updated: ${sessionId}`);
+
+      return true;
+    } catch (error) {
+      logger.error(`Session update error:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Destroy session
+   */
+  async destroy(sessionId: string): Promise<boolean> {
+    try {
+      const key = this.buildKey(sessionId);
+      const result = await this.client.del(key);
+
+      if (result > 0) {
+        logger.debug(`Session destroyed: ${sessionId}`);
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      logger.error(`Session destroy error:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Destroy all sessions for a user
+   */
+  async destroyUserSessions(userId: string): Promise<number> {
+    try {
+      const pattern = `${this.prefix}*`;
+      const keys = await this.client.keys(pattern);
+
+      let deleted = 0;
+
+      for (const key of keys) {
+        const data = await this.client.get(key);
+        if (data) {
+          const session = JSON.parse(data) as SessionData;
+          if (session.userId === userId) {
+            await this.client.del(key);
+            deleted++;
+          }
+        }
+      }
+
+      logger.debug(`Destroyed ${deleted} sessions for user ${userId}`);
+      return deleted;
+    } catch (error) {
+      logger.error(`Destroy user sessions error:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Extend session TTL
+   */
+  async touch(sessionId: string): Promise<boolean> {
+    try {
+      const key = this.buildKey(sessionId);
+      const result = await this.client.expire(key, this.ttl);
+      return result === 1;
+    } catch (error) {
+      logger.error(`Session touch error:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all active sessions for a user
+   */
+  async getUserSessions(userId: string): Promise<SessionData[]> {
+    try {
+      const pattern = `${this.prefix}*`;
+      const keys = await this.client.keys(pattern);
+      const sessions: SessionData[] = [];
+
+      for (const key of keys) {
+        const data = await this.client.get(key);
+        if (data) {
+          const session = JSON.parse(data) as SessionData;
+          if (session.userId === userId) {
+            sessions.push(session);
+          }
+        }
+      }
+
+      return sessions;
+    } catch (error) {
+      logger.error(`Get user sessions error:`, error);
+      return [];
+    }
+  }
+}
+
+// Singleton instance
+export const sessionStore = new SessionStore();

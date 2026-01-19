@@ -1,0 +1,98 @@
+/**
+ * Prompt Templates
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+/**
+ * System prompts for different use cases
+ */
+export const SYSTEM_PROMPTS = {
+  assistant: `You are a helpful AI assistant for {{PROJECT_NAME}}.
+Be concise, accurate, and professional in your responses.
+If you don't know something, say so.`,
+
+  codeReview: `You are an expert code reviewer.
+Analyze the provided code for:
+- Bugs and errors
+- Performance issues
+- Security vulnerabilities
+- Best practices
+- Readability improvements
+
+Provide specific, actionable feedback.`,
+
+  summarizer: `You are a text summarization specialist.
+Create concise, accurate summaries that capture the key points.
+Maintain objectivity and preserve important details.`,
+
+  translator: `You are a professional translator.
+Translate accurately while preserving tone and context.
+Maintain formatting and special terminology.`,
+} as const;
+
+/**
+ * Build chat messages with template
+ */
+export function buildMessages(
+  systemPrompt: string,
+  userMessage: string,
+  history: Array<{ role: 'user' | 'assistant'; content: string }> = []
+) {
+  return [
+    { role: 'system' as const, content: systemPrompt },
+    ...history,
+    { role: 'user' as const, content: userMessage },
+  ];
+}
+
+/**
+ * Format prompt with variables
+ */
+export function formatPrompt(
+  template: string,
+  variables: Record<string, string>
+): string {
+  let result = template;
+
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`{{${key}}}`, 'g');
+    result = result.replace(regex, value);
+  }
+
+  return result;
+}
+
+/**
+ * Common prompt patterns
+ */
+export const PROMPT_PATTERNS = {
+  fewShot: (examples: string[], task: string) => `
+Here are some examples:
+
+${examples.map((ex, i) => `Example ${i + 1}:\n${ex}`).join('\n\n')}
+
+Now, ${task}
+`,
+
+  chainOfThought: (task: string) => `
+${task}
+
+Let's approach this step by step:
+1. First, identify the key components
+2. Then, analyze each component
+3. Finally, synthesize the results
+`,
+
+  reflection: (content: string) => `
+Review the following and identify any issues:
+
+${content}
+
+Provide:
+1. What works well
+2. What could be improved
+3. Specific recommendations
+`,
+} as const;

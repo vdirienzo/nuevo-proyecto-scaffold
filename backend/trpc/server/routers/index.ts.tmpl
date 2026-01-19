@@ -1,0 +1,23 @@
+/**
+ * index.ts.tmpl - Root tRPC router
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { router } from '../trpc';
+import { userRouter } from './user.router';
+import { authRouter } from './auth.router';
+
+/**
+ * Main application router
+ */
+export const appRouter = router({
+  user: userRouter,
+  auth: authRouter,
+});
+
+/**
+ * Export type definition of API
+ */
+export type AppRouter = typeof appRouter;

@@ -1,0 +1,100 @@
+/**
+ * Document Indexer
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { addDocuments, updateIndexSettings, createIndex } from './client';
+
+interface DocumentToIndex {
+  id: string;
+  title: string;
+  content: string;
+  category?: string;
+  tags?: string[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const INDEX_NAME = '{{PROJECT_NAME}}_documents';
+
+/**
+ * Initialize search index with settings
+ */
+export async function initializeSearchIndex() {
+  try {
+    await createIndex(INDEX_NAME, 'id');
+
+    await updateIndexSettings(INDEX_NAME, {
+      searchableAttributes: [
+        'title',
+        'content',
+        'category',
+        'tags',
+      ],
+      filterableAttributes: [
+        'category',
+        'tags',
+        'createdAt',
+      ],
+      sortableAttributes: [
+        'createdAt',
+        'updatedAt',
+      ],
+      rankingRules: [
+        'words',
+        'typo',
+        'proximity',
+        'attribute',
+        'sort',
+        'exactness',
+      ],
+    });
+
+    console.log(`✅ Search index "${INDEX_NAME}" initialized`);
+  } catch (error) {
+    console.error('Failed to initialize search index:', error);
+    throw error;
+  }
+}
+
+/**
+ * Index a single document
+ */
+export async function indexDocument(document: DocumentToIndex) {
+  await addDocuments(INDEX_NAME, [
+    {
+      ...document,
+      createdAt: document.createdAt.toISOString(),
+      updatedAt: document.updatedAt.toISOString(),
+    },
+  ]);
+}
+
+/**
+ * Bulk index documents
+ */
+export async function bulkIndexDocuments(documents: DocumentToIndex[]) {
+  const formattedDocs = documents.map((doc) => ({
+    ...doc,
+    createdAt: doc.createdAt.toISOString(),
+    updatedAt: doc.updatedAt.toISOString(),
+  }));
+
+  await addDocuments(INDEX_NAME, formattedDocs);
+}
+
+/**
+ * Re-index all documents (called from background job)
+ */
+export async function reindexAll(
+  fetchDocuments: () => Promise<DocumentToIndex[]>
+) {
+  console.log('Starting full reindex...');
+
+  const documents = await fetchDocuments();
+  await bulkIndexDocuments(documents);
+
+  console.log(`✅ Reindexed ${documents.length} documents`);
+}

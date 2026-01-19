@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""
+user.py - User Queries
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+from datetime import datetime
+import strawberry
+from strawberry.types import Info
+from ..types.user import User
+from ..context import get_current_user
+
+
+@strawberry.type
+class UserQueries:
+    """User queries."""
+
+    @strawberry.field
+    async def me(self, info: Info) -> User:
+        """Get current authenticated user."""
+        user = await get_current_user(info)
+        if not user:
+            raise Exception("Not authenticated")
+        return user
+
+    @strawberry.field
+    async def user(self, id: strawberry.ID, info: Info) -> User | None:
+        """Get user by ID."""
+        # Require authentication
+        current_user = await get_current_user(info)
+        if not current_user:
+            raise Exception("Not authenticated")
+
+        # Implement your user lookup logic here
+        # return await user_service.get_by_id(id)
+
+        # Placeholder implementation
+        return User(
+            id=id,
+            email="user@example.com",
+            name="John Doe",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+
+    @strawberry.field
+    async def users(
+        self,
+        info: Info,
+        skip: int = 0,
+        take: int = 10,
+    ) -> list[User]:
+        """List all users."""
+        # Require authentication
+        current_user = await get_current_user(info)
+        if not current_user:
+            raise Exception("Not authenticated")
+
+        # Implement your user listing logic here
+        # return await user_service.list_users(skip=skip, limit=take)
+
+        # Placeholder implementation
+        return [
+            User(
+                id=strawberry.ID("1"),
+                email="user1@example.com",
+                name="User One",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            ),
+            User(
+                id=strawberry.ID("2"),
+                email="user2@example.com",
+                name="User Two",
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            ),
+        ]

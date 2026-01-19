@@ -1,0 +1,76 @@
+/**
+ * Sentry Server Configuration (Node.js)
+ * Project: {{PROJECT_NAME}}
+ * Author: {{AUTHOR}}
+ */
+
+import * as Sentry from '@sentry/nextjs';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+
+  // Environment
+  environment: process.env.ENVIRONMENT || 'development',
+
+  // Release tracking
+  release: process.env.APP_VERSION,
+
+  // Sample rate for performance monitoring
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+
+  // Integrations
+  integrations: [
+    new Sentry.Integrations.Http({ tracing: true }),
+    new Sentry.Integrations.Postgres(),
+    new Sentry.Integrations.Prisma({ client: undefined }), // Set client if using Prisma
+  ],
+
+  // Ignore specific errors
+  ignoreErrors: [
+    'ECONNRESET',
+    'ENOTFOUND',
+    'ETIMEDOUT',
+  ],
+
+  // Before send hook
+  beforeSend(event, hint) {
+    // Filter out events in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Sentry event:', event);
+      return null;
+    }
+
+    // Scrub sensitive data
+    if (event.request) {
+      delete event.request.cookies;
+      if (event.request.headers) {
+        delete event.request.headers.authorization;
+        delete event.request.headers.cookie;
+      }
+    }
+
+    // Remove sensitive context
+    if (event.contexts) {
+      delete event.contexts.user?.email;
+    }
+
+    return event;
+  },
+
+  // Before breadcrumb hook
+  beforeBreadcrumb(breadcrumb) {
+    // Filter out HTTP breadcrumbs for health checks
+    if (breadcrumb.category === 'http' && breadcrumb.data?.url?.includes('/health')) {
+      return null;
+    }
+
+    return breadcrumb;
+  },
+});
+
+// Export helper functions
+export const captureException = Sentry.captureException;
+export const captureMessage = Sentry.captureMessage;
+export const setUser = Sentry.setUser;
+export const setContext = Sentry.setContext;
+export const addBreadcrumb = Sentry.addBreadcrumb;

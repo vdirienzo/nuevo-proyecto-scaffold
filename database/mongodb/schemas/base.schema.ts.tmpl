@@ -1,0 +1,129 @@
+/**
+ * base.schema.ts - Base schema with timestamps and common fields
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Schema, Document } from 'mongoose';
+
+export interface BaseDocument extends Document {
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
+  isDeleted: boolean;
+}
+
+export const baseSchemaOptions = {
+  timestamps: true,
+  toJSON: {
+    virtuals: true,
+    transform: function (_doc: any, ret: any) {
+      ret.id = ret._id.toString();
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    },
+  },
+  toObject: {
+    virtuals: true,
+    transform: function (_doc: any, ret: any) {
+      ret.id = ret._id.toString();
+      delete ret._id;
+      delete ret.__v;
+      return ret;
+    },
+  },
+};
+
+export function addBaseFields(schema: Schema): void {
+  schema.add({
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+  });
+
+  // Add soft delete methods
+  schema.methods.softDelete = function () {
+    this.isDeleted = true;
+    this.deletedAt = new Date();
+    return this.save();
+  };
+
+  schema.methods.restore = function () {
+    this.isDeleted = false;
+    this.deletedAt = null;
+    return this.save();
+  };
+
+  // Default query to exclude soft-deleted documents
+  schema.pre(/^find/, function (next) {
+    if (!this.getOptions().includeDeleted) {
+      this.where({ isDeleted: { $ne: true } });
+    }
+    next();
+  });
+
+  schema.pre('countDocuments', function (next) {
+    if (!this.getOptions().includeDeleted) {
+      this.where({ isDeleted: { $ne: true } });
+    }
+    next();
+  });
+}
+
+export abstract class BaseRepository<T extends BaseDocument> {
+  constructor(protected model: any) {}
+
+  async findById(id: string, includeDeleted = false): Promise<T | null> {
+    const query = this.model.findById(id);
+    if (includeDeleted) {
+      query.setOptions({ includeDeleted: true });
+    }
+    return query.exec();
+  }
+
+  async findAll(includeDeleted = false): Promise<T[]> {
+    const query = this.model.find();
+    if (includeDeleted) {
+      query.setOptions({ includeDeleted: true });
+    }
+    return query.exec();
+  }
+
+  async create(data: Partial<T>): Promise<T> {
+    return this.model.create(data);
+  }
+
+  async update(id: string, data: Partial<T>): Promise<T | null> {
+    return this.model.findByIdAndUpdate(id, data, { new: true, runValidators: true }).exec();
+  }
+
+  async delete(id: string, soft = true): Promise<boolean> {
+    if (soft) {
+      const doc = await this.model.findById(id);
+      if (doc) {
+        await doc.softDelete();
+        return true;
+      }
+      return false;
+    } else {
+      const result = await this.model.findByIdAndDelete(id);
+      return !!result;
+    }
+  }
+
+  async restore(id: string): Promise<T | null> {
+    const doc = await this.model.findById(id).setOptions({ includeDeleted: true });
+    if (doc) {
+      await doc.restore();
+      return doc;
+    }
+    return null;
+  }
+}

@@ -1,0 +1,113 @@
+# Error Budget Alert Rules
+# Project: {{PROJECT_NAME}}
+# Author: {{AUTHOR}}
+
+groups:
+  - name: error_budget_alerts
+    interval: 30s
+    rules:
+      # Fast burn rate (1 hour)
+      - alert: ErrorBudgetFastBurn
+        expr: |
+          (
+            1 - (
+              sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api",status!~"5.."}[1h]))
+              /
+              sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api"}[1h]))
+            )
+          ) > (1 - 0.999) * 14.4
+        for: 5m
+        labels:
+          severity: critical
+          component: error_budget
+        annotations:
+          summary: "Error budget burning too fast"
+          description: "At current error rate, the 30-day error budget will be exhausted in {{ $value | humanizeDuration }}"
+          runbook: "https://docs.{{PROJECT_DOMAIN}}/runbooks/error-budget-fast-burn"
+
+      # Slow burn rate (6 hours)
+      - alert: ErrorBudgetSlowBurn
+        expr: |
+          (
+            1 - (
+              sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api",status!~"5.."}[6h]))
+              /
+              sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api"}[6h]))
+            )
+          ) > (1 - 0.999) * 6
+        for: 30m
+        labels:
+          severity: warning
+          component: error_budget
+        annotations:
+          summary: "Error budget depleting faster than expected"
+          description: "Error budget burn rate is {{ $value }}x the expected rate"
+          runbook: "https://docs.{{PROJECT_DOMAIN}}/runbooks/error-budget-slow-burn"
+
+      # Error budget exhausted
+      - alert: ErrorBudgetExhausted
+        expr: |
+          (
+            1 - (
+              sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api",status!~"5.."}[30d]))
+              /
+              sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api"}[30d]))
+            )
+          ) > (1 - 0.999)
+        for: 5m
+        labels:
+          severity: critical
+          component: error_budget
+        annotations:
+          summary: "Monthly error budget exhausted"
+          description: "The 30-day error budget has been completely consumed"
+          runbook: "https://docs.{{PROJECT_DOMAIN}}/runbooks/error-budget-exhausted"
+
+      # SLO at risk
+      - alert: SLOAtRisk
+        expr: |
+          (
+            sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api",status!~"5.."}[7d]))
+            /
+            sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api"}[7d]))
+          ) < 0.999
+        for: 1h
+        labels:
+          severity: warning
+          component: slo
+        annotations:
+          summary: "SLO at risk of being violated"
+          description: "Current 7-day availability is {{ $value | humanizePercentage }}"
+          runbook: "https://docs.{{PROJECT_DOMAIN}}/runbooks/slo-at-risk"
+
+      # Latency SLO violation
+      - alert: LatencySLOViolation
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket{job="{{PROJECT_NAME}}-api"}[5m])) by (le)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: slo
+        annotations:
+          summary: "Latency SLO violated"
+          description: "P95 latency is {{ $value }}s (SLO: 500ms)"
+          runbook: "https://docs.{{PROJECT_DOMAIN}}/runbooks/latency-slo-violation"
+
+      # Error rate SLO violation
+      - alert: ErrorRateSLOViolation
+        expr: |
+          (
+            sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api"}[5m]))
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          component: slo
+        annotations:
+          summary: "Error rate SLO violated"
+          description: "Error rate is {{ $value | humanizePercentage }} (SLO: <1%)"
+          runbook: "https://docs.{{PROJECT_DOMAIN}}/runbooks/error-rate-slo-violation"

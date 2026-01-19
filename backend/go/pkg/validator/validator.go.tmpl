@@ -1,0 +1,72 @@
+// validator.go - Request validation utilities
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package validator
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/go-playground/validator/v10"
+)
+
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New()
+}
+
+// ValidationError represents a validation error
+type ValidationError struct {
+	Field   string `json:"field"`
+	Message string `json:"message"`
+}
+
+// Validate validates a struct
+func Validate(data interface{}) error {
+	if err := validate.Struct(data); err != nil {
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			errors := make([]ValidationError, 0, len(validationErrors))
+			for _, e := range validationErrors {
+				errors = append(errors, ValidationError{
+					Field:   strings.ToLower(e.Field()),
+					Message: formatValidationMessage(e),
+				})
+			}
+			return &ValidationErrors{Errors: errors}
+		}
+		return err
+	}
+	return nil
+}
+
+// ValidationErrors represents multiple validation errors
+type ValidationErrors struct {
+	Errors []ValidationError `json:"errors"`
+}
+
+// Error implements error interface
+func (v *ValidationErrors) Error() string {
+	return "validation failed"
+}
+
+// formatValidationMessage formats validation error message
+func formatValidationMessage(e validator.FieldError) string {
+	switch e.Tag() {
+	case "required":
+		return fmt.Sprintf("%s is required", e.Field())
+	case "email":
+		return "invalid email format"
+	case "min":
+		return fmt.Sprintf("minimum length is %s", e.Param())
+	case "max":
+		return fmt.Sprintf("maximum length is %s", e.Param())
+	case "gte":
+		return fmt.Sprintf("must be greater than or equal to %s", e.Param())
+	case "lte":
+		return fmt.Sprintf("must be less than or equal to %s", e.Param())
+	default:
+		return fmt.Sprintf("validation failed on %s", e.Tag())
+	}
+}

@@ -1,0 +1,63 @@
+/**
+ * NestJS Cache Module
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Module, Global, DynamicModule } from '@nestjs/common';
+import { CacheService } from './cache.service';
+import { RedisClient } from '../client';
+
+export interface CacheModuleOptions {
+  ttl?: number;
+  prefix?: string;
+  isGlobal?: boolean;
+}
+
+@Module({})
+export class CacheModule {
+  static forRoot(options: CacheModuleOptions = {}): DynamicModule {
+    const cacheServiceProvider = {
+      provide: CacheService,
+      useFactory: () => {
+        return new CacheService({
+          ttl: options.ttl,
+          prefix: options.prefix,
+        });
+      },
+    };
+
+    const redisClientProvider = {
+      provide: 'REDIS_CLIENT',
+      useFactory: () => {
+        return RedisClient.getInstance();
+      },
+    };
+
+    return {
+      module: CacheModule,
+      global: options.isGlobal ?? true,
+      providers: [cacheServiceProvider, redisClientProvider],
+      exports: [CacheService, 'REDIS_CLIENT'],
+    };
+  }
+
+  static forFeature(options: CacheModuleOptions = {}): DynamicModule {
+    const cacheServiceProvider = {
+      provide: CacheService,
+      useFactory: () => {
+        return new CacheService({
+          ttl: options.ttl,
+          prefix: options.prefix,
+        });
+      },
+    };
+
+    return {
+      module: CacheModule,
+      providers: [cacheServiceProvider],
+      exports: [CacheService],
+    };
+  }
+}

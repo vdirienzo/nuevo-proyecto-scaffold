@@ -1,0 +1,147 @@
+/**
+ * auth.schema.ts.tmpl - Zod schemas for authentication
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { z } from 'zod';
+
+/**
+ * Login schema
+ */
+export const loginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+  deviceId: z.string().optional(),
+});
+
+export type Login = z.infer<typeof loginSchema>;
+
+/**
+ * Login response schema
+ */
+export const loginResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+  expiresIn: z.number(),
+  tokenType: z.literal('Bearer'),
+  user: z.object({
+    id: z.string(),
+    email: z.string().email(),
+    username: z.string(),
+    roles: z.array(z.string()),
+  }),
+});
+
+export type LoginResponse = z.infer<typeof loginResponseSchema>;
+
+/**
+ * Refresh token schema
+ */
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
+export type RefreshToken = z.infer<typeof refreshTokenSchema>;
+
+/**
+ * Refresh token response schema
+ */
+export const refreshTokenResponseSchema = z.object({
+  accessToken: z.string(),
+  refreshToken: z.string(),
+  expiresIn: z.number(),
+});
+
+export type RefreshTokenResponse = z.infer<typeof refreshTokenResponseSchema>;
+
+/**
+ * Validate token schema
+ */
+export const validateTokenSchema = z.object({
+  accessToken: z.string(),
+});
+
+export type ValidateToken = z.infer<typeof validateTokenSchema>;
+
+/**
+ * Validate token response schema
+ */
+export const validateTokenResponseSchema = z.object({
+  valid: z.boolean(),
+  user: z
+    .object({
+      id: z.string(),
+      email: z.string().email(),
+      username: z.string(),
+      roles: z.array(z.string()),
+    })
+    .optional(),
+  expiresAt: z.date().optional(),
+});
+
+export type ValidateTokenResponse = z.infer<typeof validateTokenResponseSchema>;
+
+/**
+ * Change password schema
+ */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Current password is required'),
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+});
+
+export type ChangePassword = z.infer<typeof changePasswordSchema>;
+
+/**
+ * Reset password schema
+ */
+export const resetPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
+export type ResetPassword = z.infer<typeof resetPasswordSchema>;
+
+/**
+ * Reset password response schema
+ */
+export const resetPasswordResponseSchema = z.object({
+  success: z.boolean(),
+  message: z.string(),
+});
+
+export type ResetPasswordResponse = z.infer<typeof resetPasswordResponseSchema>;
+
+/**
+ * Confirm reset password schema
+ */
+export const confirmResetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  newPassword: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+});
+
+export type ConfirmResetPassword = z.infer<typeof confirmResetPasswordSchema>;
+
+/**
+ * JWT payload schema (for internal use)
+ */
+export const jwtPayloadSchema = z.object({
+  sub: z.string(), // User ID
+  email: z.string().email(),
+  username: z.string(),
+  roles: z.array(z.string()),
+  iat: z.number(),
+  exp: z.number(),
+});
+
+export type JWTPayload = z.infer<typeof jwtPayloadSchema>;

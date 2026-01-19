@@ -1,0 +1,26 @@
+# Meilisearch Service
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.6
+    container_name: {{PROJECT_NAME}}-meilisearch
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=${MEILISEARCH_MASTER_KEY}
+      - MEILI_ENV=${MEILI_ENV:-development}
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  meilisearch_data:
+    driver: local

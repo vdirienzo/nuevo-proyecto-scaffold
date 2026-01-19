@@ -1,0 +1,90 @@
+/**
+ * SAML Routes (login, callback, metadata)
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Router } from 'express';
+import passport from 'passport';
+import { samlStrategy } from '../passport-saml';
+import { samlConfig } from '../config';
+import fs from 'fs';
+import path from 'path';
+
+const router = Router();
+
+// Initialize SAML strategy
+passport.use('saml', samlStrategy);
+
+/**
+ * Initiate SAML login
+ */
+router.get('/login', (req, res, next) => {
+  passport.authenticate('saml', {
+    failureRedirect: '/login',
+    failureFlash: true,
+  })(req, res, next);
+});
+
+/**
+ * SAML callback (Assertion Consumer Service)
+ */
+router.post(
+  '/callback',
+  passport.authenticate('saml', {
+    failureRedirect: '/login',
+    failureFlash: true,
+  }),
+  (req, res) => {
+    // Successful authentication
+    res.redirect(req.session?.returnTo || '/dashboard');
+  }
+);
+
+/**
+ * Single Logout
+ */
+router.post('/logout', (req, res) => {
+  if (!req.user) {
+    return res.redirect('/');
+  }
+
+  // @ts-ignore - samlSessionIndex from passport-saml
+  const samlSessionIndex = req.user.samlSessionIndex;
+
+  req.logout((err) => {
+    if (err) {
+      console.error('Logout error:', err);
+      return res.redirect('/');
+    }
+
+    // Initiate SAML SLO
+    samlStrategy.logout(req as any, (error, requestUrl) => {
+      if (error) {
+        console.error('SAML logout error:', error);
+        return res.redirect('/');
+      }
+      res.redirect(requestUrl);
+    });
+  });
+});
+
+/**
+ * SP Metadata endpoint
+ */
+router.get('/metadata', (req, res) => {
+  try {
+    const metadata = samlStrategy.generateServiceProviderMetadata(
+      samlConfig.cert,
+      samlConfig.cert
+    );
+    res.type('application/xml');
+    res.send(metadata);
+  } catch (error) {
+    console.error('Metadata generation error:', error);
+    res.status(500).send('Failed to generate metadata');
+  }
+});
+
+export default router;

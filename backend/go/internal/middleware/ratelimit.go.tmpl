@@ -1,0 +1,70 @@
+// ratelimit.go - Rate limiting middleware
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package middleware
+
+import (
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
+
+	"{{PROJECT_NAME}}/internal/config"
+	"{{PROJECT_NAME}}/pkg/response"
+)
+
+// RateLimit implements token bucket rate limiting per IP
+func RateLimit(cfg *config.Config) gin.HandlerFunc {
+	type client struct {
+		limiter  *rate.Limiter
+		lastSeen time.Time
+	}
+
+	var (
+		mu      sync.Mutex
+		clients = make(map[string]*client)
+	)
+
+	// Cleanup stale clients every 5 minutes
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		for range ticker.C {
+			mu.Lock()
+			for ip, c := range clients {
+				if time.Since(c.lastSeen) > 10*time.Minute {
+					delete(clients, ip)
+				}
+			}
+			mu.Unlock()
+		}
+	}()
+
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
+
+		mu.Lock()
+		if _, exists := clients[ip]; !exists {
+			// Create limiter: requests per period
+			limit := rate.Every(cfg.RateLimit.Period / time.Duration(cfg.RateLimit.Requests))
+			clients[ip] = &client{
+				limiter: rate.NewLimiter(limit, int(cfg.RateLimit.Requests)),
+			}
+		}
+		clients[ip].lastSeen = time.Now()
+		limiter := clients[ip].limiter
+		mu.Unlock()
+
+		if !limiter.Allow() {
+			response.Error(c, http.StatusTooManyRequests, "Rate limit exceeded")
+			c.Abort()
+			return
+		}
+
+		c.Next()
+	}
+}

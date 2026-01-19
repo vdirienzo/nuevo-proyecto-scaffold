@@ -1,0 +1,161 @@
+# ADR-001: Monorepo Architecture with Turborepo
+
+**Status:** Accepted
+**Date:** 2024-01-01
+**Author:** {{AUTHOR}}
+**Project:** {{PROJECT_NAME}}
+
+## Context
+
+We need to establish the foundational architecture for {{PROJECT_NAME}}, which will consist of multiple applications (web frontend, mobile app, API backend) and shared packages (UI components, utilities, TypeScript types).
+
+Key requirements:
+- Fast builds and tests with intelligent caching
+- Code sharing between frontend and backend
+- Independent deployment of apps
+- Scalable for team growth
+- Modern developer experience
+
+## Decision
+
+We will use a **monorepo architecture** powered by **Turborepo** with **pnpm workspaces**.
+
+### Structure
+
+```
+{{PROJECT_NAME}}/
+├── apps/
+│   ├── web/          # Next.js web app
+│   ├── mobile/       # React Native app (optional)
+│   └── api/          # FastAPI backend
+├── packages/
+│   ├── ui/           # Shared React components
+│   ├── types/        # Shared TypeScript types
+│   ├── config/       # Shared config (ESLint, TS)
+│   └── utils/        # Shared utilities
+├── tooling/
+│   ├── eslint/       # ESLint configuration
+│   └── typescript/   # TypeScript configuration
+└── turbo.json        # Turborepo pipeline config
+```
+
+### Technology Stack
+
+**Frontend:**
+- Next.js 14+ (App Router)
+- React 18+
+- TailwindCSS + shadcn/ui
+- TypeScript
+
+**Backend:**
+- FastAPI (Python 3.12+)
+- SQLModel (async ORM)
+- PostgreSQL
+- Redis (caching/sessions)
+
+**Infrastructure:**
+- Docker + Docker Compose
+- GitHub Actions (CI/CD)
+- Vercel (frontend) + AWS (backend)
+
+**Package Management:**
+- pnpm (fast, efficient)
+- Turborepo (build orchestration)
+
+## Consequences
+
+### Positive
+
+- **Fast builds:** Turborepo caches build outputs across the entire monorepo
+- **Code sharing:** Easy to share types, components, and utilities
+- **Consistent tooling:** Single source of truth for linting, formatting, testing
+- **Atomic changes:** Changes spanning multiple apps can be in a single PR
+- **Better DX:** Single `pnpm install`, unified scripts
+
+### Negative
+
+- **Initial complexity:** More setup than multi-repo approach
+- **Learning curve:** Team needs to understand monorepo conventions
+- **Large repo size:** Git repo will grow with all apps/packages
+- **CI/CD complexity:** Need intelligent pipelines to only deploy changed apps
+
+### Neutral
+
+- **Deployment:** Apps can still deploy independently via CI/CD
+- **Versioning:** Use independent versioning per package
+
+## Alternatives Considered
+
+### Alternative 1: Multi-repo (Polyrepo)
+
+**Description:** Separate Git repositories for web, api, mobile, and each package.
+
+**Pros:**
+- Simpler mental model
+- Clearer boundaries
+- Independent CI/CD per repo
+
+**Cons:**
+- Code sharing requires npm publishing
+- Versioning hell with interdependent packages
+- Harder to make atomic changes
+- Duplicated tooling config
+
+**Why not chosen:** The overhead of managing versions and syncing changes across repos outweighs the complexity of a monorepo.
+
+### Alternative 2: Nx Monorepo
+
+**Description:** Use Nx instead of Turborepo for monorepo orchestration.
+
+**Pros:**
+- More mature ecosystem
+- Powerful code generation
+- Better IDE integrations
+
+**Cons:**
+- More opinionated and complex
+- Steeper learning curve
+- Overkill for our current scale
+
+**Why not chosen:** Turborepo is simpler, faster, and sufficient for our needs. We can migrate to Nx later if needed.
+
+## Implementation Notes
+
+### Phase 1: Initial Setup
+1. Initialize pnpm workspace
+2. Setup Turborepo with turbo.json
+3. Create base apps: web, api
+4. Create base packages: ui, types, config
+
+### Phase 2: Tooling
+1. Setup ESLint flat config
+2. Configure Prettier
+3. Setup pre-commit hooks (Husky + lint-staged)
+4. Configure Commitlint
+
+### Phase 3: CI/CD
+1. GitHub Actions workflows
+2. Automated testing pipeline
+3. Deployment automation (Vercel + AWS)
+
+### Dependencies
+- Node.js 20+
+- pnpm 8+
+- Python 3.12+ (for API)
+- Docker (for local development)
+
+### Migration Strategy
+N/A - This is a greenfield project.
+
+## References
+
+- [Turborepo Documentation](https://turbo.build/repo/docs)
+- [pnpm Workspaces](https://pnpm.io/workspaces)
+- [Vercel Monorepo Guide](https://vercel.com/docs/monorepos)
+- [FastAPI Best Practices](https://fastapi.tiangolo.com/tutorial/)
+
+## Changelog
+
+- **2024-01-01**: Initial proposal
+- **2024-01-05**: Accepted by team
+- **2024-01-10**: Implementation started

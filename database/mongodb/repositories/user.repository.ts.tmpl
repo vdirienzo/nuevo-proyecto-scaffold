@@ -1,0 +1,148 @@
+/**
+ * user.repository.ts - User repository with custom methods
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { FilterQuery } from 'mongoose';
+import { BaseRepository } from './base.repository';
+import { User, IUser } from '../schemas/user.schema';
+
+export class UserRepository extends BaseRepository<IUser> {
+  constructor() {
+    super(User);
+  }
+
+  async findByEmail(email: string): Promise<IUser | null> {
+    return this.findOne({ email: email.toLowerCase() } as FilterQuery<IUser>);
+  }
+
+  async findByUsername(username: string): Promise<IUser | null> {
+    return this.findOne({ username: username.toLowerCase() } as FilterQuery<IUser>);
+  }
+
+  async findByEmailWithPassword(email: string): Promise<IUser | null> {
+    return this.model
+      .findOne({ email: email.toLowerCase() })
+      .select('+password')
+      .exec();
+  }
+
+  async findByUsernameWithPassword(username: string): Promise<IUser | null> {
+    return this.model
+      .findOne({ username: username.toLowerCase() })
+      .select('+password')
+      .exec();
+  }
+
+  async findByRole(role: 'user' | 'admin' | 'moderator'): Promise<IUser[]> {
+    return this.find({ role } as FilterQuery<IUser>);
+  }
+
+  async findActiveUsers(): Promise<IUser[]> {
+    return this.find({ isActive: true } as FilterQuery<IUser>);
+  }
+
+  async findVerifiedUsers(): Promise<IUser[]> {
+    return this.find({ isEmailVerified: true } as FilterQuery<IUser>);
+  }
+
+  async updateLastLogin(userId: string): Promise<IUser | null> {
+    return this.update(userId, { lastLoginAt: new Date() } as any);
+  }
+
+  async setEmailVerified(userId: string): Promise<IUser | null> {
+    return this.update(userId, {
+      isEmailVerified: true,
+      emailVerificationToken: null,
+    } as any);
+  }
+
+  async setPasswordResetToken(userId: string, token: string, expires: Date): Promise<IUser | null> {
+    return this.update(userId, {
+      passwordResetToken: token,
+      passwordResetExpires: expires,
+    } as any);
+  }
+
+  async findByPasswordResetToken(token: string): Promise<IUser | null> {
+    return this.model
+      .findOne({
+        passwordResetToken: token,
+        passwordResetExpires: { $gt: new Date() },
+      })
+      .select('+passwordResetToken +passwordResetExpires')
+      .exec();
+  }
+
+  async clearPasswordResetToken(userId: string): Promise<IUser | null> {
+    return this.update(userId, {
+      passwordResetToken: null,
+      passwordResetExpires: null,
+    } as any);
+  }
+
+  async deactivateUser(userId: string): Promise<IUser | null> {
+    return this.update(userId, { isActive: false } as any);
+  }
+
+  async activateUser(userId: string): Promise<IUser | null> {
+    return this.update(userId, { isActive: true } as any);
+  }
+
+  async updateUserMetadata(userId: string, metadata: Record<string, any>): Promise<IUser | null> {
+    return this.update(userId, {
+      $set: { metadata },
+    } as any);
+  }
+
+  async searchUsers(searchTerm: string, limit: number = 10): Promise<IUser[]> {
+    const regex = new RegExp(searchTerm, 'i');
+    return this.find({
+      $or: [
+        { username: regex },
+        { email: regex },
+        { firstName: regex },
+        { lastName: regex },
+      ],
+    } as FilterQuery<IUser>, { limit });
+  }
+
+  async getUserStats(): Promise<{
+    total: number;
+    active: number;
+    verified: number;
+    byRole: Record<string, number>;
+  }> {
+    const [total, active, verified, byRole] = await Promise.all([
+      this.count(),
+      this.count({ isActive: true } as FilterQuery<IUser>),
+      this.count({ isEmailVerified: true } as FilterQuery<IUser>),
+      this.aggregate([
+        {
+          $group: {
+            _id: '$role',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const roleStats = byRole.reduce((acc: Record<string, number>, item: any) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {});
+
+    return {
+      total,
+      active,
+      verified,
+      byRole: roleStats,
+    };
+  }
+}
+
+// Singleton instance
+export const userRepository = new UserRepository();
+export default userRepository;

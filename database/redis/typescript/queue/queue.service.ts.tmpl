@@ -1,0 +1,213 @@
+/**
+ * BullMQ Queue Service
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Queue, QueueOptions, JobsOptions } from 'bullmq';
+import { redisConfig } from '../config';
+import { logger } from '@/lib/logger';
+
+export interface QueueJob<T = any> {
+  name: string;
+  data: T;
+  options?: JobsOptions;
+}
+
+export class QueueService {
+  private queues: Map<string, Queue> = new Map();
+  private connection: QueueOptions['connection'];
+
+  constructor() {
+    this.connection = {
+      host: redisConfig.host,
+      port: redisConfig.port,
+      password: redisConfig.password,
+      db: redisConfig.db,
+    };
+  }
+
+  /**
+   * Get or create queue
+   */
+  getQueue(queueName: string, options?: Partial<QueueOptions>): Queue {
+    if (!this.queues.has(queueName)) {
+      const queue = new Queue(queueName, {
+        connection: this.connection,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 1000,
+          },
+          removeOnComplete: {
+            age: 24 * 3600, // 24 hours
+            count: 1000,
+          },
+          removeOnFail: {
+            age: 7 * 24 * 3600, // 7 days
+          },
+        },
+        ...options,
+      });
+
+      queue.on('error', (error) => {
+        logger.error(`Queue ${queueName} error:`, error);
+      });
+
+      this.queues.set(queueName, queue);
+      logger.info(`Queue created: ${queueName}`);
+    }
+
+    return this.queues.get(queueName)!;
+  }
+
+  /**
+   * Add job to queue
+   */
+  async addJob<T>(
+    queueName: string,
+    jobName: string,
+    data: T,
+    options?: JobsOptions
+  ) {
+    const queue = this.getQueue(queueName);
+
+    const job = await queue.add(jobName, data, options);
+
+    logger.debug(`Job ${jobName} added to queue ${queueName}: ${job.id}`);
+
+    return job;
+  }
+
+  /**
+   * Add bulk jobs to queue
+   */
+  async addBulkJobs<T>(queueName: string, jobs: QueueJob<T>[]) {
+    const queue = this.getQueue(queueName);
+
+    const bulkJobs = jobs.map((job) => ({
+      name: job.name,
+      data: job.data,
+      opts: job.options,
+    }));
+
+    const addedJobs = await queue.addBulk(bulkJobs);
+
+    logger.debug(`${addedJobs.length} jobs added to queue ${queueName}`);
+
+    return addedJobs;
+  }
+
+  /**
+   * Get job by ID
+   */
+  async getJob(queueName: string, jobId: string) {
+    const queue = this.getQueue(queueName);
+    return await queue.getJob(jobId);
+  }
+
+  /**
+   * Remove job by ID
+   */
+  async removeJob(queueName: string, jobId: string) {
+    const queue = this.getQueue(queueName);
+    const job = await queue.getJob(jobId);
+
+    if (job) {
+      await job.remove();
+      logger.debug(`Job ${jobId} removed from queue ${queueName}`);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Pause queue
+   */
+  async pauseQueue(queueName: string) {
+    const queue = this.getQueue(queueName);
+    await queue.pause();
+    logger.info(`Queue ${queueName} paused`);
+  }
+
+  /**
+   * Resume queue
+   */
+  async resumeQueue(queueName: string) {
+    const queue = this.getQueue(queueName);
+    await queue.resume();
+    logger.info(`Queue ${queueName} resumed`);
+  }
+
+  /**
+   * Clean queue (remove old jobs)
+   */
+  async cleanQueue(
+    queueName: string,
+    grace: number = 0,
+    limit: number = 1000,
+    type: 'completed' | 'wait' | 'active' | 'paused' | 'delayed' | 'failed' = 'completed'
+  ) {
+    const queue = this.getQueue(queueName);
+    const jobs = await queue.clean(grace, limit, type);
+    logger.info(`Cleaned ${jobs.length} ${type} jobs from queue ${queueName}`);
+    return jobs;
+  }
+
+  /**
+   * Get queue metrics
+   */
+  async getQueueMetrics(queueName: string) {
+    const queue = this.getQueue(queueName);
+
+    const [waiting, active, completed, failed, delayed, paused] = await Promise.all([
+      queue.getWaitingCount(),
+      queue.getActiveCount(),
+      queue.getCompletedCount(),
+      queue.getFailedCount(),
+      queue.getDelayedCount(),
+      queue.getPausedCount(),
+    ]);
+
+    return {
+      queueName,
+      waiting,
+      active,
+      completed,
+      failed,
+      delayed,
+      paused,
+      total: waiting + active + completed + failed + delayed + paused,
+    };
+  }
+
+  /**
+   * Close all queues
+   */
+  async closeAll() {
+    const closePromises = Array.from(this.queues.values()).map((queue) =>
+      queue.close()
+    );
+
+    await Promise.all(closePromises);
+    this.queues.clear();
+
+    logger.info('All queues closed');
+  }
+}
+
+// Singleton instance
+export const queueService = new QueueService();
+
+// Common queue names
+export const QUEUE_NAMES = {
+  EMAIL: 'email',
+  NOTIFICATIONS: 'notifications',
+  EXPORTS: 'exports',
+  IMPORTS: 'imports',
+  WEBHOOKS: 'webhooks',
+  ANALYTICS: 'analytics',
+} as const;

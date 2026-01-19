@@ -1,0 +1,84 @@
+"""
+Meilisearch Client - Python
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+import os
+from typing import Any, TypeVar, Generic
+
+import meilisearch
+from meilisearch.index import Index
+
+T = TypeVar("T")
+
+client = meilisearch.Client(
+    url=os.getenv("MEILISEARCH_HOST", "http://localhost:7700"),
+    api_key=os.getenv("MEILISEARCH_API_KEY"),
+)
+
+
+def search(
+    index_name: str,
+    query: str,
+    limit: int = 20,
+    offset: int = 0,
+    filters: list[str] | None = None,
+    sort: list[str] | None = None,
+) -> dict[str, Any]:
+    """Search documents across indices."""
+    index = client.index(index_name)
+
+    results = index.search(
+        query,
+        {
+            "limit": limit,
+            "offset": offset,
+            "filter": filters,
+            "sort": sort,
+        },
+    )
+
+    return {
+        "hits": results["hits"],
+        "total": results.get("estimatedTotalHits", 0),
+        "query": results["query"],
+        "processing_time_ms": results["processingTimeMs"],
+    }
+
+
+def add_documents(index_name: str, documents: list[dict[str, Any]]) -> dict:
+    """Add documents to index."""
+    index = client.index(index_name)
+    task = index.add_documents(documents)
+    return task
+
+
+def update_index_settings(
+    index_name: str,
+    searchable_attributes: list[str] | None = None,
+    filterable_attributes: list[str] | None = None,
+    sortable_attributes: list[str] | None = None,
+    ranking_rules: list[str] | None = None,
+) -> None:
+    """Update index settings."""
+    index = client.index(index_name)
+
+    settings = {}
+    if searchable_attributes:
+        settings["searchableAttributes"] = searchable_attributes
+    if filterable_attributes:
+        settings["filterableAttributes"] = filterable_attributes
+    if sortable_attributes:
+        settings["sortableAttributes"] = sortable_attributes
+    if ranking_rules:
+        settings["rankingRules"] = ranking_rules
+
+    index.update_settings(settings)
+
+
+def create_index(index_name: str, primary_key: str = "id") -> Index:
+    """Create index with configuration."""
+    client.create_index(index_name, {"primaryKey": primary_key})
+    return client.index(index_name)

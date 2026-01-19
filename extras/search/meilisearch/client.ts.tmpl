@@ -1,0 +1,84 @@
+/**
+ * Meilisearch Client - TypeScript
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { MeiliSearch, Index } from 'meilisearch';
+
+const client = new MeiliSearch({
+  host: process.env.MEILISEARCH_HOST || 'http://localhost:7700',
+  apiKey: process.env.MEILISEARCH_API_KEY,
+});
+
+/**
+ * Search documents across indices
+ */
+export async function search<T>(
+  indexName: string,
+  query: string,
+  options?: {
+    limit?: number;
+    offset?: number;
+    filter?: string[];
+    sort?: string[];
+  }
+) {
+  const index = client.index(indexName);
+
+  const results = await index.search<T>(query, {
+    limit: options?.limit ?? 20,
+    offset: options?.offset ?? 0,
+    filter: options?.filter,
+    sort: options?.sort,
+  });
+
+  return {
+    hits: results.hits,
+    total: results.estimatedTotalHits,
+    query: results.query,
+    processingTimeMs: results.processingTimeMs,
+  };
+}
+
+/**
+ * Add documents to index
+ */
+export async function addDocuments<T extends Record<string, any>>(
+  indexName: string,
+  documents: T[]
+) {
+  const index = client.index(indexName);
+  const task = await index.addDocuments(documents);
+  return task;
+}
+
+/**
+ * Update index settings
+ */
+export async function updateIndexSettings(
+  indexName: string,
+  settings: {
+    searchableAttributes?: string[];
+    filterableAttributes?: string[];
+    sortableAttributes?: string[];
+    rankingRules?: string[];
+  }
+) {
+  const index = client.index(indexName);
+  await index.updateSettings(settings);
+}
+
+/**
+ * Create index with configuration
+ */
+export async function createIndex(
+  indexName: string,
+  primaryKey: string = 'id'
+) {
+  await client.createIndex(indexName, { primaryKey });
+  return client.index(indexName);
+}
+
+export { client };

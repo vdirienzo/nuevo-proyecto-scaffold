@@ -1,0 +1,174 @@
+/**
+ * use-auth.ts.tmpl - Auth hooks for React
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { useRouter } from 'next/router';
+import { trpc } from '../react';
+
+/**
+ * Login mutation
+ */
+export function useLogin() {
+  const router = useRouter();
+
+  return trpc.auth.login.useMutation({
+    onSuccess: (data) => {
+      // Store tokens
+      localStorage.setItem('token', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+    },
+  });
+}
+
+/**
+ * Logout mutation
+ */
+export function useLogout() {
+  const router = useRouter();
+  const utils = trpc.useUtils();
+
+  return trpc.auth.logout.useMutation({
+    onSuccess: () => {
+      // Clear tokens
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+
+      // Clear all queries
+      utils.invalidate();
+
+      // Redirect to login
+      router.push('/login');
+    },
+  });
+}
+
+/**
+ * Refresh token mutation
+ */
+export function useRefreshToken() {
+  return trpc.auth.refreshToken.useMutation({
+    onSuccess: (data) => {
+      // Update stored tokens
+      localStorage.setItem('token', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+    },
+  });
+}
+
+/**
+ * Validate token query
+ */
+export function useValidateToken(token: string) {
+  return trpc.auth.validateToken.useQuery(
+    { accessToken: token },
+    {
+      enabled: !!token,
+      retry: false,
+    }
+  );
+}
+
+/**
+ * Change password mutation
+ */
+export function useChangePassword() {
+  return trpc.auth.changePassword.useMutation({
+    onSuccess: () => {
+      // Optionally show success message
+      console.log('Password changed successfully');
+    },
+  });
+}
+
+/**
+ * Reset password mutation
+ */
+export function useResetPassword() {
+  return trpc.auth.resetPassword.useMutation();
+}
+
+/**
+ * Confirm reset password mutation
+ */
+export function useConfirmResetPassword() {
+  const router = useRouter();
+
+  return trpc.auth.confirmResetPassword.useMutation({
+    onSuccess: () => {
+      // Redirect to login after successful reset
+      router.push('/login');
+    },
+  });
+}
+
+/**
+ * Custom hook for auth state management
+ */
+export function useAuth() {
+  const router = useRouter();
+  const login = useLogin();
+  const logout = useLogout();
+  const refreshToken = useRefreshToken();
+
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  const { data: validation } = useValidateToken(token || '');
+
+  const isAuthenticated = validation?.valid ?? false;
+  const user = validation?.user ?? null;
+
+  const handleLogin = async (email: string, password: string, deviceId?: string) => {
+    await login.mutateAsync({ email, password, deviceId });
+  };
+
+  const handleLogout = async () => {
+    const refreshTokenValue = localStorage.getItem('refreshToken');
+    if (refreshTokenValue) {
+      await logout.mutateAsync({ refreshToken: refreshTokenValue });
+    }
+  };
+
+  const handleRefreshToken = async () => {
+    const refreshTokenValue = localStorage.getItem('refreshToken');
+    if (refreshTokenValue) {
+      await refreshToken.mutateAsync({ refreshToken: refreshTokenValue });
+    }
+  };
+
+  return {
+    isAuthenticated,
+    user,
+    login: handleLogin,
+    logout: handleLogout,
+    refreshToken: handleRefreshToken,
+    isLoading: login.isLoading || logout.isLoading,
+  };
+}
+
+/**
+ * Usage example:
+ *
+ * function LoginForm() {
+ *   const { login, isLoading } = useAuth();
+ *   const [email, setEmail] = useState('');
+ *   const [password, setPassword] = useState('');
+ *
+ *   const handleSubmit = async (e) => {
+ *     e.preventDefault();
+ *     await login(email, password);
+ *   };
+ *
+ *   return (
+ *     <form onSubmit={handleSubmit}>
+ *       <input value={email} onChange={(e) => setEmail(e.target.value)} />
+ *       <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+ *       <button disabled={isLoading}>Login</button>
+ *     </form>
+ *   );
+ * }
+ */

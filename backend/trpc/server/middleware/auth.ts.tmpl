@@ -1,0 +1,100 @@
+/**
+ * auth.ts.tmpl - Auth middleware for tRPC
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { TRPCError } from '@trpc/server';
+import { middleware } from '../trpc';
+
+/**
+ * Middleware to ensure user is authenticated
+ */
+export const isAuthenticated = middleware(({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'You must be logged in to access this resource',
+    });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.user, // Type narrowing
+    },
+  });
+});
+
+/**
+ * Middleware to ensure user has specific role
+ */
+export const hasRole = (role: string) =>
+  middleware(({ ctx, next }) => {
+    if (!ctx.user) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in',
+      });
+    }
+
+    if (!ctx.user.roles.includes(role)) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `You must have the ${role} role to access this resource`,
+      });
+    }
+
+    return next({ ctx });
+  });
+
+/**
+ * Middleware to ensure user has any of the specified roles
+ */
+export const hasAnyRole = (roles: string[]) =>
+  middleware(({ ctx, next }) => {
+    if (!ctx.user) {
+      throw new TRPCError({
+        code: 'UNAUTHORIZED',
+        message: 'You must be logged in',
+      });
+    }
+
+    const hasRole = roles.some((role) => ctx.user!.roles.includes(role));
+
+    if (!hasRole) {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: `You must have one of the following roles: ${roles.join(', ')}`,
+      });
+    }
+
+    return next({ ctx });
+  });
+
+/**
+ * Middleware to ensure user is active
+ */
+export const isActive = middleware(async ({ ctx, next }) => {
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'You must be logged in',
+    });
+  }
+
+  // TODO: Check if user is active in database
+  // const user = await ctx.db.user.findUnique({
+  //   where: { id: ctx.user.id },
+  // });
+  //
+  // if (!user || !user.isActive) {
+  //   throw new TRPCError({
+  //     code: 'FORBIDDEN',
+  //     message: 'Your account is inactive',
+  //   });
+  // }
+
+  return next({ ctx });
+});

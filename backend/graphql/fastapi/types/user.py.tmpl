@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+"""
+user.py - User GraphQL Types
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+from datetime import datetime
+import strawberry
+
+
+@strawberry.type
+class User:
+    """User GraphQL type."""
+    id: strawberry.ID
+    email: str
+    name: str
+    created_at: datetime
+    updated_at: datetime
+
+
+@strawberry.type
+class AuthPayload:
+    """Authentication payload."""
+    access_token: str
+    refresh_token: str
+    user: User
+
+
+@strawberry.input
+class CreateUserInput:
+    """Input for creating a new user."""
+    email: str
+    password: str
+    name: str
+
+
+@strawberry.input
+class LoginInput:
+    """Input for user login."""
+    email: str
+    password: str

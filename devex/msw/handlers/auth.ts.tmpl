@@ -1,0 +1,112 @@
+/**
+ * MSW Auth Handlers
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { http, HttpResponse } from "msw";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+export const authHandlers = [
+  // Login
+  http.post(`${API_URL}/auth/login`, async ({ request }) => {
+    const body = await request.json();
+    const { email, password } = body as { email: string; password: string };
+
+    // Simulate validation
+    if (email === "demo@example.com" && password === "password") {
+      return HttpResponse.json({
+        access_token: "mock_access_token_123",
+        refresh_token: "mock_refresh_token_456",
+        token_type: "bearer",
+        expires_in: 3600,
+        user: {
+          id: 1,
+          email: "demo@example.com",
+          name: "Demo User",
+          role: "user",
+        },
+      });
+    }
+
+    return HttpResponse.json(
+      { error: "Invalid credentials" },
+      { status: 401 }
+    );
+  }),
+
+  // Register
+  http.post(`${API_URL}/auth/register`, async ({ request }) => {
+    const body = await request.json();
+    const { email, password, name } = body as {
+      email: string;
+      password: string;
+      name: string;
+    };
+
+    // Simulate validation
+    if (!email || !password || !name) {
+      return HttpResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    return HttpResponse.json(
+      {
+        id: 2,
+        email,
+        name,
+        role: "user",
+        created_at: new Date().toISOString(),
+      },
+      { status: 201 }
+    );
+  }),
+
+  // Refresh Token
+  http.post(`${API_URL}/auth/refresh`, async ({ request }) => {
+    const body = await request.json();
+    const { refresh_token } = body as { refresh_token: string };
+
+    if (refresh_token === "mock_refresh_token_456") {
+      return HttpResponse.json({
+        access_token: "new_mock_access_token_789",
+        token_type: "bearer",
+        expires_in: 3600,
+      });
+    }
+
+    return HttpResponse.json(
+      { error: "Invalid refresh token" },
+      { status: 401 }
+    );
+  }),
+
+  // Logout
+  http.post(`${API_URL}/auth/logout`, () => {
+    return HttpResponse.json({ message: "Logged out successfully" });
+  }),
+
+  // Get Current User
+  http.get(`${API_URL}/auth/me`, ({ request }) => {
+    const authHeader = request.headers.get("Authorization");
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return HttpResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    return HttpResponse.json({
+      id: 1,
+      email: "demo@example.com",
+      name: "Demo User",
+      role: "user",
+      avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=demo",
+      created_at: "2024-01-01T00:00:00Z",
+    });
+  }),
+];

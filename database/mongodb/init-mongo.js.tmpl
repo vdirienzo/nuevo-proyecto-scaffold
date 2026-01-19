@@ -1,0 +1,138 @@
+/**
+ * init-mongo.js - MongoDB initialization script
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * This script runs when the MongoDB container is first created.
+ * It creates the application database, user, and initial collections.
+ */
+
+// Switch to admin database
+db = db.getSiblingDB('admin');
+
+// Authenticate as root
+db.auth('admin', 'admin_password');
+
+// Create application database
+db = db.getSiblingDB('{{PROJECT_NAME}}');
+
+// Create application user with read/write permissions
+db.createUser({
+  user: '{{PROJECT_NAME}}_user',
+  pwd: 'user_password',
+  roles: [
+    {
+      role: 'readWrite',
+      db: '{{PROJECT_NAME}}',
+    },
+  ],
+});
+
+// Create collections
+db.createCollection('users');
+db.createCollection('migrations');
+
+// Create indexes for users collection
+db.users.createIndex({ email: 1 }, { unique: true });
+db.users.createIndex({ username: 1 }, { unique: true });
+db.users.createIndex({ role: 1 });
+db.users.createIndex({ isActive: 1 });
+db.users.createIndex({ createdAt: -1 });
+
+// Create compound indexes
+db.users.createIndex({ isActive: 1, role: 1 });
+db.users.createIndex({ isEmailVerified: 1, isActive: 1 });
+
+// Text index for search
+db.users.createIndex(
+  {
+    username: 'text',
+    email: 'text',
+    firstName: 'text',
+    lastName: 'text',
+  },
+  {
+    name: 'text_search_index',
+  }
+);
+
+// Insert default admin user
+db.users.insertOne({
+  email: 'admin@{{PROJECT_NAME}}.com',
+  username: 'admin',
+  // Password: ChangeMe123! (hashed with bcrypt)
+  password: '$2a$10$X0h.qvJEKBqQvY5qvY5qvOqvY5qvY5qvY5qvY5qvY5qvY5qvY5qvY',
+  firstName: 'System',
+  lastName: 'Administrator',
+  role: 'admin',
+  isActive: true,
+  isEmailVerified: true,
+  isDeleted: false,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  metadata: {},
+});
+
+// Record initial migration
+db.migrations.insertOne({
+  version: 1,
+  name: 'initial_setup',
+  appliedAt: new Date(),
+});
+
+print('Database initialization completed successfully');
+print('Database: {{PROJECT_NAME}}');
+print('User: {{PROJECT_NAME}}_user');
+print('Collections: users, migrations');
+print('Default admin user: admin@{{PROJECT_NAME}}.com / ChangeMe123!');
+print('IMPORTANT: Change the default admin password immediately!');
+
+// Optional: Create capped collection for logs
+db.createCollection('logs', {
+  capped: true,
+  size: 10485760, // 10MB
+  max: 5000,
+});
+
+// Optional: Enable profiling for slow queries (development only)
+// db.setProfilingLevel(1, { slowms: 100 });
+
+// Optional: Set collection validation rules
+db.runCommand({
+  collMod: 'users',
+  validator: {
+    $jsonSchema: {
+      bsonType: 'object',
+      required: ['email', 'username', 'password', 'role'],
+      properties: {
+        email: {
+          bsonType: 'string',
+          pattern: '^\\S+@\\S+\\.\\S+$',
+          description: 'must be a valid email address',
+        },
+        username: {
+          bsonType: 'string',
+          minLength: 3,
+          maxLength: 30,
+          description: 'must be a string between 3 and 30 characters',
+        },
+        password: {
+          bsonType: 'string',
+          minLength: 8,
+          description: 'must be a string with at least 8 characters',
+        },
+        role: {
+          enum: ['user', 'admin', 'moderator'],
+          description: 'must be one of: user, admin, moderator',
+        },
+        isActive: {
+          bsonType: 'bool',
+          description: 'must be a boolean',
+        },
+      },
+    },
+  },
+  validationLevel: 'moderate',
+  validationAction: 'warn',
+});

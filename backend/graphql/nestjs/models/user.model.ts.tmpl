@@ -1,0 +1,38 @@
+/**
+ * user.model.ts - User GraphQL Object Type
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { ObjectType, Field, ID } from '@nestjs/graphql';
+
+@ObjectType({ description: 'User entity' })
+export class User {
+  @Field(() => ID, { description: 'User ID' })
+  id: string;
+
+  @Field({ description: 'User email address' })
+  email: string;
+
+  @Field({ description: 'User display name' })
+  name: string;
+
+  @Field({ description: 'User creation timestamp' })
+  createdAt: Date;
+
+  @Field({ description: 'User last update timestamp' })
+  updatedAt: Date;
+}
+
+@ObjectType({ description: 'Authentication payload' })
+export class AuthPayload {
+  @Field({ description: 'Access token for authentication' })
+  accessToken: string;
+
+  @Field({ description: 'Refresh token for token renewal' })
+  refreshToken: string;
+
+  @Field(() => User, { description: 'Authenticated user' })
+  user: User;
+}

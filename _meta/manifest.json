@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "nuevo-proyecto",
-  "version": "3.0.0",
-  "description": "Enterprise fullstack scaffold - Netflix-scale ready",
+  "version": "4.0.0",
+  "description": "Enterprise fullstack scaffold - Netflix-scale ready with 420 templates",
   "author": "Homero Thompson del Lago del Terror",
   "license": "MIT",
   "engines": {
@@ -11,50 +11,78 @@
   },
   "features": {
     "scales": ["mvp", "scale-up", "enterprise", "netflix"],
-    "backends": ["fastapi", "nestjs", "none"],
-    "frontends": ["nextjs"],
-    "databases": ["supabase", "postgresql", "firebase"],
+    "backends": ["fastapi", "nestjs", "go", "none"],
+    "frontends": ["nextjs", "react-spa", "none"],
+    "apiStyles": ["rest", "graphql", "grpc", "trpc"],
+    "databases": ["supabase", "postgresql", "firebase", "mongodb"],
+    "cache": ["redis", "dragonfly", "none"],
+    "authProviders": ["supabase-auth", "firebase-auth", "auth0", "clerk", "custom-jwt"],
     "testing": {
       "essential": ["unit", "integration"],
-      "professional": ["unit", "integration", "e2e", "contract"],
-      "enterprise": ["unit", "integration", "e2e", "contract", "load", "visual"],
-      "netflix": ["unit", "integration", "e2e", "contract", "load", "visual", "chaos", "mutation", "accessibility"]
+      "professional": ["unit", "integration", "e2e", "contract", "component", "api"],
+      "enterprise": ["unit", "integration", "e2e", "contract", "load", "visual", "accessibility"],
+      "netflix": ["unit", "integration", "e2e", "contract", "load", "visual", "chaos", "mutation", "accessibility", "property"]
     },
     "security": {
       "standard": ["sast", "secrets"],
-      "enhanced": ["sast", "secrets", "sca", "container"],
-      "compliance": ["sast", "secrets", "sca", "container", "dast", "sbom"],
+      "enhanced": ["sast", "secrets", "sca", "container", "api-security"],
+      "compliance": ["sast", "secrets", "sca", "container", "dast", "sbom", "waf"],
       "zero-trust": ["sast", "secrets", "sca", "container", "dast", "sbom", "runtime", "network-policies"]
-    }
+    },
+    "observability": ["logging", "error-tracking", "apm", "tracing", "metrics", "slo", "real-user"],
+    "extras": ["email", "storage", "queues", "feature-flags", "analytics", "search", "ai-integration", "i18n", "cms", "payments"]
   },
-  "templateCount": 148,
+  "templateCount": 420,
   "templateBreakdown": {
     "backend_fastapi": 27,
     "backend_nestjs": 32,
+    "backend_go": 26,
+    "backend_graphql": 22,
+    "backend_grpc": 14,
+    "backend_trpc": 12,
     "frontend_nextjs": 13,
+    "frontend_react_spa": 31,
     "database_supabase": 12,
     "database_firebase": 13,
+    "database_mongodb": 17,
+    "database_redis": 20,
+    "auth_providers": 28,
+    "auth_jwt": 14,
     "infrastructure_docker": 4,
     "testing_basic": 4,
     "testing_advanced": 23,
-    "security": 16,
+    "security": 20,
     "ci_cd": 10,
+    "observability": 25,
+    "devex": 26,
+    "extras": 30,
     "packages": 5,
     "core": 3
   },
   "completionStatus": {
     "fastapi": "complete",
     "nestjs": "complete",
+    "go": "complete",
+    "graphql": "complete",
+    "grpc": "complete",
+    "trpc": "complete",
     "nextjs": "complete",
+    "react-spa": "complete",
     "supabase": "complete",
     "firebase": "complete",
+    "mongodb": "complete",
+    "redis": "complete",
+    "auth": "complete",
     "docker": "complete",
     "testing": "complete",
     "security": "complete",
-    "ci_cd": "complete"
+    "ci_cd": "complete",
+    "observability": "complete",
+    "devex": "complete",
+    "extras": "complete"
   },
-  "lastUpdated": "2026-01-19",
   "wizardVersion": "3.0.0",
   "wizardPhases": 10,
-  "wizardQuestions": 28
+  "wizardQuestions": 28,
+  "lastUpdated": "2026-01-19"
 }

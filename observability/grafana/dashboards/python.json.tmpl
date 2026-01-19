@@ -1,0 +1,109 @@
+{
+  "__comment": "Python Dashboard for {{PROJECT_NAME}} - Author: {{AUTHOR}}",
+  "dashboard": {
+    "title": "{{PROJECT_NAME}} - Python Metrics",
+    "tags": ["python", "{{PROJECT_NAME}}"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "10s",
+    "panels": [
+      {
+        "title": "Request Rate by Endpoint",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "sum(rate(fastapi_requests_total[5m])) by (path, method)",
+            "legendFormat": "{{method}} {{path}}"
+          }
+        ]
+      },
+      {
+        "title": "Response Time P95",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(fastapi_request_duration_seconds_bucket[5m])) by (le, path))",
+            "legendFormat": "{{path}}"
+          }
+        ]
+      },
+      {
+        "title": "Python Process Memory",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes",
+            "legendFormat": "RSS"
+          },
+          {
+            "expr": "process_virtual_memory_bytes",
+            "legendFormat": "Virtual"
+          }
+        ]
+      },
+      {
+        "title": "Python GC Collections",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(python_gc_collections_total[5m])",
+            "legendFormat": "Generation {{generation}}"
+          }
+        ]
+      },
+      {
+        "title": "Database Query Duration",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation))",
+            "legendFormat": "{{operation}}"
+          }
+        ]
+      },
+      {
+        "title": "Active Database Connections",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "db_connection_pool_active",
+            "legendFormat": "Active"
+          },
+          {
+            "expr": "db_connection_pool_idle",
+            "legendFormat": "Idle"
+          }
+        ]
+      },
+      {
+        "title": "Exception Rate",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "targets": [
+          {
+            "expr": "sum(rate(fastapi_exceptions_total[5m])) by (exception_type)",
+            "legendFormat": "{{exception_type}}"
+          }
+        ]
+      },
+      {
+        "title": "Async Tasks Queue Size",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "targets": [
+          {
+            "expr": "async_tasks_queue_size",
+            "legendFormat": "Queue Size"
+          }
+        ]
+      }
+    ]
+  }
+}

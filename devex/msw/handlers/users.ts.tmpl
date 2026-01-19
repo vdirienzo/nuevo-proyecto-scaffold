@@ -1,0 +1,134 @@
+/**
+ * MSW Users Handlers
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { http, HttpResponse } from "msw";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+// Mock users database
+const mockUsers = [
+  {
+    id: 1,
+    email: "demo@example.com",
+    name: "Demo User",
+    role: "user",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=demo",
+    created_at: "2024-01-01T00:00:00Z",
+  },
+  {
+    id: 2,
+    email: "admin@example.com",
+    name: "Admin User",
+    role: "admin",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=admin",
+    created_at: "2024-01-02T00:00:00Z",
+  },
+  {
+    id: 3,
+    email: "jane@example.com",
+    name: "Jane Doe",
+    role: "user",
+    avatar: "https://api.dicebear.com/7.x/avataaars/svg?seed=jane",
+    created_at: "2024-01-03T00:00:00Z",
+  },
+];
+
+export const usersHandlers = [
+  // List users (paginated)
+  http.get(`${API_URL}/users`, ({ request }) => {
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get("page") || "1");
+    const perPage = parseInt(url.searchParams.get("per_page") || "10");
+
+    const start = (page - 1) * perPage;
+    const end = start + perPage;
+    const paginatedUsers = mockUsers.slice(start, end);
+
+    return HttpResponse.json({
+      items: paginatedUsers,
+      total: mockUsers.length,
+      page,
+      per_page: perPage,
+      pages: Math.ceil(mockUsers.length / perPage),
+    });
+  }),
+
+  // Get user by ID
+  http.get(`${API_URL}/users/:id`, ({ params }) => {
+    const { id } = params;
+    const user = mockUsers.find((u) => u.id === parseInt(id as string));
+
+    if (!user) {
+      return HttpResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(user);
+  }),
+
+  // Create user
+  http.post(`${API_URL}/users`, async ({ request }) => {
+    const body = await request.json();
+    const { email, name, role } = body as {
+      email: string;
+      name: string;
+      role: string;
+    };
+
+    const newUser = {
+      id: mockUsers.length + 1,
+      email,
+      name,
+      role: role || "user",
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`,
+      created_at: new Date().toISOString(),
+    };
+
+    mockUsers.push(newUser);
+
+    return HttpResponse.json(newUser, { status: 201 });
+  }),
+
+  // Update user
+  http.patch(`${API_URL}/users/:id`, async ({ params, request }) => {
+    const { id } = params;
+    const body = await request.json();
+    const userIndex = mockUsers.findIndex((u) => u.id === parseInt(id as string));
+
+    if (userIndex === -1) {
+      return HttpResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    mockUsers[userIndex] = {
+      ...mockUsers[userIndex],
+      ...(body as object),
+    };
+
+    return HttpResponse.json(mockUsers[userIndex]);
+  }),
+
+  // Delete user
+  http.delete(`${API_URL}/users/:id`, ({ params }) => {
+    const { id } = params;
+    const userIndex = mockUsers.findIndex((u) => u.id === parseInt(id as string));
+
+    if (userIndex === -1) {
+      return HttpResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    mockUsers.splice(userIndex, 1);
+
+    return HttpResponse.json({ message: "User deleted successfully" });
+  }),
+];

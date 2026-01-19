@@ -1,0 +1,22 @@
+/**
+ * Clerk Configuration
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+export const clerkConfig = {
+  publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '',
+  secretKey: process.env.CLERK_SECRET_KEY || '',
+  signInUrl: process.env.NEXT_PUBLIC_CLERK_SIGN_IN_URL || '/sign-in',
+  signUpUrl: process.env.NEXT_PUBLIC_CLERK_SIGN_UP_URL || '/sign-up',
+  afterSignInUrl: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL || '/dashboard',
+  afterSignUpUrl: process.env.NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL || '/onboarding',
+} as const;
+
+export const clerkApiConfig = {
+  apiUrl: 'https://api.clerk.com/v1',
+  apiVersion: 'v1',
+} as const;
+
+export type ClerkConfig = typeof clerkConfig;

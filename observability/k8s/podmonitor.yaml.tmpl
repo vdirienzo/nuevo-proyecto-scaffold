@@ -1,0 +1,82 @@
+# Prometheus PodMonitor for Kubernetes
+# Project: {{PROJECT_NAME}}
+# Author: {{AUTHOR}}
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{PROJECT_NAME}}-pods
+  namespace: {{NAMESPACE}}
+  labels:
+    app: {{PROJECT_NAME}}
+    release: prometheus
+spec:
+  # Selector for pods to monitor
+  selector:
+    matchLabels:
+      app: {{PROJECT_NAME}}
+
+  # Namespace selector
+  namespaceSelector:
+    matchNames:
+      - {{NAMESPACE}}
+
+  # Pod metrics endpoints
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+
+      # Relabeling
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_label_app]
+          targetLabel: app
+        - sourceLabels: [__meta_kubernetes_pod_label_component]
+          targetLabel: component
+        - sourceLabels: [__meta_kubernetes_pod_label_version]
+          targetLabel: version
+
+      # Metric relabeling
+      metricRelabelings:
+        # Drop high-cardinality metrics
+        - sourceLabels: [__name__]
+          regex: 'go_gc_duration_seconds.*'
+          action: drop
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{PROJECT_NAME}}-otel
+  namespace: {{NAMESPACE}}
+  labels:
+    app: {{PROJECT_NAME}}
+    component: otel-collector
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: otel-collector
+
+  namespaceSelector:
+    matchNames:
+      - {{NAMESPACE}}
+
+  podMetricsEndpoints:
+    - port: prometheus
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace

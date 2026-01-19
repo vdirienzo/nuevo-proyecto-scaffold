@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<!--
+  SAML Service Provider Metadata Template
+
+  Author: {{AUTHOR}}
+  Project: {{PROJECT_NAME}}
+-->
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata"
+                     xmlns:ds="http://www.w3.org/2000/09/xmldsig#"
+                     entityID="{{SAML_ISSUER}}">
+
+  <md:SPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"
+                      AuthnRequestsSigned="true"
+                      WantAssertionsSigned="true">
+
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <ds:X509Certificate>{{SAML_CERT}}</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+
+    <md:KeyDescriptor use="encryption">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <ds:X509Certificate>{{SAML_CERT}}</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+
+    <md:NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</md:NameIDFormat>
+
+    <md:AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                                 Location="{{SAML_CALLBACK_URL}}"
+                                 index="1"
+                                 isDefault="true"/>
+
+    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
+                           Location="{{SAML_LOGOUT_URL}}"/>
+
+  </md:SPSSODescriptor>
+
+  <md:Organization>
+    <md:OrganizationName xml:lang="en">{{PROJECT_NAME}}</md:OrganizationName>
+    <md:OrganizationDisplayName xml:lang="en">{{PROJECT_NAME}}</md:OrganizationDisplayName>
+    <md:OrganizationURL xml:lang="en">{{APP_URL}}</md:OrganizationURL>
+  </md:Organization>
+
+  <md:ContactPerson contactType="technical">
+    <md:GivenName>Technical Support</md:GivenName>
+    <md:EmailAddress>{{SUPPORT_EMAIL}}</md:EmailAddress>
+  </md:ContactPerson>
+
+</md:EntityDescriptor>

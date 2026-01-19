@@ -1,0 +1,28 @@
+# {{PROJECT_NAME}} Development Container
+# Author: {{AUTHOR}}
+
+FROM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
+
+# Install Python
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends \
+    python3.12 \
+    python3-pip \
+    python3-venv \
+    postgresql-client \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install uv for Python package management
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.cargo/bin:$PATH"
+
+# Install global Node.js tools
+RUN npm install -g pnpm turbo
+
+# Create workspace directory
+WORKDIR /workspace
+
+# Configure git safe directory
+RUN git config --global --add safe.directory /workspace
+
+USER node

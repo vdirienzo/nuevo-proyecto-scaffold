@@ -1,0 +1,30 @@
+/**
+ * Clerk User Button Component
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { UserButton as ClerkUserButton } from '@clerk/nextjs';
+
+export function UserButton() {
+  return (
+    <ClerkUserButton
+      afterSignOutUrl="/"
+      appearance={{
+        elements: {
+          avatarBox: 'w-10 h-10',
+          userButtonPopoverCard: 'shadow-lg',
+        },
+      }}
+      userProfileProps={{
+        appearance: {
+          elements: {
+            rootBox: 'w-full',
+            card: 'shadow-none',
+          },
+        },
+      }}
+    />
+  );
+}

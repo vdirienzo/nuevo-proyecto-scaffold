@@ -1,0 +1,82 @@
+// main.go - Application entry point with graceful shutdown
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package main
+
+import (
+	"context"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"{{PROJECT_NAME}}/internal/config"
+	"{{PROJECT_NAME}}/internal/database"
+	"{{PROJECT_NAME}}/internal/server"
+)
+
+func main() {
+	// Setup structured logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
+	// Load configuration
+	cfg, err := config.Load()
+	if err != nil {
+		slog.Error("Failed to load configuration", "error", err)
+		os.Exit(1)
+	}
+
+	// Connect to database
+	db, err := database.Connect(cfg)
+	if err != nil {
+		slog.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+
+	// Run migrations
+	if err := database.RunMigrations(db); err != nil {
+		slog.Error("Failed to run migrations", "error", err)
+		os.Exit(1)
+	}
+
+	// Initialize HTTP server
+	srv := server.New(cfg, db)
+
+	// Start server in goroutine
+	go func() {
+		slog.Info("Starting server", "port", cfg.Server.Port)
+		if err := srv.Start(); err != nil {
+			slog.Error("Server failed to start", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	// Wait for interrupt signal for graceful shutdown
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	slog.Info("Shutting down server...")
+
+	// Graceful shutdown with 10 second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		slog.Error("Server forced to shutdown", "error", err)
+		os.Exit(1)
+	}
+
+	// Close database connection
+	sqlDB, _ := db.DB()
+	if err := sqlDB.Close(); err != nil {
+		slog.Error("Failed to close database", "error", err)
+	}
+
+	slog.Info("Server exited properly")
+}

@@ -1,0 +1,30 @@
+/**
+ * Auth0 Logout Route
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { auth0Config } from '../config';
+
+export default async function logoutHandler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  // Clear cookies
+  res.setHeader('Set-Cookie', [
+    'auth0.token=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+    'auth0.id_token=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+  ]);
+
+  // Build logout URL
+  const params = new URLSearchParams({
+    client_id: auth0Config.clientId,
+    returnTo: auth0Config.postLogoutRedirectUri,
+  });
+
+  const logoutUrl = `https://${auth0Config.domain}/v2/logout?${params.toString()}`;
+
+  res.redirect(302, logoutUrl);
+}

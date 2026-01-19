@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+"""
+base.py - Base document model for Beanie
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+
+Dependencies: beanie, pydantic
+"""
+
+from datetime import datetime
+from typing import Optional
+from beanie import Document
+from pydantic import Field
+
+
+class BaseDocument(Document):
+    """Base document with common fields."""
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    deleted_at: Optional[datetime] = None
+    is_deleted: bool = False
+
+    class Settings:
+        """Beanie settings."""
+        use_state_management = True
+        validate_on_save = True
+
+    async def soft_delete(self) -> None:
+        """Soft delete document."""
+        self.is_deleted = True
+        self.deleted_at = datetime.utcnow()
+        await self.save()
+
+    async def restore(self) -> None:
+        """Restore soft-deleted document."""
+        self.is_deleted = False
+        self.deleted_at = None
+        await self.save()
+
+    class Config:
+        """Pydantic config."""
+        json_encoders = {
+            datetime: lambda v: v.isoformat(),
+        }
+        populate_by_name = True
+
+
+class TimestampMixin:
+    """Mixin for timestamp fields."""
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SoftDeleteMixin:
+    """Mixin for soft delete functionality."""
+
+    deleted_at: Optional[datetime] = None
+    is_deleted: bool = False
+
+    async def soft_delete(self) -> None:
+        """Soft delete document."""
+        self.is_deleted = True
+        self.deleted_at = datetime.utcnow()
+        await self.save()
+
+    async def restore(self) -> None:
+        """Restore soft-deleted document."""
+        self.is_deleted = False
+        self.deleted_at = None
+        await self.save()

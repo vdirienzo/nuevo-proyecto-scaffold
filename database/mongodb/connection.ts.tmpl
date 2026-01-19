@@ -1,0 +1,97 @@
+/**
+ * connection.ts - MongoDB connection manager with retry logic
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { mongoClient } from './client';
+import { logger } from '../utils/logger';
+
+interface ConnectionConfig {
+  uri: string;
+  maxRetries?: number;
+  retryDelay?: number;
+}
+
+export class ConnectionManager {
+  private config: ConnectionConfig;
+  private retryCount: number = 0;
+
+  constructor(config: ConnectionConfig) {
+    this.config = {
+      maxRetries: 5,
+      retryDelay: 3000,
+      ...config,
+    };
+  }
+
+  async connect(): Promise<void> {
+    while (this.retryCount < this.config.maxRetries!) {
+      try {
+        await mongoClient.connect({
+          uri: this.config.uri,
+        });
+        this.retryCount = 0;
+        return;
+      } catch (error) {
+        this.retryCount++;
+        logger.error(
+          `MongoDB connection attempt ${this.retryCount}/${this.config.maxRetries} failed:`,
+          error
+        );
+
+        if (this.retryCount >= this.config.maxRetries!) {
+          logger.error('Max retries reached. Could not connect to MongoDB.');
+          throw new Error('Failed to connect to MongoDB after multiple retries');
+        }
+
+        logger.info(`Retrying in ${this.config.retryDelay! / 1000} seconds...`);
+        await this.sleep(this.config.retryDelay!);
+      }
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    await mongoClient.disconnect();
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  public get isConnected(): boolean {
+    return mongoClient.connected;
+  }
+}
+
+// Singleton instance
+let connectionManager: ConnectionManager | null = null;
+
+export function createConnectionManager(config: ConnectionConfig): ConnectionManager {
+  if (!connectionManager) {
+    connectionManager = new ConnectionManager(config);
+  }
+  return connectionManager;
+}
+
+export function getConnectionManager(): ConnectionManager {
+  if (!connectionManager) {
+    throw new Error('ConnectionManager not initialized. Call createConnectionManager first.');
+  }
+  return connectionManager;
+}
+
+// Graceful shutdown
+export function setupGracefulShutdown(): void {
+  const gracefulShutdown = async (signal: string) => {
+    logger.info(`${signal} received. Closing MongoDB connection...`);
+    if (connectionManager) {
+      await connectionManager.disconnect();
+    }
+    process.exit(0);
+  };
+
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+}

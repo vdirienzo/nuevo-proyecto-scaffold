@@ -1,0 +1,93 @@
+/**
+ * SSE Streaming Helpers
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+/**
+ * Create SSE encoder for streaming responses
+ */
+export function createSSEEncoder() {
+  const encoder = new TextEncoder();
+
+  return new TransformStream({
+    transform(chunk: string, controller) {
+      const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
+      controller.enqueue(encoder.encode(data));
+    },
+    flush(controller) {
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+    },
+  });
+}
+
+/**
+ * Stream generator to Response
+ */
+export async function streamToResponse(
+  generator: AsyncGenerator<string, void, unknown>
+) {
+  const stream = new ReadableStream({
+    async start(controller) {
+      const encoder = new TextEncoder();
+
+      try {
+        for await (const chunk of generator) {
+          const data = `data: ${JSON.stringify({ content: chunk })}\n\n`;
+          controller.enqueue(encoder.encode(data));
+        }
+
+        controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      } catch (error) {
+        controller.error(error);
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
+/**
+ * Client-side SSE consumer hook
+ */
+export function useSSE(url: string, onMessage: (content: string) => void) {
+  let eventSource: EventSource | null = null;
+
+  const start = () => {
+    eventSource = new EventSource(url);
+
+    eventSource.onmessage = (event) => {
+      if (event.data === '[DONE]') {
+        eventSource?.close();
+        return;
+      }
+
+      try {
+        const parsed = JSON.parse(event.data);
+        onMessage(parsed.content);
+      } catch (error) {
+        console.error('Failed to parse SSE data:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      eventSource?.close();
+    };
+  };
+
+  const stop = () => {
+    eventSource?.close();
+  };
+
+  return { start, stop };
+}

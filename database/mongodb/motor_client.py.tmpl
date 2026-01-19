@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""
+motor_client.py - Async MongoDB client with Motor
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+
+Dependencies: motor, beanie, pydantic
+Install: uv add motor beanie pydantic-settings
+"""
+
+from typing import Optional
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
+from beanie import init_beanie
+from loguru import logger
+
+from .models.user import User
+from .models.base import BaseDocument
+
+
+class MongoDBClient:
+    """Async MongoDB client using Motor."""
+
+    _instance: Optional['MongoDBClient'] = None
+    _client: Optional[AsyncIOMotorClient] = None
+    _db: Optional[AsyncIOMotorDatabase] = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    async def connect(
+        self,
+        uri: str,
+        database: str,
+        max_pool_size: int = 10,
+        min_pool_size: int = 2,
+        server_selection_timeout_ms: int = 5000,
+    ) -> None:
+        """Connect to MongoDB."""
+        if self._client is not None:
+            logger.info('MongoDB already connected')
+            return
+
+        try:
+            self._client = AsyncIOMotorClient(
+                uri,
+                maxPoolSize=max_pool_size,
+                minPoolSize=min_pool_size,
+                serverSelectionTimeoutMS=server_selection_timeout_ms,
+            )
+
+            # Test connection
+            await self._client.admin.command('ping')
+
+            self._db = self._client[database]
+
+            # Initialize Beanie with document models
+            await init_beanie(
+                database=self._db,
+                document_models=[
+                    User,
+                    # Add more models here
+                ],
+            )
+
+            logger.info(f'MongoDB connected successfully to database: {database}')
+        except Exception as e:
+            logger.error(f'Failed to connect to MongoDB: {e}')
+            raise
+
+    async def disconnect(self) -> None:
+        """Disconnect from MongoDB."""
+        if self._client is None:
+            return
+
+        try:
+            self._client.close()
+            self._client = None
+            self._db = None
+            logger.info('MongoDB disconnected successfully')
+        except Exception as e:
+            logger.error(f'Failed to disconnect from MongoDB: {e}')
+            raise
+
+    @property
+    def client(self) -> AsyncIOMotorClient:
+        """Get Motor client."""
+        if self._client is None:
+            raise RuntimeError('MongoDB not connected. Call connect() first.')
+        return self._client
+
+    @property
+    def db(self) -> AsyncIOMotorDatabase:
+        """Get database instance."""
+        if self._db is None:
+            raise RuntimeError('MongoDB not connected. Call connect() first.')
+        return self._db
+
+    @property
+    def is_connected(self) -> bool:
+        """Check if connected."""
+        return self._client is not None
+
+
+# Singleton instance
+mongodb_client = MongoDBClient()
+
+
+async def get_database() -> AsyncIOMotorDatabase:
+    """Dependency for FastAPI to get database instance."""
+    return mongodb_client.db
+
+
+async def connect_to_mongodb(uri: str, database: str) -> None:
+    """Helper to connect to MongoDB."""
+    await mongodb_client.connect(uri, database)
+
+
+async def disconnect_from_mongodb() -> None:
+    """Helper to disconnect from MongoDB."""
+    await mongodb_client.disconnect()
+
+
+async def setup_indexes() -> None:
+    """Create indexes for all collections."""
+    from .models.user import User
+
+    try:
+        logger.info('Creating indexes...')
+
+        # User indexes
+        await User.find_one()  # Ensures collection exists
+        collection = mongodb_client.db[User.Settings.name]
+
+        await collection.create_index('email', unique=True)
+        await collection.create_index('username', unique=True)
+        await collection.create_index('role')
+        await collection.create_index('is_active')
+        await collection.create_index('created_at')
+
+        logger.info('Indexes created successfully')
+    except Exception as e:
+        logger.error(f'Failed to create indexes: {e}')
+        raise

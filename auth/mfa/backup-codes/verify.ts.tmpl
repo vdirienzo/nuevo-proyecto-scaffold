@@ -1,0 +1,75 @@
+/**
+ * Backup Codes Verification
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import bcrypt from 'bcrypt';
+
+interface BackupCodeRecord {
+  id: string;
+  hash: string;
+  used: boolean;
+}
+
+export async function verifyBackupCode(
+  userId: string,
+  code: string
+): Promise<boolean> {
+  try {
+    // Fetch unused backup codes from database
+    // const backupCodes = await db.backupCode.findMany({
+    //   where: {
+    //     userId,
+    //     used: false,
+    //   },
+    // });
+
+    // Placeholder for database fetch
+    const backupCodes: BackupCodeRecord[] = [];
+
+    // Check each code hash
+    for (const record of backupCodes) {
+      const isValid = await bcrypt.compare(code, record.hash);
+
+      if (isValid) {
+        // Mark code as used
+        // await db.backupCode.update({
+        //   where: { id: record.id },
+        //   data: { used: true, usedAt: new Date() },
+        // });
+
+        return true;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('Backup code verification error:', error);
+    return false;
+  }
+}
+
+export async function getRemainingBackupCodesCount(userId: string): Promise<number> {
+  // const count = await db.backupCode.count({
+  //   where: {
+  //     userId,
+  //     used: false,
+  //   },
+  // });
+
+  // Placeholder
+  return 0;
+}
+
+export async function regenerateBackupCodes(userId: string): Promise<string[]> {
+  // Delete existing codes
+  // await db.backupCode.deleteMany({
+  //   where: { userId },
+  // });
+
+  // Generate new codes
+  const { generateAndStoreBackupCodes } = await import('./generate');
+  return await generateAndStoreBackupCodes(userId);
+}

@@ -1,0 +1,33 @@
+/**
+ * Clerk Sign-In Component
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { SignIn as ClerkSignIn } from '@clerk/nextjs';
+import { clerkConfig } from '../config';
+
+export function SignIn() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      <ClerkSignIn
+        path={clerkConfig.signInUrl}
+        routing="path"
+        signUpUrl={clerkConfig.signUpUrl}
+        afterSignInUrl={clerkConfig.afterSignInUrl}
+        appearance={{
+          elements: {
+            formButtonPrimary: 'bg-primary hover:bg-primary/90',
+            card: 'shadow-lg',
+            headerTitle: 'text-2xl font-bold',
+            headerSubtitle: 'text-muted-foreground',
+            socialButtonsBlockButton: 'border-2 hover:bg-accent',
+            formFieldInput: 'rounded-md border-2',
+            footerActionLink: 'text-primary hover:text-primary/90',
+          },
+        }}
+      />
+    </div>
+  );
+}

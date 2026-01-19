@@ -1,0 +1,67 @@
+# Jaeger All-in-One Configuration
+# Project: {{PROJECT_NAME}}
+# Author: {{AUTHOR}}
+
+# Collector configuration
+collector:
+  zipkin:
+    host-port: 9411
+  otlp:
+    grpc:
+      host-port: 4317
+    http:
+      host-port: 4318
+
+# Storage configuration
+storage:
+  type: badger
+  badger:
+    ephemeral: false
+    directory-key: /badger/key
+    directory-value: /badger/data
+    maintenance-interval: 5m
+    metrics-update-interval: 10s
+
+# Query configuration
+query:
+  base-path: /
+  static-files: /go/jaeger-ui/
+  ui-config: /etc/jaeger/ui-config.json
+  max-clock-skew-adjustment: 0s
+
+# Agent configuration
+agent:
+  http-server:
+    host-port: 5778
+
+# Sampling strategies
+sampling:
+  strategies:
+    - service: {{PROJECT_NAME}}
+      type: probabilistic
+      param: 1.0  # Sample 100% in development
+    - service: default
+      type: probabilistic
+      param: 0.1  # Sample 10% for other services
+
+# Span storage options
+span-storage:
+  type: badger
+
+# Dependencies storage
+dependencies-storage:
+  type: badger
+
+# Metrics backend
+metrics-backend: prometheus
+metrics-http-route: /metrics
+
+# Environment-specific overrides
+# For production, use Elasticsearch or Cassandra
+# storage:
+#   type: elasticsearch
+#   elasticsearch:
+#     server-urls: http://elasticsearch:9200
+#     index-prefix: jaeger
+#     num-shards: 5
+#     num-replicas: 1

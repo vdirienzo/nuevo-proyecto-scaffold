@@ -1,0 +1,46 @@
+/**
+ * Custom Auth0 Hook
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { useAuth0 as useAuth0SDK } from '@auth0/auth0-react';
+import { useCallback } from 'react';
+
+export function useAuth0() {
+  const auth0 = useAuth0SDK();
+
+  const loginWithRedirect = useCallback(
+    (returnTo?: string) => {
+      return auth0.loginWithRedirect({
+        appState: { returnTo: returnTo || window.location.pathname },
+      });
+    },
+    [auth0]
+  );
+
+  const logout = useCallback(() => {
+    return auth0.logout({
+      logoutParams: {
+        returnTo: window.location.origin,
+      },
+    });
+  }, [auth0]);
+
+  const getAccessToken = useCallback(async () => {
+    try {
+      return await auth0.getAccessTokenSilently();
+    } catch (error) {
+      console.error('Failed to get access token:', error);
+      throw error;
+    }
+  }, [auth0]);
+
+  return {
+    ...auth0,
+    loginWithRedirect,
+    logout,
+    getAccessToken,
+  };
+}

@@ -1,0 +1,127 @@
+/**
+ * Permission Decorator for API Routes
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { Permission, hasPermission, PermissionContext } from '../rbac/permissions';
+import { Role } from '../rbac/roles';
+
+interface AuthenticatedRequest extends NextApiRequest {
+  user?: {
+    id: string;
+    roles: Role[];
+    [key: string]: any;
+  };
+}
+
+type ApiHandler = (req: AuthenticatedRequest, res: NextApiResponse) => Promise<void>;
+
+export function requirePermission(
+  permission: Permission,
+  contextBuilder?: (req: AuthenticatedRequest) => Partial<PermissionContext>
+) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
+
+    descriptor.value = async function (req: AuthenticatedRequest, res: NextApiResponse) {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const context: PermissionContext = {
+        userId: req.user.id,
+        userRoles: req.user.roles,
+        ...(contextBuilder ? contextBuilder(req) : {}),
+      };
+
+      const allowed = hasPermission(permission, context);
+
+      if (!allowed) {
+        return res.status(403).json({ error: 'Forbidden: Permission denied' });
+      }
+
+      return originalMethod.apply(this, [req, res]);
+    };
+
+    return descriptor;
+  };
+}
+
+export function requireRole(...roles: Role[]) {
+  return function (
+    target: any,
+    propertyKey: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
+
+    descriptor.value = async function (req: AuthenticatedRequest, res: NextApiResponse) {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const hasRequiredRole = req.user.roles.some((role) => roles.includes(role));
+
+      if (!hasRequiredRole) {
+        return res.status(403).json({ error: 'Forbidden: Insufficient role' });
+      }
+
+      return originalMethod.apply(this, [req, res]);
+    };
+
+    return descriptor;
+  };
+}
+
+// Higher-order function version for functional handlers
+export function withPermission(
+  permission: Permission,
+  contextBuilder?: (req: AuthenticatedRequest) => Partial<PermissionContext>
+) {
+  return (handler: ApiHandler): ApiHandler => {
+    return async (req: AuthenticatedRequest, res: NextApiResponse) => {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const context: PermissionContext = {
+        userId: req.user.id,
+        userRoles: req.user.roles,
+        ...(contextBuilder ? contextBuilder(req) : {}),
+      };
+
+      const allowed = hasPermission(permission, context);
+
+      if (!allowed) {
+        return res.status(403).json({ error: 'Forbidden: Permission denied' });
+      }
+
+      return handler(req, res);
+    };
+  };
+}
+
+export function withRole(...roles: Role[]) {
+  return (handler: ApiHandler): ApiHandler => {
+    return async (req: AuthenticatedRequest, res: NextApiResponse) => {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const hasRequiredRole = req.user.roles.some((role) => roles.includes(role));
+
+      if (!hasRequiredRole) {
+        return res.status(403).json({ error: 'Forbidden: Insufficient role' });
+      }
+
+      return handler(req, res);
+    };
+  };
+}

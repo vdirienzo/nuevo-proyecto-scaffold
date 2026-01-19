@@ -1,0 +1,75 @@
+/**
+ * next-intl Configuration
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { getRequestConfig } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+
+export const locales = ['en', 'es', 'fr', 'de'] as const;
+export type Locale = (typeof locales)[number];
+
+export const defaultLocale: Locale = 'en';
+
+/**
+ * Locale labels for UI
+ */
+export const localeLabels: Record<Locale, string> = {
+  en: 'English',
+  es: 'Español',
+  fr: 'Français',
+  de: 'Deutsch',
+};
+
+/**
+ * next-intl configuration
+ */
+export default getRequestConfig(async ({ locale }) => {
+  // Validate that the incoming `locale` parameter is valid
+  if (!locales.includes(locale as Locale)) {
+    notFound();
+  }
+
+  return {
+    messages: (await import(`../messages/${locale}.json`)).default,
+    timeZone: 'UTC',
+    now: new Date(),
+  };
+});
+
+/**
+ * Get locale from pathname
+ */
+export function getLocaleFromPathname(pathname: string): Locale | null {
+  const segments = pathname.split('/');
+  const potentialLocale = segments[1];
+
+  if (locales.includes(potentialLocale as Locale)) {
+    return potentialLocale as Locale;
+  }
+
+  return null;
+}
+
+/**
+ * Remove locale from pathname
+ */
+export function removeLocaleFromPathname(pathname: string): string {
+  const locale = getLocaleFromPathname(pathname);
+
+  if (locale) {
+    return pathname.replace(`/${locale}`, '') || '/';
+  }
+
+  return pathname;
+}
+
+/**
+ * Add locale to pathname
+ */
+export function addLocaleToPathname(pathname: string, locale: Locale): string {
+  const withoutLocale = removeLocaleFromPathname(pathname);
+  return `/${locale}${withoutLocale}`;
+}

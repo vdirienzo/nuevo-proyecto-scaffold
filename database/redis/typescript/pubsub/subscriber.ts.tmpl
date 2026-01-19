@@ -1,0 +1,206 @@
+/**
+ * Redis Pub/Sub Subscriber
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import Redis from 'ioredis';
+import { RedisClient } from '../client';
+import { REDIS_KEYS } from '../config';
+import { logger } from '@/lib/logger';
+
+export type MessageHandler<T = any> = (message: T, channel: string) => void | Promise<void>;
+
+export class Subscriber {
+  private client: Redis;
+  private prefix: string;
+  private handlers: Map<string, MessageHandler[]> = new Map();
+
+  constructor() {
+    // Use a separate client for subscriptions
+    this.client = RedisClient.getInstance().duplicate();
+    this.prefix = REDIS_KEYS.PUBSUB;
+
+    this.setupMessageHandler();
+  }
+
+  /**
+   * Setup message handler
+   */
+  private setupMessageHandler() {
+    this.client.on('message', (channel: string, message: string) => {
+      try {
+        const cleanChannel = this.removePrefix(channel);
+        const handlers = this.handlers.get(cleanChannel) || [];
+
+        if (handlers.length === 0) {
+          logger.warn(`No handlers for channel ${cleanChannel}`);
+          return;
+        }
+
+        const parsed = JSON.parse(message);
+
+        handlers.forEach(async (handler) => {
+          try {
+            await handler(parsed, cleanChannel);
+          } catch (error) {
+            logger.error(`Handler error for channel ${cleanChannel}:`, error);
+          }
+        });
+      } catch (error) {
+        logger.error(`Message parsing error:`, error);
+      }
+    });
+
+    this.client.on('pmessage', (pattern: string, channel: string, message: string) => {
+      try {
+        const cleanPattern = this.removePrefix(pattern);
+        const cleanChannel = this.removePrefix(channel);
+        const handlers = this.handlers.get(cleanPattern) || [];
+
+        if (handlers.length === 0) {
+          return;
+        }
+
+        const parsed = JSON.parse(message);
+
+        handlers.forEach(async (handler) => {
+          try {
+            await handler(parsed, cleanChannel);
+          } catch (error) {
+            logger.error(`Pattern handler error for ${cleanPattern}:`, error);
+          }
+        });
+      } catch (error) {
+        logger.error(`Pattern message parsing error:`, error);
+      }
+    });
+  }
+
+  /**
+   * Build channel name with prefix
+   */
+  private buildChannel(channel: string): string {
+    return `${this.prefix}${channel}`;
+  }
+
+  /**
+   * Remove prefix from channel name
+   */
+  private removePrefix(channel: string): string {
+    return channel.replace(this.prefix, '');
+  }
+
+  /**
+   * Subscribe to channel
+   */
+  async subscribe<T = any>(
+    channel: string,
+    handler: MessageHandler<T>
+  ): Promise<void> {
+    const fullChannel = this.buildChannel(channel);
+
+    // Add handler to map
+    if (!this.handlers.has(channel)) {
+      this.handlers.set(channel, []);
+    }
+    this.handlers.get(channel)!.push(handler);
+
+    // Subscribe if first handler
+    if (this.handlers.get(channel)!.length === 1) {
+      await this.client.subscribe(fullChannel);
+      logger.info(`Subscribed to channel: ${channel}`);
+    }
+  }
+
+  /**
+   * Subscribe to pattern
+   */
+  async psubscribe<T = any>(
+    pattern: string,
+    handler: MessageHandler<T>
+  ): Promise<void> {
+    const fullPattern = this.buildChannel(pattern);
+
+    // Add handler to map
+    if (!this.handlers.has(pattern)) {
+      this.handlers.set(pattern, []);
+    }
+    this.handlers.get(pattern)!.push(handler);
+
+    // Subscribe if first handler
+    if (this.handlers.get(pattern)!.length === 1) {
+      await this.client.psubscribe(fullPattern);
+      logger.info(`Subscribed to pattern: ${pattern}`);
+    }
+  }
+
+  /**
+   * Unsubscribe from channel
+   */
+  async unsubscribe(channel: string): Promise<void> {
+    const fullChannel = this.buildChannel(channel);
+
+    await this.client.unsubscribe(fullChannel);
+    this.handlers.delete(channel);
+
+    logger.info(`Unsubscribed from channel: ${channel}`);
+  }
+
+  /**
+   * Unsubscribe from pattern
+   */
+  async punsubscribe(pattern: string): Promise<void> {
+    const fullPattern = this.buildChannel(pattern);
+
+    await this.client.punsubscribe(fullPattern);
+    this.handlers.delete(pattern);
+
+    logger.info(`Unsubscribed from pattern: ${pattern}`);
+  }
+
+  /**
+   * Unsubscribe from all channels
+   */
+  async unsubscribeAll(): Promise<void> {
+    await this.client.unsubscribe();
+    await this.client.punsubscribe();
+    this.handlers.clear();
+
+    logger.info('Unsubscribed from all channels');
+  }
+
+  /**
+   * Get active subscriptions
+   */
+  getSubscriptions(): string[] {
+    return Array.from(this.handlers.keys());
+  }
+
+  /**
+   * Close subscriber
+   */
+  async close(): Promise<void> {
+    await this.unsubscribeAll();
+    await this.client.quit();
+    logger.info('Subscriber closed');
+  }
+}
+
+// Singleton instance
+export const subscriber = new Subscriber();
+
+/**
+ * Example usage:
+ *
+ * // Subscribe to specific channel
+ * await subscriber.subscribe('user:events', (message) => {
+ *   console.log('User event:', message);
+ * });
+ *
+ * // Subscribe to pattern
+ * await subscriber.psubscribe('user:*', (message, channel) => {
+ *   console.log(`Message from ${channel}:`, message);
+ * });
+ */

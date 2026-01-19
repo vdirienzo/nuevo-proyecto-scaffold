@@ -1,0 +1,153 @@
+/**
+ * Caching Decorator
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { cacheService } from './cache.service';
+import { REDIS_TTL } from '../config';
+import { logger } from '@/lib/logger';
+
+export interface CacheDecoratorOptions {
+  ttl?: number;
+  keyGenerator?: (...args: any[]) => string;
+  prefix?: string;
+}
+
+/**
+ * Method decorator for caching results
+ *
+ * Usage:
+ * @Cacheable({ ttl: REDIS_TTL.LONG, prefix: 'user:' })
+ * async getUser(id: string) { ... }
+ */
+export function Cacheable(options: CacheDecoratorOptions = {}) {
+  return function (
+    target: any,
+    propertyName: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
+    const ttl = options.ttl || REDIS_TTL.MEDIUM;
+    const prefix = options.prefix || '';
+
+    descriptor.value = async function (...args: any[]) {
+      // Generate cache key
+      const cacheKey = options.keyGenerator
+        ? options.keyGenerator(...args)
+        : `${prefix}${propertyName}:${JSON.stringify(args)}`;
+
+      try {
+        // Try to get from cache
+        const cached = await cacheService.get(cacheKey);
+
+        if (cached !== null) {
+          logger.debug(`Cache hit for ${cacheKey}`);
+          return cached;
+        }
+
+        logger.debug(`Cache miss for ${cacheKey}`);
+
+        // Execute original method
+        const result = await originalMethod.apply(this, args);
+
+        // Store in cache
+        await cacheService.set(cacheKey, result, ttl);
+
+        return result;
+      } catch (error) {
+        logger.error(`Cache decorator error for ${cacheKey}:`, error);
+        // Fallback to original method
+        return await originalMethod.apply(this, args);
+      }
+    };
+
+    return descriptor;
+  };
+}
+
+/**
+ * Method decorator for cache invalidation
+ *
+ * Usage:
+ * @CacheEvict({ keys: ['user:*'], patterns: ['session:*'] })
+ * async updateUser(id: string) { ... }
+ */
+export function CacheEvict(options: { keys?: string[]; patterns?: string[] }) {
+  return function (
+    target: any,
+    propertyName: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
+
+    descriptor.value = async function (...args: any[]) {
+      // Execute original method
+      const result = await originalMethod.apply(this, args);
+
+      try {
+        // Invalidate specific keys
+        if (options.keys) {
+          await Promise.all(options.keys.map((key) => cacheService.delete(key)));
+        }
+
+        // Invalidate patterns
+        if (options.patterns) {
+          await Promise.all(
+            options.patterns.map((pattern) => cacheService.deletePattern(pattern))
+          );
+        }
+
+        logger.debug(`Cache evicted for method ${propertyName}`);
+      } catch (error) {
+        logger.error(`Cache eviction error for ${propertyName}:`, error);
+      }
+
+      return result;
+    };
+
+    return descriptor;
+  };
+}
+
+/**
+ * Method decorator for cache refresh
+ *
+ * Usage:
+ * @CachePut({ keyGenerator: (id) => `user:${id}`, ttl: REDIS_TTL.LONG })
+ * async updateUser(id: string, data: UserData) { ... }
+ */
+export function CachePut(options: CacheDecoratorOptions = {}) {
+  return function (
+    target: any,
+    propertyName: string,
+    descriptor: PropertyDescriptor
+  ) {
+    const originalMethod = descriptor.value;
+    const ttl = options.ttl || REDIS_TTL.MEDIUM;
+    const prefix = options.prefix || '';
+
+    descriptor.value = async function (...args: any[]) {
+      // Execute original method
+      const result = await originalMethod.apply(this, args);
+
+      // Generate cache key
+      const cacheKey = options.keyGenerator
+        ? options.keyGenerator(...args)
+        : `${prefix}${propertyName}:${JSON.stringify(args)}`;
+
+      try {
+        // Update cache
+        await cacheService.set(cacheKey, result, ttl);
+        logger.debug(`Cache updated for ${cacheKey}`);
+      } catch (error) {
+        logger.error(`Cache put error for ${cacheKey}:`, error);
+      }
+
+      return result;
+    };
+
+    return descriptor;
+  };
+}

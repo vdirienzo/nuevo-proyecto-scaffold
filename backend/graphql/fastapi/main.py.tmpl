@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""
+main.py - FastAPI + Strawberry GraphQL Integration
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from strawberry.fastapi import GraphQLRouter
+from .schema import schema
+from .context import get_context
+
+# Create FastAPI app
+app = FastAPI(
+    title="{{PROJECT_NAME}} GraphQL API",
+    description="GraphQL API built with FastAPI and Strawberry",
+    version="1.0.0",
+)
+
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Update with your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Create GraphQL router
+graphql_app = GraphQLRouter(
+    schema=schema,
+    context_getter=get_context,
+)
+
+# Mount GraphQL endpoint
+app.include_router(graphql_app, prefix="/graphql")
+
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True,
+    )

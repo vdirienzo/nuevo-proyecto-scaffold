@@ -1,0 +1,76 @@
+/**
+ * RBAC Role Definitions
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+export enum Role {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  ADMIN = 'ADMIN',
+  MANAGER = 'MANAGER',
+  USER = 'USER',
+  GUEST = 'GUEST',
+}
+
+export interface RoleDefinition {
+  name: Role;
+  description: string;
+  level: number;
+  inherits?: Role[];
+}
+
+export const roleDefinitions: Record<Role, RoleDefinition> = {
+  [Role.SUPER_ADMIN]: {
+    name: Role.SUPER_ADMIN,
+    description: 'Super administrator with full system access',
+    level: 100,
+  },
+  [Role.ADMIN]: {
+    name: Role.ADMIN,
+    description: 'Administrator with broad access',
+    level: 80,
+    inherits: [Role.MANAGER],
+  },
+  [Role.MANAGER]: {
+    name: Role.MANAGER,
+    description: 'Manager with elevated privileges',
+    level: 60,
+    inherits: [Role.USER],
+  },
+  [Role.USER]: {
+    name: Role.USER,
+    description: 'Standard user',
+    level: 40,
+    inherits: [Role.GUEST],
+  },
+  [Role.GUEST]: {
+    name: Role.GUEST,
+    description: 'Guest with limited access',
+    level: 20,
+  },
+};
+
+export function hasRole(userRoles: Role[], requiredRole: Role): boolean {
+  return userRoles.some((role) => {
+    const roleDef = roleDefinitions[role];
+    const requiredDef = roleDefinitions[requiredRole];
+    return roleDef.level >= requiredDef.level;
+  });
+}
+
+export function getHighestRole(roles: Role[]): Role | null {
+  if (roles.length === 0) return null;
+
+  return roles.reduce((highest, current) => {
+    const currentLevel = roleDefinitions[current].level;
+    const highestLevel = roleDefinitions[highest].level;
+    return currentLevel > highestLevel ? current : highest;
+  });
+}
+
+export function canAssignRole(assignerRole: Role, targetRole: Role): boolean {
+  const assignerLevel = roleDefinitions[assignerRole].level;
+  const targetLevel = roleDefinitions[targetRole].level;
+  return assignerLevel > targetLevel;
+}

@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+"""
+auth.py - Authentication Mutations
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+from datetime import datetime
+import strawberry
+from strawberry.types import Info
+from ..types.user import User, AuthPayload, CreateUserInput, LoginInput
+from ..context import get_current_user
+
+
+@strawberry.type
+class AuthMutations:
+    """Authentication mutations."""
+
+    @strawberry.mutation
+    async def register(self, input: CreateUserInput) -> AuthPayload:
+        """Register a new user."""
+        # Implement your registration logic here
+        # user = await user_service.create_user(input)
+        # tokens = await auth_service.generate_tokens(user.id)
+
+        # Placeholder implementation
+        user = User(
+            id=strawberry.ID("1"),
+            email=input.email,
+            name=input.name,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+
+        return AuthPayload(
+            access_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            refresh_token="refresh_token_here",
+            user=user,
+        )
+
+    @strawberry.mutation
+    async def login(self, input: LoginInput) -> AuthPayload:
+        """Login user."""
+        # Implement your login logic here
+        # user = await auth_service.authenticate(input.email, input.password)
+        # tokens = await auth_service.generate_tokens(user.id)
+
+        # Placeholder implementation
+        user = User(
+            id=strawberry.ID("1"),
+            email=input.email,
+            name="John Doe",
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+        )
+
+        return AuthPayload(
+            access_token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            refresh_token="refresh_token_here",
+            user=user,
+        )
+
+    @strawberry.mutation
+    async def logout(self, info: Info) -> bool:
+        """Logout current user."""
+        user = await get_current_user(info)
+        if not user:
+            raise Exception("Not authenticated")
+
+        # Implement logout logic (e.g., revoke tokens)
+        # await auth_service.revoke_tokens(user.id)
+
+        return True

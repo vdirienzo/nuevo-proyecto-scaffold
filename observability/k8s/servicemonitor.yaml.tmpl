@@ -1,0 +1,78 @@
+# Prometheus ServiceMonitor for Kubernetes
+# Project: {{PROJECT_NAME}}
+# Author: {{AUTHOR}}
+
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{PROJECT_NAME}}-api
+  namespace: {{NAMESPACE}}
+  labels:
+    app: {{PROJECT_NAME}}
+    component: api
+    release: prometheus
+spec:
+  # Selector for services to monitor
+  selector:
+    matchLabels:
+      app: {{PROJECT_NAME}}
+      component: api
+
+  # Namespace selector
+  namespaceSelector:
+    matchNames:
+      - {{NAMESPACE}}
+
+  # Endpoints to scrape
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+
+      # Relabeling
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_pod_node_name]
+          targetLabel: node
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+
+      # Metric relabeling
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: 'go_.*'
+          action: drop
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{PROJECT_NAME}}-web
+  namespace: {{NAMESPACE}}
+  labels:
+    app: {{PROJECT_NAME}}
+    component: web
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: {{PROJECT_NAME}}
+      component: web
+
+  namespaceSelector:
+    matchNames:
+      - {{NAMESPACE}}
+
+  endpoints:
+    - port: http
+      path: /api/metrics
+      interval: 15s
+      scrapeTimeout: 10s
+
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace

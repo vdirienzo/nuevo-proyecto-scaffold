@@ -1,0 +1,223 @@
+/**
+ * user.router.ts.tmpl - User routes
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { TRPCError } from '@trpc/server';
+import { z } from 'zod';
+
+import { router, publicProcedure, protectedProcedure, adminProcedure } from '../trpc';
+import {
+  userSchema,
+  createUserSchema,
+  updateUserSchema,
+  userFilterSchema,
+  paginationSchema,
+} from '../../shared/schemas/user.schema';
+
+/**
+ * User router with CRUD operations
+ */
+export const userRouter = router({
+  /**
+   * Get user by ID (protected)
+   */
+  getById: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .output(userSchema)
+    .query(async ({ input, ctx }) => {
+      // TODO: Fetch from database
+      // const user = await ctx.db.user.findUnique({
+      //   where: { id: input.id },
+      // });
+
+      // if (!user) {
+      //   throw new TRPCError({
+      //     code: 'NOT_FOUND',
+      //     message: 'User not found',
+      //   });
+      // }
+
+      // return user;
+
+      // Mock response
+      return {
+        id: input.id,
+        email: 'user@example.com',
+        username: 'exampleuser',
+        fullName: 'Example User',
+        avatarUrl: null,
+        isActive: true,
+        roles: ['user'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }),
+
+  /**
+   * Get current user (protected)
+   */
+  me: protectedProcedure
+    .output(userSchema)
+    .query(async ({ ctx }) => {
+      // TODO: Fetch current user from database
+      // const user = await ctx.db.user.findUnique({
+      //   where: { id: ctx.user.id },
+      // });
+
+      // Mock response
+      return {
+        id: ctx.user.id,
+        email: ctx.user.email,
+        username: ctx.user.username,
+        fullName: 'Current User',
+        avatarUrl: null,
+        isActive: true,
+        roles: ctx.user.roles,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }),
+
+  /**
+   * List users with pagination (protected)
+   */
+  list: protectedProcedure
+    .input(
+      z.object({
+        pagination: paginationSchema,
+        filter: userFilterSchema.optional(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const { page, perPage } = input.pagination;
+      const offset = (page - 1) * perPage;
+
+      // TODO: Fetch from database with pagination
+      // const [users, total] = await Promise.all([
+      //   ctx.db.user.findMany({
+      //     where: input.filter,
+      //     skip: offset,
+      //     take: perPage,
+      //   }),
+      //   ctx.db.user.count({ where: input.filter }),
+      // ]);
+
+      // Mock response
+      const users = [
+        {
+          id: '1',
+          email: 'user1@example.com',
+          username: 'user1',
+          fullName: 'User One',
+          avatarUrl: null,
+          isActive: true,
+          roles: ['user'],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      const total = 1;
+
+      const totalPages = Math.ceil(total / perPage);
+
+      return {
+        users,
+        pagination: {
+          page,
+          perPage,
+          total,
+          totalPages,
+          hasNext: page < totalPages,
+          hasPrev: page > 1,
+        },
+      };
+    }),
+
+  /**
+   * Create user (admin only)
+   */
+  create: adminProcedure
+    .input(createUserSchema)
+    .output(userSchema)
+    .mutation(async ({ input, ctx }) => {
+      // TODO: Hash password and save to database
+      // const hashedPassword = await hash(input.password);
+      //
+      // const user = await ctx.db.user.create({
+      //   data: {
+      //     email: input.email,
+      //     username: input.username,
+      //     password: hashedPassword,
+      //     fullName: input.fullName,
+      //   },
+      // });
+
+      // Mock response
+      return {
+        id: 'new-user-id',
+        email: input.email,
+        username: input.username,
+        fullName: input.fullName || '',
+        avatarUrl: null,
+        isActive: true,
+        roles: ['user'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }),
+
+  /**
+   * Update user (protected - own profile or admin)
+   */
+  update: protectedProcedure
+    .input(updateUserSchema)
+    .output(userSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { id, ...data } = input;
+
+      // Check if user is updating their own profile or is admin
+      if (id !== ctx.user.id && !ctx.user.roles.includes('admin')) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Cannot update other users',
+        });
+      }
+
+      // TODO: Update in database
+      // const user = await ctx.db.user.update({
+      //   where: { id },
+      //   data,
+      // });
+
+      // Mock response
+      return {
+        id,
+        email: data.email || ctx.user.email,
+        username: data.username || ctx.user.username,
+        fullName: data.fullName || 'Updated User',
+        avatarUrl: data.avatarUrl || null,
+        isActive: data.isActive ?? true,
+        roles: data.roles || ctx.user.roles,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+    }),
+
+  /**
+   * Delete user (admin only)
+   */
+  delete: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .output(z.object({ success: z.boolean() }))
+    .mutation(async ({ input, ctx }) => {
+      // TODO: Delete from database
+      // await ctx.db.user.delete({
+      //   where: { id: input.id },
+      // });
+
+      return { success: true };
+    }),
+});

@@ -1,0 +1,57 @@
+// routes.go - HTTP route definitions
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package server
+
+import (
+	"{{PROJECT_NAME}}/internal/handlers"
+	"{{PROJECT_NAME}}/internal/middleware"
+	"{{PROJECT_NAME}}/internal/repository"
+	"{{PROJECT_NAME}}/internal/services"
+)
+
+// setupRoutes configures all application routes
+func (s *Server) setupRoutes() {
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(s.db)
+
+	// Initialize services
+	authService := services.NewAuthService(userRepo, s.config)
+	userService := services.NewUserService(userRepo)
+
+	// Initialize handlers
+	healthHandler := handlers.NewHealthHandler(s.db)
+	authHandler := handlers.NewAuthHandler(authService)
+	userHandler := handlers.NewUserHandler(userService)
+
+	// Public routes
+	public := s.router.Group("/api/v1")
+	{
+		// Health check
+		public.GET("/health", healthHandler.Check)
+
+		// Auth routes
+		auth := public.Group("/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+			auth.POST("/refresh", authHandler.Refresh)
+		}
+	}
+
+	// Protected routes (require authentication)
+	protected := s.router.Group("/api/v1")
+	protected.Use(middleware.Auth(s.config))
+	{
+		// User routes
+		users := protected.Group("/users")
+		{
+			users.GET("", userHandler.List)
+			users.GET("/:id", userHandler.GetByID)
+			users.PUT("/:id", userHandler.Update)
+			users.DELETE("/:id", userHandler.Delete)
+			users.GET("/me", userHandler.GetMe)
+		}
+	}
+}

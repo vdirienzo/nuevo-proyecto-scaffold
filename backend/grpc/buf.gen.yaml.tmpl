@@ -1,0 +1,53 @@
+# buf.gen.yaml.tmpl - Buf code generation configuration
+#
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+version: v1
+
+managed:
+  enabled: true
+  go_package_prefix:
+    default: github.com/{{PROJECT_NAME}}/gen
+    except:
+      - buf.build/googleapis/googleapis
+
+plugins:
+  # Go generation
+  - plugin: buf.build/protocolbuffers/go
+    out: gen/go
+    opt:
+      - paths=source_relative
+
+  - plugin: buf.build/grpc/go
+    out: gen/go
+    opt:
+      - paths=source_relative
+      - require_unimplemented_servers=false
+
+  # Python generation
+  - plugin: buf.build/protocolbuffers/python
+    out: gen/python
+
+  - plugin: buf.build/grpc/python
+    out: gen/python
+
+  # TypeScript generation
+  - plugin: buf.build/protocolbuffers/js
+    out: gen/typescript
+    opt:
+      - import_style=commonjs
+
+  - plugin: buf.build/grpc/node
+    out: gen/typescript
+
+  # gRPC-Web for browser
+  - plugin: buf.build/grpc/web
+    out: gen/web
+    opt:
+      - import_style=typescript
+      - mode=grpcwebtext
+
+  # OpenAPI/Swagger (optional)
+  - plugin: buf.build/grpc-ecosystem/openapiv2
+    out: gen/openapi

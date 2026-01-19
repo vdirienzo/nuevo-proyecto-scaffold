@@ -1,0 +1,36 @@
+/**
+ * Custom Clerk Hook
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { useAuth, useUser } from '@clerk/nextjs';
+import { useCallback } from 'react';
+
+export function useClerk() {
+  const { isLoaded, userId, sessionId, getToken } = useAuth();
+  const { isLoaded: isUserLoaded, user } = useUser();
+
+  const getAccessToken = useCallback(async () => {
+    try {
+      return await getToken();
+    } catch (error) {
+      console.error('Failed to get access token:', error);
+      throw error;
+    }
+  }, [getToken]);
+
+  const isAuthenticated = isLoaded && !!userId;
+  const isReady = isLoaded && isUserLoaded;
+
+  return {
+    isLoaded,
+    isReady,
+    isAuthenticated,
+    userId,
+    sessionId,
+    user,
+    getAccessToken,
+  };
+}

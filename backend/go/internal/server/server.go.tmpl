@@ -1,0 +1,88 @@
+// server.go - HTTP server setup with Gin
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package server
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+
+	"{{PROJECT_NAME}}/internal/config"
+	"{{PROJECT_NAME}}/internal/middleware"
+)
+
+// Server represents the HTTP server
+type Server struct {
+	config *config.Config
+	router *gin.Engine
+	db     *gorm.DB
+	server *http.Server
+}
+
+// New creates a new HTTP server
+func New(cfg *config.Config, db *gorm.DB) *Server {
+	// Set Gin mode
+	if cfg.IsProduction() {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+
+	// Apply global middleware
+	router.Use(gin.Recovery())
+	router.Use(middleware.Logging())
+	router.Use(middleware.CORS(cfg))
+
+	// Apply rate limiting if enabled
+	if cfg.RateLimit.Enabled {
+		router.Use(middleware.RateLimit(cfg))
+	}
+
+	s := &Server{
+		config: cfg,
+		router: router,
+		db:     db,
+	}
+
+	// Setup routes
+	s.setupRoutes()
+
+	return s
+}
+
+// Start starts the HTTP server
+func (s *Server) Start() error {
+	addr := fmt.Sprintf(":%s", s.config.Server.Port)
+
+	// Set trusted proxies
+	if len(s.config.Server.TrustedProxies) > 0 {
+		if err := s.router.SetTrustedProxies(s.config.Server.TrustedProxies); err != nil {
+			return err
+		}
+	}
+
+	s.server = &http.Server{
+		Addr:    addr,
+		Handler: s.router,
+	}
+
+	return s.server.ListenAndServe()
+}
+
+// Shutdown gracefully shuts down the server
+func (s *Server) Shutdown(ctx context.Context) error {
+	if s.server != nil {
+		return s.server.Shutdown(ctx)
+	}
+	return nil
+}
+
+// Router returns the Gin router instance
+func (s *Server) Router() *gin.Engine {
+	return s.router
+}

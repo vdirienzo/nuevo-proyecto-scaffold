@@ -1,0 +1,27 @@
+# Authentication Mutations
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+mutation Register($input: CreateUserInput!) {
+  register(input: $input) {
+    accessToken
+    refreshToken
+    user {
+      ...UserFragment
+    }
+  }
+}
+
+mutation Login($input: LoginInput!) {
+  login(input: $input) {
+    accessToken
+    refreshToken
+    user {
+      ...UserFragment
+    }
+  }
+}
+
+mutation Logout {
+  logout
+}

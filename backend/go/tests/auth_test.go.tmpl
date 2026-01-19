@@ -1,0 +1,300 @@
+// auth_test.go - Authentication tests
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package tests
+
+import (
+	"bytes"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+
+	"{{PROJECT_NAME}}/internal/config"
+	"{{PROJECT_NAME}}/internal/database"
+	"{{PROJECT_NAME}}/internal/server"
+)
+
+func setupTestServer(t *testing.T) (*server.Server, *gorm.DB) {
+	// Set Gin to test mode
+	gin.SetMode(gin.TestMode)
+
+	// Create test config
+	cfg := &config.Config{
+		Server: config.ServerConfig{
+			Port: "8080",
+			Env:  "test",
+		},
+		Database: config.DatabaseConfig{
+			URL: "sqlite::memory:",
+		},
+		JWT: config.JWTConfig{
+			Secret:            "test-secret",
+			AccessExpiration:  900000000000,  // 15 minutes in nanoseconds
+			RefreshExpiration: 604800000000000, // 7 days in nanoseconds
+		},
+		RateLimit: config.RateLimitConfig{
+			Enabled: false,
+		},
+		CORS: config.CORSConfig{
+			AllowedOrigins: []string{"*"},
+		},
+	}
+
+	// Connect to test database
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	assert.NoError(t, err)
+
+	// Run migrations
+	err = database.RunMigrations(db)
+	assert.NoError(t, err)
+
+	// Create server
+	srv := server.New(cfg, db)
+
+	return srv, db
+}
+
+func TestRegister(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	tests := []struct {
+		name           string
+		payload        map[string]interface{}
+		expectedStatus int
+		checkResponse  func(t *testing.T, body map[string]interface{})
+	}{
+		{
+			name: "successful registration",
+			payload: map[string]interface{}{
+				"email":    "test@example.com",
+				"password": "password123",
+				"name":     "Test User",
+			},
+			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.True(t, body["success"].(bool))
+				data := body["data"].(map[string]interface{})
+				assert.NotEmpty(t, data["access_token"])
+				assert.NotEmpty(t, data["refresh_token"])
+				user := data["user"].(map[string]interface{})
+				assert.Equal(t, "test@example.com", user["email"])
+				assert.Equal(t, "Test User", user["name"])
+			},
+		},
+		{
+			name: "invalid email",
+			payload: map[string]interface{}{
+				"email":    "invalid-email",
+				"password": "password123",
+				"name":     "Test User",
+			},
+			expectedStatus: http.StatusUnprocessableEntity,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.False(t, body["success"].(bool))
+			},
+		},
+		{
+			name: "password too short",
+			payload: map[string]interface{}{
+				"email":    "test@example.com",
+				"password": "short",
+				"name":     "Test User",
+			},
+			expectedStatus: http.StatusUnprocessableEntity,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.False(t, body["success"].(bool))
+			},
+		},
+		{
+			name: "missing required fields",
+			payload: map[string]interface{}{
+				"email": "test@example.com",
+			},
+			expectedStatus: http.StatusBadRequest,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.False(t, body["success"].(bool))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create request
+			jsonData, _ := json.Marshal(tt.payload)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// Serve request
+			srv.Router().ServeHTTP(w, req)
+
+			// Check status code
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			// Parse response
+			var response map[string]interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &response)
+			assert.NoError(t, err)
+
+			// Run custom checks
+			tt.checkResponse(t, response)
+		})
+	}
+}
+
+func TestLogin(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	// First, register a user
+	registerPayload := map[string]interface{}{
+		"email":    "login@example.com",
+		"password": "password123",
+		"name":     "Login Test",
+	}
+	jsonData, _ := json.Marshal(registerPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	srv.Router().ServeHTTP(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	tests := []struct {
+		name           string
+		payload        map[string]interface{}
+		expectedStatus int
+		checkResponse  func(t *testing.T, body map[string]interface{})
+	}{
+		{
+			name: "successful login",
+			payload: map[string]interface{}{
+				"email":    "login@example.com",
+				"password": "password123",
+			},
+			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.True(t, body["success"].(bool))
+				data := body["data"].(map[string]interface{})
+				assert.NotEmpty(t, data["access_token"])
+				assert.NotEmpty(t, data["refresh_token"])
+			},
+		},
+		{
+			name: "wrong password",
+			payload: map[string]interface{}{
+				"email":    "login@example.com",
+				"password": "wrongpassword",
+			},
+			expectedStatus: http.StatusUnauthorized,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.False(t, body["success"].(bool))
+			},
+		},
+		{
+			name: "user not found",
+			payload: map[string]interface{}{
+				"email":    "notfound@example.com",
+				"password": "password123",
+			},
+			expectedStatus: http.StatusUnauthorized,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.False(t, body["success"].(bool))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create request
+			jsonData, _ := json.Marshal(tt.payload)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBuffer(jsonData))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// Serve request
+			srv.Router().ServeHTTP(w, req)
+
+			// Check status code
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			// Parse response
+			var response map[string]interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &response)
+			assert.NoError(t, err)
+
+			// Run custom checks
+			tt.checkResponse(t, response)
+		})
+	}
+}
+
+func TestRefreshToken(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	// Register and login to get tokens
+	registerPayload := map[string]interface{}{
+		"email":    "refresh@example.com",
+		"password": "password123",
+		"name":     "Refresh Test",
+	}
+	jsonData, _ := json.Marshal(registerPayload)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/register", bytes.NewBuffer(jsonData))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	srv.Router().ServeHTTP(w, req)
+
+	var registerResponse map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &registerResponse)
+	data := registerResponse["data"].(map[string]interface{})
+	refreshToken := data["refresh_token"].(string)
+
+	// Test refresh
+	t.Run("successful refresh", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"refresh_token": refreshToken,
+		}
+		jsonData, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewBuffer(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		srv.Router().ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		assert.True(t, response["success"].(bool))
+		data := response["data"].(map[string]interface{})
+		assert.NotEmpty(t, data["access_token"])
+		assert.NotEmpty(t, data["refresh_token"])
+	})
+
+	t.Run("invalid refresh token", func(t *testing.T) {
+		payload := map[string]interface{}{
+			"refresh_token": "invalid-token",
+		}
+		jsonData, _ := json.Marshal(payload)
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", bytes.NewBuffer(jsonData))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+
+		srv.Router().ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+		assert.False(t, response["success"].(bool))
+	})
+}

@@ -1,0 +1,77 @@
+/**
+ * TOTP Verification
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import speakeasy from 'speakeasy';
+
+interface TOTPVerificationResult {
+  valid: boolean;
+  delta?: number;
+}
+
+export function verifyTOTP(
+  token: string,
+  secret: string,
+  window: number = 1
+): TOTPVerificationResult {
+  try {
+    const verified = speakeasy.totp.verify({
+      secret,
+      encoding: 'base32',
+      token,
+      window,
+    });
+
+    return {
+      valid: verified !== false,
+      delta: typeof verified === 'number' ? verified : undefined,
+    };
+  } catch (error) {
+    console.error('TOTP verification error:', error);
+    return { valid: false };
+  }
+}
+
+export async function enableTOTP(
+  userId: string,
+  token: string,
+  secret: string
+): Promise<boolean> {
+  // Verify token before enabling
+  const result = verifyTOTP(token, secret);
+
+  if (!result.valid) {
+    return false;
+  }
+
+  // Enable TOTP in database
+  // await db.user.update({
+  //   where: { id: userId },
+  //   data: { totpEnabled: true },
+  // });
+
+  return true;
+}
+
+export async function validateTOTPForLogin(
+  userId: string,
+  token: string
+): Promise<boolean> {
+  // Fetch user's TOTP secret from database
+  // const user = await db.user.findUnique({
+  //   where: { id: userId },
+  //   select: { totpSecret: true, totpEnabled: true },
+  // });
+
+  // if (!user?.totpEnabled || !user.totpSecret) {
+  //   return false;
+  // }
+
+  // Placeholder: retrieve secret from database
+  const secret = 'USER_TOTP_SECRET';
+
+  return verifyTOTP(token, secret).valid;
+}

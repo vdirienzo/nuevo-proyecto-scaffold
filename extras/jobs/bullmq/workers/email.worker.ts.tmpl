@@ -1,0 +1,151 @@
+/**
+ * Email Worker
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Worker, Job } from 'bullmq';
+import { connection } from '../queue';
+import { sendEmail, sendReactEmail } from '@/lib/email/resend/client';
+
+interface SendEmailJob {
+  to: string | string[];
+  subject: string;
+  html: string;
+  from?: string;
+  replyTo?: string;
+}
+
+interface SendTemplateEmailJob {
+  to: string | string[];
+  subject: string;
+  template: string;
+  data: Record<string, any>;
+}
+
+/**
+ * Email worker processor
+ */
+const emailWorker = new Worker(
+  'email',
+  async (job: Job) => {
+    const { name, data } = job;
+
+    console.log(`Processing email job: ${name} (${job.id})`);
+
+    try {
+      switch (name) {
+        case 'send-email':
+          await handleSendEmail(data as SendEmailJob);
+          break;
+
+        case 'send-template':
+          await handleSendTemplate(data as SendTemplateEmailJob);
+          break;
+
+        case 'send-welcome':
+          await handleSendWelcome(data);
+          break;
+
+        case 'send-reset-password':
+          await handleSendResetPassword(data);
+          break;
+
+        default:
+          throw new Error(`Unknown job type: ${name}`);
+      }
+
+      console.log(`✅ Email job completed: ${name} (${job.id})`);
+    } catch (error) {
+      console.error(`❌ Email job failed: ${name} (${job.id})`, error);
+      throw error;
+    }
+  },
+  {
+    connection,
+    concurrency: 5,
+    limiter: {
+      max: 100,
+      duration: 60000, // 100 emails per minute
+    },
+  }
+);
+
+/**
+ * Send plain email
+ */
+async function handleSendEmail(data: SendEmailJob) {
+  await sendEmail(data.to, data.subject, data.html, {
+    from: data.from,
+    replyTo: data.replyTo,
+  });
+}
+
+/**
+ * Send template email
+ */
+async function handleSendTemplate(data: SendTemplateEmailJob) {
+  // Import template dynamically
+  const template = await import(`@/lib/email/resend/templates/${data.template}`);
+  const EmailComponent = template.default;
+
+  await sendReactEmail(
+    data.to,
+    data.subject,
+    <EmailComponent {...data.data} />
+  );
+}
+
+/**
+ * Send welcome email
+ */
+async function handleSendWelcome(data: {
+  email: string;
+  username: string;
+  loginUrl: string;
+}) {
+  const WelcomeEmail = (await import('@/lib/email/resend/templates/welcome')).default;
+
+  await sendReactEmail(
+    data.email,
+    'Welcome to {{PROJECT_NAME}}!',
+    <WelcomeEmail username={data.username} loginUrl={data.loginUrl} />
+  );
+}
+
+/**
+ * Send reset password email
+ */
+async function handleSendResetPassword(data: {
+  email: string;
+  username: string;
+  resetUrl: string;
+}) {
+  const ResetPasswordEmail = (
+    await import('@/lib/email/resend/templates/reset-password')
+  ).default;
+
+  await sendReactEmail(
+    data.email,
+    'Reset Your Password',
+    <ResetPasswordEmail username={data.username} resetUrl={data.resetUrl} />
+  );
+}
+
+/**
+ * Worker event handlers
+ */
+emailWorker.on('completed', (job) => {
+  console.log(`Email job ${job.id} completed`);
+});
+
+emailWorker.on('failed', (job, err) => {
+  console.error(`Email job ${job?.id} failed:`, err);
+});
+
+emailWorker.on('error', (err) => {
+  console.error('Email worker error:', err);
+});
+
+export default emailWorker;

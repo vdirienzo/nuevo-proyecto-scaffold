@@ -1,0 +1,77 @@
+/**
+ * Redis Client Configuration
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import Redis from 'ioredis';
+import { redisConfig } from './config';
+import { logger } from '@/lib/logger';
+
+class RedisClient {
+  private static instance: Redis | null = null;
+
+  static getInstance(): Redis {
+    if (!this.instance) {
+      this.instance = new Redis({
+        host: redisConfig.host,
+        port: redisConfig.port,
+        password: redisConfig.password,
+        db: redisConfig.db,
+        retryStrategy: (times: number) => {
+          const delay = Math.min(times * 50, 2000);
+          logger.warn(`Redis connection retry attempt ${times}, waiting ${delay}ms`);
+          return delay;
+        },
+        maxRetriesPerRequest: 3,
+        enableReadyCheck: true,
+        lazyConnect: false,
+      });
+
+      this.instance.on('connect', () => {
+        logger.info('Redis client connected');
+      });
+
+      this.instance.on('ready', () => {
+        logger.info('Redis client ready');
+      });
+
+      this.instance.on('error', (error) => {
+        logger.error('Redis client error:', error);
+      });
+
+      this.instance.on('close', () => {
+        logger.warn('Redis client connection closed');
+      });
+
+      this.instance.on('reconnecting', () => {
+        logger.info('Redis client reconnecting');
+      });
+    }
+
+    return this.instance;
+  }
+
+  static async disconnect(): Promise<void> {
+    if (this.instance) {
+      await this.instance.quit();
+      this.instance = null;
+      logger.info('Redis client disconnected');
+    }
+  }
+
+  static async healthCheck(): Promise<boolean> {
+    try {
+      const client = this.getInstance();
+      const result = await client.ping();
+      return result === 'PONG';
+    } catch (error) {
+      logger.error('Redis health check failed:', error);
+      return false;
+    }
+  }
+}
+
+export const redisClient = RedisClient.getInstance();
+export { RedisClient };

@@ -1,0 +1,79 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+type User {
+  """User ID"""
+  id: ID!
+
+  """User email address"""
+  email: String!
+
+  """User display name"""
+  name: String!
+
+  """User creation timestamp"""
+  createdAt: DateTime!
+
+  """User last update timestamp"""
+  updatedAt: DateTime!
+}
+
+type AuthPayload {
+  """Access token for authentication"""
+  accessToken: String!
+
+  """Refresh token for token renewal"""
+  refreshToken: String!
+
+  """Authenticated user"""
+  user: User!
+}
+
+input CreateUserInput {
+  """User email address"""
+  email: String!
+
+  """User password"""
+  password: String!
+
+  """User display name"""
+  name: String!
+}
+
+input LoginInput {
+  """User email"""
+  email: String!
+
+  """User password"""
+  password: String!
+}
+
+type Query {
+  """Get current authenticated user"""
+  me: User!
+
+  """Get user by ID"""
+  user(id: ID!): User
+
+  """List all users"""
+  users(skip: Int = 0, take: Int = 10): [User!]!
+}
+
+type Mutation {
+  """Register new user"""
+  register(input: CreateUserInput!): AuthPayload!
+
+  """Login user"""
+  login(input: LoginInput!): AuthPayload!
+
+  """Logout current user"""
+  logout: Boolean!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime

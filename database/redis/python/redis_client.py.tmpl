@@ -1,0 +1,121 @@
+"""
+Redis Client Configuration (Async)
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+import redis.asyncio as aioredis
+from redis.asyncio import Redis
+from typing import Optional
+from loguru import logger
+
+from .config import redis_config
+
+
+class RedisClient:
+    """Async Redis client singleton."""
+
+    _instance: Optional[Redis] = None
+
+    @classmethod
+    async def get_instance(cls) -> Redis:
+        """Get or create Redis client instance."""
+        if cls._instance is None:
+            cls._instance = await aioredis.from_url(
+                redis_config.url,
+                encoding="utf-8",
+                decode_responses=True,
+                max_connections=redis_config.max_connections,
+                socket_timeout=redis_config.socket_timeout,
+                socket_connect_timeout=redis_config.socket_connect_timeout,
+            )
+
+            logger.info("Redis client connected")
+
+        return cls._instance
+
+    @classmethod
+    async def close(cls) -> None:
+        """Close Redis connection."""
+        if cls._instance:
+            await cls._instance.close()
+            cls._instance = None
+            logger.info("Redis client disconnected")
+
+    @classmethod
+    async def health_check(cls) -> bool:
+        """Check Redis connection health."""
+        try:
+            client = await cls.get_instance()
+            await client.ping()
+            return True
+        except Exception as e:
+            logger.error(f"Redis health check failed: {e}")
+            return False
+
+
+async def get_redis() -> Redis:
+    """Dependency for FastAPI to get Redis client."""
+    return await RedisClient.get_instance()
+
+
+# Config module
+"""
+config.py - Redis Configuration
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+from pydantic_settings import BaseSettings
+
+
+class RedisConfig(BaseSettings):
+    """Redis configuration from environment."""
+
+    host: str = "localhost"
+    port: int = 6379
+    password: str | None = None
+    db: int = 0
+    key_prefix: str = "{{PROJECT_NAME}}:"
+    ttl: int = 3600  # 1 hour default
+    max_connections: int = 10
+    socket_timeout: float = 5.0
+    socket_connect_timeout: float = 5.0
+
+    @property
+    def url(self) -> str:
+        """Build Redis connection URL."""
+        if self.password:
+            return f"redis://:{self.password}@{self.host}:{self.port}/{self.db}"
+        return f"redis://{self.host}:{self.port}/{self.db}"
+
+    class Config:
+        env_prefix = "REDIS_"
+        env_file = ".env"
+
+
+redis_config = RedisConfig()
+
+
+# Key namespaces
+class RedisKeys:
+    """Redis key namespaces."""
+
+    CACHE = "cache:"
+    SESSION = "session:"
+    RATE_LIMIT = "rate-limit:"
+    LOCK = "lock:"
+
+
+# TTL presets (in seconds)
+class RedisTTL:
+    """Redis TTL presets."""
+
+    VERY_SHORT = 60  # 1 minute
+    SHORT = 300  # 5 minutes
+    MEDIUM = 1800  # 30 minutes
+    LONG = 3600  # 1 hour
+    VERY_LONG = 86400  # 24 hours
+    WEEK = 604800  # 7 days

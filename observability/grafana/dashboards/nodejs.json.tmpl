@@ -1,0 +1,95 @@
+{
+  "__comment": "Node.js Dashboard for {{PROJECT_NAME}} - Author: {{AUTHOR}}",
+  "dashboard": {
+    "title": "{{PROJECT_NAME}} - Node.js Metrics",
+    "tags": ["nodejs", "{{PROJECT_NAME}}"],
+    "timezone": "browser",
+    "schemaVersion": 16,
+    "version": 0,
+    "refresh": "10s",
+    "panels": [
+      {
+        "title": "Event Loop Lag",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "nodejs_eventloop_lag_seconds",
+            "legendFormat": "{{instance}}"
+          }
+        ]
+      },
+      {
+        "title": "Memory Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "nodejs_heap_size_used_bytes",
+            "legendFormat": "Heap Used"
+          },
+          {
+            "expr": "nodejs_heap_size_total_bytes",
+            "legendFormat": "Heap Total"
+          },
+          {
+            "expr": "nodejs_external_memory_bytes",
+            "legendFormat": "External"
+          }
+        ]
+      },
+      {
+        "title": "Garbage Collection Duration",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "targets": [
+          {
+            "expr": "rate(nodejs_gc_duration_seconds_sum[5m])",
+            "legendFormat": "{{kind}}"
+          }
+        ]
+      },
+      {
+        "title": "Active Handles",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "targets": [
+          {
+            "expr": "nodejs_active_handles_total",
+            "legendFormat": "Active Handles"
+          },
+          {
+            "expr": "nodejs_active_requests_total",
+            "legendFormat": "Active Requests"
+          }
+        ]
+      },
+      {
+        "title": "CPU Usage",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "targets": [
+          {
+            "expr": "rate(process_cpu_user_seconds_total[5m])",
+            "legendFormat": "User"
+          },
+          {
+            "expr": "rate(process_cpu_system_seconds_total[5m])",
+            "legendFormat": "System"
+          }
+        ]
+      },
+      {
+        "title": "Heap Space Details",
+        "type": "graph",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "targets": [
+          {
+            "expr": "nodejs_heap_space_size_used_bytes",
+            "legendFormat": "{{space}} - Used"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,132 @@
+/**
+ * Welcome Email Template
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import {
+  Body,
+  Button,
+  Container,
+  Head,
+  Heading,
+  Html,
+  Img,
+  Link,
+  Preview,
+  Section,
+  Text,
+} from '@react-email/components';
+
+interface WelcomeEmailProps {
+  username: string;
+  loginUrl: string;
+}
+
+export default function WelcomeEmail({
+  username = 'there',
+  loginUrl = 'https://{{PROJECT_NAME}}.com/login',
+}: WelcomeEmailProps) {
+  return (
+    <Html>
+      <Head />
+      <Preview>Welcome to {{PROJECT_NAME}} - Get started today</Preview>
+      <Body style={main}>
+        <Container style={container}>
+          <Heading style={h1}>Welcome to {{PROJECT_NAME}}!</Heading>
+
+          <Text style={text}>Hi {username},</Text>
+
+          <Text style={text}>
+            Thanks for signing up! We're excited to have you on board.
+          </Text>
+
+          <Text style={text}>
+            {{PROJECT_NAME}} helps you [describe value proposition here].
+          </Text>
+
+          <Section style={buttonContainer}>
+            <Button style={button} href={loginUrl}>
+              Get Started
+            </Button>
+          </Section>
+
+          <Text style={text}>
+            If you have any questions, feel free to reply to this email or
+            visit our{' '}
+            <Link href="https://{{PROJECT_NAME}}.com/help" style={link}>
+              help center
+            </Link>
+            .
+          </Text>
+
+          <Text style={footer}>
+            Best regards,
+            <br />
+            The {{PROJECT_NAME}} Team
+          </Text>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+const main = {
+  backgroundColor: '#f6f9fc',
+  fontFamily:
+    '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+};
+
+const container = {
+  backgroundColor: '#ffffff',
+  margin: '0 auto',
+  padding: '20px 0 48px',
+  marginBottom: '64px',
+  maxWidth: '600px',
+};
+
+const h1 = {
+  color: '#333',
+  fontSize: '24px',
+  fontWeight: 'bold',
+  margin: '40px 0',
+  padding: '0 40px',
+};
+
+const text = {
+  color: '#333',
+  fontSize: '16px',
+  lineHeight: '26px',
+  margin: '16px 0',
+  padding: '0 40px',
+};
+
+const buttonContainer = {
+  padding: '27px 40px',
+};
+
+const button = {
+  backgroundColor: '#5469d4',
+  borderRadius: '4px',
+  color: '#fff',
+  fontSize: '16px',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'block',
+  width: '100%',
+  padding: '12px',
+};
+
+const link = {
+  color: '#5469d4',
+  textDecoration: 'underline',
+};
+
+const footer = {
+  color: '#8898aa',
+  fontSize: '14px',
+  lineHeight: '24px',
+  margin: '48px 0 0',
+  padding: '0 40px',
+};

@@ -1,0 +1,136 @@
+/**
+ * Card Component Stories
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import type { Meta, StoryObj } from "@storybook/react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
+const meta = {
+  title: "Components/Card",
+  component: Card,
+  parameters: {
+    layout: "centered",
+  },
+  tags: ["autodocs"],
+} satisfies Meta<typeof Card>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  render: () => (
+    <Card className="w-[350px]">
+      <CardHeader>
+        <CardTitle>Card Title</CardTitle>
+        <CardDescription>Card description goes here</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>Card content goes here. This is where you put your main content.</p>
+      </CardContent>
+    </Card>
+  ),
+};
+
+export const WithFooter: Story = {
+  render: () => (
+    <Card className="w-[350px]">
+      <CardHeader>
+        <CardTitle>Create Project</CardTitle>
+        <CardDescription>Deploy your new project in one-click.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p>Configure your project settings and deployment options.</p>
+      </CardContent>
+      <CardFooter className="flex justify-between">
+        <Button variant="outline">Cancel</Button>
+        <Button>Deploy</Button>
+      </CardFooter>
+    </Card>
+  ),
+};
+
+export const UserProfile: Story = {
+  render: () => (
+    <Card className="w-[350px]">
+      <CardHeader>
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500" />
+          <div>
+            <CardTitle>Jane Doe</CardTitle>
+            <CardDescription>@janedoe</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-muted-foreground">
+          Software Engineer | Open Source Enthusiast | Coffee Lover ☕
+        </p>
+      </CardContent>
+      <CardFooter>
+        <Button className="w-full">Follow</Button>
+      </CardFooter>
+    </Card>
+  ),
+};
+
+export const Statistics: Story = {
+  render: () => (
+    <Card className="w-[350px]">
+      <CardHeader>
+        <CardTitle>Total Revenue</CardTitle>
+        <CardDescription>January - December 2024</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-bold">$45,231.89</div>
+        <p className="text-xs text-muted-foreground mt-2">+20.1% from last year</p>
+      </CardContent>
+    </Card>
+  ),
+};
+
+export const Notification: Story = {
+  render: () => (
+    <Card className="w-[380px]">
+      <CardHeader>
+        <CardTitle>Notifications</CardTitle>
+        <CardDescription>You have 3 unread messages</CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="flex items-start gap-4">
+          <div className="h-2 w-2 rounded-full bg-blue-500 mt-2" />
+          <div>
+            <p className="text-sm font-medium">Your call has been confirmed.</p>
+            <p className="text-xs text-muted-foreground">2 hours ago</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-4">
+          <div className="h-2 w-2 rounded-full bg-blue-500 mt-2" />
+          <div>
+            <p className="text-sm font-medium">New message from support.</p>
+            <p className="text-xs text-muted-foreground">5 hours ago</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-4">
+          <div className="h-2 w-2 rounded-full bg-blue-500 mt-2" />
+          <div>
+            <p className="text-sm font-medium">Your subscription is expiring soon!</p>
+            <p className="text-xs text-muted-foreground">1 day ago</p>
+          </div>
+        </div>
+      </CardContent>
+      <CardFooter>
+        <Button className="w-full">Mark all as read</Button>
+      </CardFooter>
+    </Card>
+  ),
+};

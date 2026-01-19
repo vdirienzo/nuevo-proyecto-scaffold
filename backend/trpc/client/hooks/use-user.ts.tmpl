@@ -1,0 +1,116 @@
+/**
+ * use-user.ts.tmpl - User hooks for React
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { trpc } from '../react';
+
+/**
+ * Get current user
+ */
+export function useCurrentUser() {
+  return trpc.user.me.useQuery(undefined, {
+    retry: false,
+  });
+}
+
+/**
+ * Get user by ID
+ */
+export function useUser(id: string, enabled = true) {
+  return trpc.user.getById.useQuery(
+    { id },
+    {
+      enabled: enabled && !!id,
+    }
+  );
+}
+
+/**
+ * List users with pagination
+ */
+export function useUsers(
+  pagination = { page: 1, perPage: 20 },
+  filter?: {
+    email?: string;
+    username?: string;
+    isActive?: boolean;
+    roles?: string[];
+  }
+) {
+  return trpc.user.list.useQuery({
+    pagination,
+    filter,
+  });
+}
+
+/**
+ * Create user mutation
+ */
+export function useCreateUser() {
+  const utils = trpc.useUtils();
+
+  return trpc.user.create.useMutation({
+    onSuccess: () => {
+      // Invalidate user list to refetch
+      utils.user.list.invalidate();
+    },
+  });
+}
+
+/**
+ * Update user mutation
+ */
+export function useUpdateUser() {
+  const utils = trpc.useUtils();
+
+  return trpc.user.update.useMutation({
+    onSuccess: (data) => {
+      // Invalidate specific user and list
+      utils.user.getById.invalidate({ id: data.id });
+      utils.user.list.invalidate();
+    },
+  });
+}
+
+/**
+ * Delete user mutation
+ */
+export function useDeleteUser() {
+  const utils = trpc.useUtils();
+
+  return trpc.user.delete.useMutation({
+    onSuccess: () => {
+      // Invalidate user list
+      utils.user.list.invalidate();
+    },
+  });
+}
+
+/**
+ * Usage example:
+ *
+ * function UserProfile() {
+ *   const { data: user, isLoading, error } = useCurrentUser();
+ *   const updateUser = useUpdateUser();
+ *
+ *   const handleUpdate = async (data) => {
+ *     await updateUser.mutateAsync({
+ *       id: user.id,
+ *       ...data,
+ *     });
+ *   };
+ *
+ *   if (isLoading) return <div>Loading...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   return (
+ *     <div>
+ *       <h1>{user.fullName}</h1>
+ *       <p>{user.email}</p>
+ *     </div>
+ *   );
+ * }
+ */

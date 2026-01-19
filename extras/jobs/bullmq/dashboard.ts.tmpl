@@ -1,0 +1,57 @@
+/**
+ * Bull Board Dashboard Setup
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { createBullBoard } from '@bull-board/api';
+import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
+import { ExpressAdapter } from '@bull-board/express';
+import express from 'express';
+import { queues } from './queue';
+
+/**
+ * Create Bull Board dashboard
+ */
+export function createQueueDashboard() {
+  const serverAdapter = new ExpressAdapter();
+  serverAdapter.setBasePath('/admin/queues');
+
+  createBullBoard({
+    queues: Object.values(queues).map((queue) => new BullMQAdapter(queue)),
+    serverAdapter,
+  });
+
+  return serverAdapter;
+}
+
+/**
+ * Mount dashboard in Express app
+ */
+export function mountQueueDashboard(app: express.Application) {
+  const serverAdapter = createQueueDashboard();
+
+  // Add authentication middleware here
+  app.use(
+    '/admin/queues',
+    // authMiddleware, // TODO: Add your auth middleware
+    serverAdapter.getRouter()
+  );
+
+  console.log('Queue dashboard available at /admin/queues');
+}
+
+/**
+ * Standalone dashboard server
+ */
+export function startQueueDashboardServer(port: number = 3001) {
+  const app = express();
+  const serverAdapter = createQueueDashboard();
+
+  app.use('/admin/queues', serverAdapter.getRouter());
+
+  app.listen(port, () => {
+    console.log(`Queue dashboard running at http://localhost:${port}/admin/queues`);
+  });
+}

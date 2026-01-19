@@ -1,0 +1,30 @@
+/**
+ * Sentry Edge Configuration (Edge Runtime)
+ * Project: {{PROJECT_NAME}}
+ * Author: {{AUTHOR}}
+ */
+
+import * as Sentry from '@sentry/nextjs';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+
+  // Environment
+  environment: process.env.ENVIRONMENT || 'development',
+
+  // Release tracking
+  release: process.env.APP_VERSION,
+
+  // Sample rate (higher for edge due to lower volume)
+  tracesSampleRate: 1.0,
+
+  // Before send hook
+  beforeSend(event) {
+    // Filter out events in development
+    if (process.env.NODE_ENV === 'development') {
+      return null;
+    }
+
+    return event;
+  },
+});

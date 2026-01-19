@@ -1,0 +1,71 @@
+/**
+ * Auth0 Callback Handler
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { auth0Config, auth0ApiConfig } from '../config';
+
+interface TokenResponse {
+  access_token: string;
+  id_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  token_type: string;
+}
+
+export default async function callbackHandler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { code, state } = req.query;
+
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'Missing authorization code' });
+  }
+
+  try {
+    // Exchange code for tokens
+    const tokenResponse = await fetch(auth0ApiConfig.tokenEndpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        grant_type: 'authorization_code',
+        client_id: auth0Config.clientId,
+        client_secret: auth0Config.clientSecret,
+        code,
+        redirect_uri: auth0Config.redirectUri,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error('Failed to exchange code for token');
+    }
+
+    const tokens: TokenResponse = await tokenResponse.json();
+
+    // Get user info
+    const userInfoResponse = await fetch(auth0ApiConfig.userInfoEndpoint, {
+      headers: {
+        Authorization: `Bearer ${tokens.access_token}`,
+      },
+    });
+
+    const userInfo = await userInfoResponse.json();
+
+    // Set secure cookie
+    res.setHeader('Set-Cookie', [
+      `auth0.token=${tokens.access_token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${tokens.expires_in}`,
+      `auth0.id_token=${tokens.id_token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${tokens.expires_in}`,
+    ]);
+
+    // Redirect to app
+    const redirectUrl = state || '/dashboard';
+    res.redirect(302, redirectUrl as string);
+  } catch (error) {
+    console.error('Auth0 callback error:', error);
+    res.status(500).json({ error: 'Authentication failed' });
+  }
+}

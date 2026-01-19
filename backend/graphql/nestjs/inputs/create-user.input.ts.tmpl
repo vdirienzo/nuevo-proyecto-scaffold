@@ -1,0 +1,38 @@
+/**
+ * create-user.input.ts - GraphQL Input Types
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { InputType, Field } from '@nestjs/graphql';
+import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
+
+@InputType({ description: 'Input for creating a new user' })
+export class CreateUserInput {
+  @Field({ description: 'User email address' })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @Field({ description: 'User password' })
+  @IsNotEmpty()
+  @MinLength(8)
+  password: string;
+
+  @Field({ description: 'User display name' })
+  @IsNotEmpty()
+  name: string;
+}
+
+@InputType({ description: 'Input for user login' })
+export class LoginInput {
+  @Field({ description: 'User email' })
+  @IsEmail()
+  @IsNotEmpty()
+  email: string;
+
+  @Field({ description: 'User password' })
+  @IsNotEmpty()
+  password: string;
+}

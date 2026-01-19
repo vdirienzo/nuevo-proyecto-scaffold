@@ -1,0 +1,44 @@
+// use-api.ts - API hook with TanStack Query
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { AxiosError } from 'axios';
+
+interface UseApiOptions<TData> extends Omit<UseQueryOptions<TData, AxiosError>, 'queryKey' | 'queryFn'> {
+  enabled?: boolean;
+}
+
+export const useApi = <TData = unknown>(endpoint: string, options?: UseApiOptions<TData>) => {
+  return useQuery<TData, AxiosError>({
+    queryKey: [endpoint],
+    queryFn: async () => {
+      const response = await api.get<TData>(endpoint);
+      return response.data;
+    },
+    ...options,
+  });
+};
+
+export const useApiMutation = <TData = unknown, TVariables = unknown>(
+  endpoint: string,
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'POST'
+) => {
+  const queryClient = useQueryClient();
+
+  return useMutation<TData, AxiosError, TVariables>({
+    mutationFn: async (data: TVariables) => {
+      const response = await api.request<TData>({
+        url: endpoint,
+        method,
+        data,
+      });
+      return response.data;
+    },
+    onSuccess: () => {
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: [endpoint] });
+    },
+  });
+};

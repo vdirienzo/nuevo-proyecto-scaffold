@@ -1,0 +1,87 @@
+/**
+ * Twilio SMS Verification
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import twilio from 'twilio';
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
+const authToken = process.env.TWILIO_AUTH_TOKEN || '';
+const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID || '';
+
+const client = twilio(accountSid, authToken);
+
+interface SendCodeResult {
+  success: boolean;
+  sid?: string;
+  error?: string;
+}
+
+interface VerifyCodeResult {
+  success: boolean;
+  valid: boolean;
+  error?: string;
+}
+
+export async function sendSMSCode(phoneNumber: string): Promise<SendCodeResult> {
+  try {
+    const verification = await client.verify.v2
+      .services(serviceSid)
+      .verifications.create({
+        to: phoneNumber,
+        channel: 'sms',
+      });
+
+    return {
+      success: true,
+      sid: verification.sid,
+    };
+  } catch (error) {
+    console.error('Failed to send SMS code:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function verifySMSCode(
+  phoneNumber: string,
+  code: string
+): Promise<VerifyCodeResult> {
+  try {
+    const verificationCheck = await client.verify.v2
+      .services(serviceSid)
+      .verificationChecks.create({
+        to: phoneNumber,
+        code,
+      });
+
+    return {
+      success: true,
+      valid: verificationCheck.status === 'approved',
+    };
+  } catch (error) {
+    console.error('Failed to verify SMS code:', error);
+    return {
+      success: false,
+      valid: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+export async function enableSMSMFA(userId: string, phoneNumber: string): Promise<boolean> {
+  // Store phone number in database
+  // await db.user.update({
+  //   where: { id: userId },
+  //   data: {
+  //     phone: phoneNumber,
+  //     smsEnabled: true,
+  //   },
+  // });
+
+  return true;
+}

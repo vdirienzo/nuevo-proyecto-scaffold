@@ -1,0 +1,38 @@
+/**
+ * Commitlint Configuration
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+export default {
+  extends: ["@commitlint/config-conventional"],
+  rules: {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",      // New feature
+        "fix",       // Bug fix
+        "docs",      // Documentation only
+        "style",     // Formatting, no code change
+        "refactor",  // Code change that neither fixes nor adds feature
+        "perf",      // Performance improvement
+        "test",      // Adding or updating tests
+        "chore",     // Maintenance tasks
+        "ci",        // CI/CD changes
+        "build",     // Build system changes
+        "revert",    // Revert previous commit
+        "security",  // Security fix
+      ],
+    ],
+    "type-case": [2, "always", "lower-case"],
+    "type-empty": [2, "never"],
+    "scope-case": [2, "always", "lower-case"],
+    "subject-empty": [2, "never"],
+    "subject-full-stop": [2, "never", "."],
+    "header-max-length": [2, "always", 72],
+    "body-leading-blank": [2, "always"],
+    "body-max-line-length": [2, "always", 100],
+    "footer-leading-blank": [2, "always"],
+  },
+};

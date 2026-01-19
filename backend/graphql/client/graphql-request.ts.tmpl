@@ -1,0 +1,47 @@
+/**
+ * graphql-request.ts - GraphQL Request Client Setup
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { GraphQLClient } from 'graphql-request';
+
+const endpoint =
+  process.env.NEXT_PUBLIC_GRAPHQL_URL || 'http://localhost:4000/graphql';
+
+export const graphqlClient = new GraphQLClient(endpoint, {
+  credentials: 'include',
+});
+
+/**
+ * Set authentication token
+ */
+export function setAuthToken(token: string | null) {
+  if (token) {
+    graphqlClient.setHeader('authorization', `Bearer ${token}`);
+  } else {
+    graphqlClient.setHeader('authorization', '');
+  }
+}
+
+/**
+ * Get authentication token from localStorage
+ */
+export function getAuthToken(): string | null {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('accessToken');
+  }
+  return null;
+}
+
+/**
+ * Initialize client with token from localStorage
+ */
+export function initializeClient() {
+  const token = getAuthToken();
+  setAuthToken(token);
+}
+
+// Initialize on module load
+initializeClient();

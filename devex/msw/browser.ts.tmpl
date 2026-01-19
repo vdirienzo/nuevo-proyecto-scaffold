@@ -1,0 +1,25 @@
+/**
+ * MSW Browser Worker Setup
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { setupWorker } from "msw/browser";
+import { authHandlers } from "./handlers/auth";
+import { usersHandlers } from "./handlers/users";
+
+// Combine all handlers
+const handlers = [...authHandlers, ...usersHandlers];
+
+// Setup worker for browser environment
+export const worker = setupWorker(...handlers);
+
+// Start worker in development
+if (process.env.NODE_ENV === "development") {
+  worker.start({
+    onUnhandledRequest: "bypass",
+    serviceWorker: {
+      url: "/mockServiceWorker.js",
+    },
+  });
+}

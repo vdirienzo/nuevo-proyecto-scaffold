@@ -1,0 +1,106 @@
+/**
+ * Flagsmith Feature Flags Client
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import flagsmith from 'flagsmith';
+
+const ENVIRONMENT_KEY = process.env.FLAGSMITH_ENVIRONMENT_KEY!;
+
+/**
+ * Initialize Flagsmith
+ */
+export async function initFlagsmith() {
+  await flagsmith.init({
+    environmentID: ENVIRONMENT_KEY,
+    cacheFlags: true,
+    enableAnalytics: true,
+  });
+}
+
+/**
+ * Check if feature is enabled
+ */
+export async function isFeatureEnabled(
+  featureKey: string,
+  userId?: string
+): Promise<boolean> {
+  if (userId) {
+    await flagsmith.identify(userId);
+  }
+
+  return flagsmith.hasFeature(featureKey);
+}
+
+/**
+ * Get feature value
+ */
+export async function getFeatureValue<T = string>(
+  featureKey: string,
+  userId?: string
+): Promise<T | null> {
+  if (userId) {
+    await flagsmith.identify(userId);
+  }
+
+  const value = flagsmith.getValue(featureKey);
+  return value as T | null;
+}
+
+/**
+ * Get all features
+ */
+export async function getAllFeatures(userId?: string) {
+  if (userId) {
+    await flagsmith.identify(userId);
+  }
+
+  return flagsmith.getAllFlags();
+}
+
+/**
+ * Set user trait
+ */
+export async function setUserTrait(
+  userId: string,
+  key: string,
+  value: string | number | boolean
+) {
+  await flagsmith.identify(userId);
+  await flagsmith.setTrait(key, value);
+}
+
+/**
+ * Get user traits
+ */
+export async function getUserTraits(userId: string) {
+  await flagsmith.identify(userId);
+  return flagsmith.getTraits();
+}
+
+/**
+ * Feature flags enum (type-safe)
+ */
+export const Features = {
+  NEW_DASHBOARD: 'new_dashboard',
+  ADVANCED_SEARCH: 'advanced_search',
+  AI_ASSISTANT: 'ai_assistant',
+  EXPORT_FEATURE: 'export_feature',
+  BETA_FEATURES: 'beta_features',
+} as const;
+
+export type FeatureKey = (typeof Features)[keyof typeof Features];
+
+/**
+ * Type-safe feature check
+ */
+export async function checkFeature(
+  feature: FeatureKey,
+  userId?: string
+): Promise<boolean> {
+  return isFeatureEnabled(feature, userId);
+}
+
+export { flagsmith };

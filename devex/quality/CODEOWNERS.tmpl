@@ -1,0 +1,40 @@
+# CODEOWNERS
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+#
+# These owners will be the default owners for everything in the repo.
+# Unless a later match takes precedence, they will be requested for
+# review when someone opens a pull request.
+
+# Default owners for all files
+*                           @{{AUTHOR}}
+
+# Frontend
+/apps/web/**                @{{AUTHOR}}
+/packages/ui/**             @{{AUTHOR}}
+
+# Backend
+/apps/api/**                @{{AUTHOR}}
+
+# Infrastructure
+/docker/**                  @{{AUTHOR}}
+/.github/**                 @{{AUTHOR}}
+/terraform/**               @{{AUTHOR}}
+
+# Documentation
+/docs/**                    @{{AUTHOR}}
+*.md                        @{{AUTHOR}}
+
+# Configuration
+*.config.js                 @{{AUTHOR}}
+*.config.ts                 @{{AUTHOR}}
+*.config.mjs                @{{AUTHOR}}
+package.json                @{{AUTHOR}}
+pyproject.toml              @{{AUTHOR}}
+
+# CI/CD
+/.github/workflows/**       @{{AUTHOR}}
+
+# Security
+.env.example                @{{AUTHOR}}
+/packages/auth/**           @{{AUTHOR}}

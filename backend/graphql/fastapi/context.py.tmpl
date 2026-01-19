@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+"""
+context.py - GraphQL Context Management
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+from typing import Optional
+from fastapi import Request
+from strawberry.types import Info
+from strawberry.fastapi import BaseContext
+from .types.user import User
+
+
+class GraphQLContext(BaseContext):
+    """Custom GraphQL context."""
+
+    def __init__(self, request: Request):
+        super().__init__()
+        self.request = request
+
+
+async def get_context(request: Request) -> GraphQLContext:
+    """Create GraphQL context from request."""
+    return GraphQLContext(request=request)
+
+
+async def get_current_user(info: Info) -> Optional[User]:
+    """Get current authenticated user from context."""
+    context: GraphQLContext = info.context
+    request = context.request
+
+    # Get authorization header
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        return None
+
+    token = auth_header.replace("Bearer ", "")
+
+    # Implement your JWT verification logic here
+    # try:
+    #     payload = decode_jwt(token)
+    #     user_id = payload.get("sub")
+    #     user = await user_service.get_by_id(user_id)
+    #     return user
+    # except Exception:
+    #     return None
+
+    # Placeholder: Return None for unauthenticated requests
+    return None

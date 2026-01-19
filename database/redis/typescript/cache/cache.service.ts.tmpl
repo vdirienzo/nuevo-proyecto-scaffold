@@ -1,0 +1,201 @@
+/**
+ * Generic Cache Service
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Redis } from 'ioredis';
+import { redisClient } from '../client';
+import { REDIS_KEYS, REDIS_TTL } from '../config';
+import { logger } from '@/lib/logger';
+
+export interface CacheOptions {
+  ttl?: number;
+  prefix?: string;
+}
+
+export class CacheService {
+  private client: Redis;
+  private defaultPrefix: string;
+  private defaultTTL: number;
+
+  constructor(options?: CacheOptions) {
+    this.client = redisClient;
+    this.defaultPrefix = options?.prefix || REDIS_KEYS.CACHE;
+    this.defaultTTL = options?.ttl || REDIS_TTL.MEDIUM;
+  }
+
+  /**
+   * Build full cache key with prefix
+   */
+  private buildKey(key: string): string {
+    return `${this.defaultPrefix}${key}`;
+  }
+
+  /**
+   * Get value from cache
+   */
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const fullKey = this.buildKey(key);
+      const value = await this.client.get(fullKey);
+
+      if (value === null) {
+        return null;
+      }
+
+      return JSON.parse(value) as T;
+    } catch (error) {
+      logger.error(`Cache get error for key ${key}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Set value in cache
+   */
+  async set<T>(key: string, value: T, ttl?: number): Promise<boolean> {
+    try {
+      const fullKey = this.buildKey(key);
+      const serialized = JSON.stringify(value);
+      const expiry = ttl || this.defaultTTL;
+
+      await this.client.setex(fullKey, expiry, serialized);
+      return true;
+    } catch (error) {
+      logger.error(`Cache set error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Delete key from cache
+   */
+  async delete(key: string): Promise<boolean> {
+    try {
+      const fullKey = this.buildKey(key);
+      const result = await this.client.del(fullKey);
+      return result > 0;
+    } catch (error) {
+      logger.error(`Cache delete error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Delete multiple keys by pattern
+   */
+  async deletePattern(pattern: string): Promise<number> {
+    try {
+      const fullPattern = this.buildKey(pattern);
+      const keys = await this.client.keys(fullPattern);
+
+      if (keys.length === 0) {
+        return 0;
+      }
+
+      return await this.client.del(...keys);
+    } catch (error) {
+      logger.error(`Cache delete pattern error for ${pattern}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Check if key exists
+   */
+  async exists(key: string): Promise<boolean> {
+    try {
+      const fullKey = this.buildKey(key);
+      const result = await this.client.exists(fullKey);
+      return result === 1;
+    } catch (error) {
+      logger.error(`Cache exists error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Get TTL for key
+   */
+  async ttl(key: string): Promise<number> {
+    try {
+      const fullKey = this.buildKey(key);
+      return await this.client.ttl(fullKey);
+    } catch (error) {
+      logger.error(`Cache TTL error for key ${key}:`, error);
+      return -2; // Key doesn't exist
+    }
+  }
+
+  /**
+   * Set expiry for key
+   */
+  async expire(key: string, ttl: number): Promise<boolean> {
+    try {
+      const fullKey = this.buildKey(key);
+      const result = await this.client.expire(fullKey, ttl);
+      return result === 1;
+    } catch (error) {
+      logger.error(`Cache expire error for key ${key}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Increment counter
+   */
+  async increment(key: string, by: number = 1): Promise<number> {
+    try {
+      const fullKey = this.buildKey(key);
+      return await this.client.incrby(fullKey, by);
+    } catch (error) {
+      logger.error(`Cache increment error for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Decrement counter
+   */
+  async decrement(key: string, by: number = 1): Promise<number> {
+    try {
+      const fullKey = this.buildKey(key);
+      return await this.client.decrby(fullKey, by);
+    } catch (error) {
+      logger.error(`Cache decrement error for key ${key}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get or set pattern (cache-aside)
+   */
+  async getOrSet<T>(
+    key: string,
+    factory: () => Promise<T>,
+    ttl?: number
+  ): Promise<T> {
+    const cached = await this.get<T>(key);
+
+    if (cached !== null) {
+      return cached;
+    }
+
+    const value = await factory();
+    await this.set(key, value, ttl);
+
+    return value;
+  }
+
+  /**
+   * Clear all keys with current prefix
+   */
+  async clear(): Promise<number> {
+    return this.deletePattern('*');
+  }
+}
+
+// Singleton instance
+export const cacheService = new CacheService();

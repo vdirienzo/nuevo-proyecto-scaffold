@@ -1,0 +1,183 @@
+/**
+ * base.repository.ts - Generic repository pattern for MongoDB
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Model, Document, FilterQuery, UpdateQuery, QueryOptions } from 'mongoose';
+
+export interface PaginationOptions {
+  page?: number;
+  limit?: number;
+  sort?: Record<string, 1 | -1>;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrev: boolean;
+}
+
+export abstract class BaseRepository<T extends Document> {
+  constructor(protected readonly model: Model<T>) {}
+
+  async create(data: Partial<T>): Promise<T> {
+    try {
+      const document = new this.model(data);
+      return await document.save();
+    } catch (error) {
+      throw new Error(`Failed to create document: ${error}`);
+    }
+  }
+
+  async createMany(data: Partial<T>[]): Promise<T[]> {
+    try {
+      return await this.model.insertMany(data);
+    } catch (error) {
+      throw new Error(`Failed to create documents: ${error}`);
+    }
+  }
+
+  async findById(id: string, options?: QueryOptions): Promise<T | null> {
+    try {
+      return await this.model.findById(id, null, options).exec();
+    } catch (error) {
+      throw new Error(`Failed to find document by id: ${error}`);
+    }
+  }
+
+  async findOne(filter: FilterQuery<T>, options?: QueryOptions): Promise<T | null> {
+    try {
+      return await this.model.findOne(filter, null, options).exec();
+    } catch (error) {
+      throw new Error(`Failed to find document: ${error}`);
+    }
+  }
+
+  async find(filter: FilterQuery<T> = {}, options?: QueryOptions): Promise<T[]> {
+    try {
+      return await this.model.find(filter, null, options).exec();
+    } catch (error) {
+      throw new Error(`Failed to find documents: ${error}`);
+    }
+  }
+
+  async findWithPagination(
+    filter: FilterQuery<T> = {},
+    paginationOptions: PaginationOptions = {}
+  ): Promise<PaginatedResult<T>> {
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = paginationOptions;
+    const skip = (page - 1) * limit;
+
+    try {
+      const [data, total] = await Promise.all([
+        this.model.find(filter).sort(sort).skip(skip).limit(limit).exec(),
+        this.model.countDocuments(filter).exec(),
+      ]);
+
+      const totalPages = Math.ceil(total / limit);
+
+      return {
+        data,
+        total,
+        page,
+        limit,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      };
+    } catch (error) {
+      throw new Error(`Failed to find documents with pagination: ${error}`);
+    }
+  }
+
+  async update(id: string, data: UpdateQuery<T>, options?: QueryOptions): Promise<T | null> {
+    try {
+      return await this.model
+        .findByIdAndUpdate(id, data, { new: true, runValidators: true, ...options })
+        .exec();
+    } catch (error) {
+      throw new Error(`Failed to update document: ${error}`);
+    }
+  }
+
+  async updateOne(
+    filter: FilterQuery<T>,
+    data: UpdateQuery<T>,
+    options?: QueryOptions
+  ): Promise<T | null> {
+    try {
+      return await this.model
+        .findOneAndUpdate(filter, data, { new: true, runValidators: true, ...options })
+        .exec();
+    } catch (error) {
+      throw new Error(`Failed to update document: ${error}`);
+    }
+  }
+
+  async updateMany(filter: FilterQuery<T>, data: UpdateQuery<T>): Promise<number> {
+    try {
+      const result = await this.model.updateMany(filter, data).exec();
+      return result.modifiedCount;
+    } catch (error) {
+      throw new Error(`Failed to update documents: ${error}`);
+    }
+  }
+
+  async delete(id: string): Promise<boolean> {
+    try {
+      const result = await this.model.findByIdAndDelete(id).exec();
+      return !!result;
+    } catch (error) {
+      throw new Error(`Failed to delete document: ${error}`);
+    }
+  }
+
+  async deleteOne(filter: FilterQuery<T>): Promise<boolean> {
+    try {
+      const result = await this.model.deleteOne(filter).exec();
+      return result.deletedCount > 0;
+    } catch (error) {
+      throw new Error(`Failed to delete document: ${error}`);
+    }
+  }
+
+  async deleteMany(filter: FilterQuery<T>): Promise<number> {
+    try {
+      const result = await this.model.deleteMany(filter).exec();
+      return result.deletedCount;
+    } catch (error) {
+      throw new Error(`Failed to delete documents: ${error}`);
+    }
+  }
+
+  async count(filter: FilterQuery<T> = {}): Promise<number> {
+    try {
+      return await this.model.countDocuments(filter).exec();
+    } catch (error) {
+      throw new Error(`Failed to count documents: ${error}`);
+    }
+  }
+
+  async exists(filter: FilterQuery<T>): Promise<boolean> {
+    try {
+      const count = await this.model.countDocuments(filter).limit(1).exec();
+      return count > 0;
+    } catch (error) {
+      throw new Error(`Failed to check if document exists: ${error}`);
+    }
+  }
+
+  async aggregate<R = any>(pipeline: any[]): Promise<R[]> {
+    try {
+      return await this.model.aggregate(pipeline).exec();
+    } catch (error) {
+      throw new Error(`Failed to aggregate documents: ${error}`);
+    }
+  }
+}

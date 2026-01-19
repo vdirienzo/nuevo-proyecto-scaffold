@@ -1,0 +1,148 @@
+/**
+ * main.go.tmpl - Go gRPC server entry point
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
+
+	"github.com/{{PROJECT_NAME}}/gen/auth/v1"
+	"github.com/{{PROJECT_NAME}}/gen/user/v1"
+	"github.com/{{PROJECT_NAME}}/services"
+)
+
+type Config struct {
+	Port         string
+	DatabaseURL  string
+	JWTSecret    string
+	EnableReflection bool
+}
+
+func loadConfig() *Config {
+	return &Config{
+		Port:         getEnv("GRPC_PORT", "50051"),
+		DatabaseURL:  getEnv("DATABASE_URL", ""),
+		JWTSecret:    getEnv("JWT_SECRET", ""),
+		EnableReflection: getEnv("ENABLE_REFLECTION", "true") == "true",
+	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func main() {
+	cfg := loadConfig()
+
+	// Create listener
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.Port))
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	// Create gRPC server with interceptors
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			loggingInterceptor,
+			authInterceptor(cfg.JWTSecret),
+		),
+		grpc.ChainStreamInterceptor(
+			streamLoggingInterceptor,
+		),
+	)
+
+	// Initialize services
+	userService := services.NewUserService(cfg.DatabaseURL)
+	authService := services.NewAuthService(cfg.DatabaseURL, cfg.JWTSecret)
+
+	// Register services
+	userv1.RegisterUserServiceServer(grpcServer, userService)
+	authv1.RegisterAuthServiceServer(grpcServer, authService)
+
+	// Register health check
+	healthServer := health.NewServer()
+	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
+	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+
+	// Enable reflection for development
+	if cfg.EnableReflection {
+		reflection.Register(grpcServer)
+	}
+
+	// Graceful shutdown
+	go func() {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		<-sigCh
+
+		log.Println("Shutting down gRPC server...")
+		grpcServer.GracefulStop()
+	}()
+
+	log.Printf("gRPC server listening on :%s", cfg.Port)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
+}
+
+// loggingInterceptor logs all unary RPC calls
+func loggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	start := time.Now()
+	resp, err := handler(ctx, req)
+	duration := time.Since(start)
+
+	log.Printf("Method: %s | Duration: %v | Error: %v", info.FullMethod, duration, err)
+	return resp, err
+}
+
+// streamLoggingInterceptor logs all streaming RPC calls
+func streamLoggingInterceptor(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	start := time.Now()
+	err := handler(srv, ss)
+	duration := time.Since(start)
+
+	log.Printf("Stream Method: %s | Duration: %v | Error: %v", info.FullMethod, duration, err)
+	return err
+}
+
+// authInterceptor validates JWT tokens
+func authInterceptor(jwtSecret string) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// Skip auth for public endpoints
+		publicEndpoints := []string{
+			"/auth.v1.AuthService/Login",
+			"/auth.v1.AuthService/RefreshToken",
+			"/grpc.health.v1.Health/Check",
+		}
+
+		for _, endpoint := range publicEndpoints {
+			if info.FullMethod == endpoint {
+				return handler(ctx, req)
+			}
+		}
+
+		// TODO: Validate JWT token from metadata
+		// For now, just pass through
+		return handler(ctx, req)
+	}
+}

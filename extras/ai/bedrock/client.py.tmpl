@@ -1,0 +1,97 @@
+"""
+AWS Bedrock Client - Python
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+import json
+import os
+from typing import AsyncGenerator
+
+import boto3
+
+bedrock_runtime = boto3.client(
+    "bedrock-runtime",
+    region_name=os.getenv("AWS_REGION", "us-east-1"),
+)
+
+
+async def invoke_claude(
+    messages: list[dict[str, str]],
+    model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    max_tokens: int = 4096,
+    temperature: float = 1.0,
+    system: str | None = None,
+) -> str:
+    """Invoke Claude model via Bedrock."""
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": messages,
+    }
+
+    if system:
+        body["system"] = system
+
+    response = bedrock_runtime.invoke_model(
+        modelId=model_id,
+        body=json.dumps(body),
+    )
+
+    result = json.loads(response["body"].read())
+    return result["content"][0]["text"]
+
+
+async def stream_claude(
+    messages: list[dict[str, str]],
+    model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    max_tokens: int = 4096,
+    temperature: float = 1.0,
+    system: str | None = None,
+) -> AsyncGenerator[str, None]:
+    """Stream Claude model via Bedrock."""
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "messages": messages,
+    }
+
+    if system:
+        body["system"] = system
+
+    response = bedrock_runtime.invoke_model_with_response_stream(
+        modelId=model_id,
+        body=json.dumps(body),
+    )
+
+    for event in response["body"]:
+        chunk = json.loads(event["chunk"]["bytes"])
+
+        if chunk["type"] == "content_block_delta":
+            if chunk["delta"]["type"] == "text_delta":
+                yield chunk["delta"]["text"]
+
+
+async def invoke_titan_embeddings(
+    text: str | list[str],
+    model_id: str = "amazon.titan-embed-text-v2:0",
+) -> list[list[float]]:
+    """Generate embeddings with Titan."""
+    texts = [text] if isinstance(text, str) else text
+    embeddings = []
+
+    for t in texts:
+        body = {"inputText": t}
+
+        response = bedrock_runtime.invoke_model(
+            modelId=model_id,
+            body=json.dumps(body),
+        )
+
+        result = json.loads(response["body"].read())
+        embeddings.append(result["embedding"])
+
+    return embeddings

@@ -1,0 +1,115 @@
+/**
+ * RBAC Guard Middleware
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { Role } from './roles';
+import { Permission, hasPermission, PermissionContext } from './permissions';
+
+interface AuthenticatedRequest extends NextRequest {
+  user?: {
+    id: string;
+    roles: Role[];
+    [key: string]: any;
+  };
+}
+
+export function requireRole(...allowedRoles: Role[]) {
+  return (handler: (req: AuthenticatedRequest) => Promise<NextResponse>) => {
+    return async (req: AuthenticatedRequest) => {
+      if (!req.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      const hasRequiredRole = req.user.roles.some((role) =>
+        allowedRoles.includes(role)
+      );
+
+      if (!hasRequiredRole) {
+        return NextResponse.json(
+          { error: 'Forbidden: Insufficient permissions' },
+          { status: 403 }
+        );
+      }
+
+      return handler(req);
+    };
+  };
+}
+
+export function requirePermission(
+  permission: Permission,
+  contextBuilder?: (req: AuthenticatedRequest) => Partial<PermissionContext>
+) {
+  return (handler: (req: AuthenticatedRequest) => Promise<NextResponse>) => {
+    return async (req: AuthenticatedRequest) => {
+      if (!req.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      const context: PermissionContext = {
+        userId: req.user.id,
+        userRoles: req.user.roles,
+        ...(contextBuilder ? contextBuilder(req) : {}),
+      };
+
+      const allowed = hasPermission(permission, context);
+
+      if (!allowed) {
+        return NextResponse.json(
+          { error: 'Forbidden: Permission denied' },
+          { status: 403 }
+        );
+      }
+
+      return handler(req);
+    };
+  };
+}
+
+export function checkMultiplePermissions(
+  permissions: Permission[],
+  requireAll: boolean = true
+) {
+  return (handler: (req: AuthenticatedRequest) => Promise<NextResponse>) => {
+    return async (req: AuthenticatedRequest) => {
+      if (!req.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized' },
+          { status: 401 }
+        );
+      }
+
+      const context: PermissionContext = {
+        userId: req.user.id,
+        userRoles: req.user.roles,
+      };
+
+      const results = permissions.map((permission) =>
+        hasPermission(permission, context)
+      );
+
+      const allowed = requireAll
+        ? results.every((result) => result)
+        : results.some((result) => result);
+
+      if (!allowed) {
+        return NextResponse.json(
+          { error: 'Forbidden: Permission denied' },
+          { status: 403 }
+        );
+      }
+
+      return handler(req);
+    };
+  };
+}

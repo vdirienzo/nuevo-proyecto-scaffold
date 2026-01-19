@@ -1,0 +1,143 @@
+# Service Level Objectives (SLO) Definitions
+# Project: {{PROJECT_NAME}}
+# Author: {{AUTHOR}}
+
+slos:
+  # API Availability SLO
+  - name: api_availability
+    description: API should be available 99.9% of the time
+    objective: 99.9
+    window: 30d
+    sli:
+      query: |
+        sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api",status!~"5.."}[5m]))
+        /
+        sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api"}[5m]))
+    thresholds:
+      - severity: warning
+        threshold: 99.5
+      - severity: critical
+        threshold: 99.0
+
+  # API Latency SLO
+  - name: api_latency
+    description: 95% of requests should complete within 500ms
+    objective: 95
+    window: 30d
+    sli:
+      query: |
+        histogram_quantile(0.95,
+          sum(rate(http_request_duration_seconds_bucket{job="{{PROJECT_NAME}}-api"}[5m])) by (le)
+        ) < 0.5
+    thresholds:
+      - severity: warning
+        threshold: 90
+      - severity: critical
+        threshold: 85
+
+  # API Error Rate SLO
+  - name: api_error_rate
+    description: Less than 1% of requests should result in errors
+    objective: 99
+    window: 30d
+    sli:
+      query: |
+        1 - (
+          sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api",status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total{job="{{PROJECT_NAME}}-api"}[5m]))
+        )
+    thresholds:
+      - severity: warning
+        threshold: 98
+      - severity: critical
+        threshold: 97
+
+  # Database Query Performance SLO
+  - name: db_query_performance
+    description: 95% of database queries should complete within 100ms
+    objective: 95
+    window: 7d
+    sli:
+      query: |
+        histogram_quantile(0.95,
+          sum(rate(db_query_duration_seconds_bucket[5m])) by (le)
+        ) < 0.1
+    thresholds:
+      - severity: warning
+        threshold: 90
+      - severity: critical
+        threshold: 85
+
+  # Background Job Success Rate SLO
+  - name: job_success_rate
+    description: 99.5% of background jobs should complete successfully
+    objective: 99.5
+    window: 7d
+    sli:
+      query: |
+        sum(rate(jobs_completed_total{status="success"}[5m]))
+        /
+        sum(rate(jobs_completed_total[5m]))
+    thresholds:
+      - severity: warning
+        threshold: 99.0
+      - severity: critical
+        threshold: 98.0
+
+  # Cache Hit Rate SLO
+  - name: cache_hit_rate
+    description: Cache hit rate should be above 90%
+    objective: 90
+    window: 7d
+    sli:
+      query: |
+        sum(rate(cache_hits_total[5m]))
+        /
+        sum(rate(cache_requests_total[5m]))
+    thresholds:
+      - severity: warning
+        threshold: 85
+      - severity: critical
+        threshold: 80
+
+# Error Budget Configuration
+error_budget:
+  # 30-day rolling window
+  window: 30d
+
+  # Calculation method
+  calculation: request_based  # or time_based
+
+  # Burn rate alerting
+  burn_rate_alerts:
+    - name: fast_burn
+      window: 1h
+      threshold: 14.4  # 5% of monthly budget in 1 hour
+      severity: critical
+
+    - name: slow_burn
+      window: 6h
+      threshold: 6  # 5% of monthly budget in 6 hours
+      severity: warning
+
+# Reporting
+reporting:
+  # Slack notifications
+  slack:
+    enabled: true
+    webhook_url: ${SLACK_WEBHOOK_URL}
+    channels:
+      - "#alerts"
+      - "#engineering"
+
+  # Email notifications
+  email:
+    enabled: true
+    recipients:
+      - "oncall@{{PROJECT_DOMAIN}}"
+      - "engineering@{{PROJECT_DOMAIN}}"
+
+  # Dashboard
+  dashboard:
+    grafana_url: "https://grafana.{{PROJECT_DOMAIN}}/d/slo-overview"

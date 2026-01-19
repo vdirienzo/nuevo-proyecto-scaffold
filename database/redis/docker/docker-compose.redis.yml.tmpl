@@ -1,0 +1,74 @@
+# Docker Compose - Redis Stack
+#
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+#
+# Usage:
+#   docker compose -f docker-compose.redis.yml up -d
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: {{PROJECT_NAME}}-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD:-}
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - {{PROJECT_NAME}}_network
+
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: {{PROJECT_NAME}}-redis-commander
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - {{PROJECT_NAME}}_network
+
+  # Optional: Redis Insight (Modern Redis GUI)
+  redis-insight:
+    image: redislabs/redisinsight:latest
+    container_name: {{PROJECT_NAME}}-redis-insight
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    volumes:
+      - redis_insight_data:/db
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - {{PROJECT_NAME}}_network
+
+volumes:
+  redis_data:
+    driver: local
+  redis_insight_data:
+    driver: local
+
+networks:
+  {{PROJECT_NAME}}_network:
+    driver: bridge

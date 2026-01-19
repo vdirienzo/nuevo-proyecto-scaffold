@@ -1,0 +1,162 @@
+/**
+ * BullMQ Queue Processor
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Worker, Job, WorkerOptions } from 'bullmq';
+import { redisConfig } from '../config';
+import { logger } from '@/lib/logger';
+
+export type JobHandler<T = any, R = any> = (job: Job<T>) => Promise<R>;
+
+export interface ProcessorOptions extends Partial<WorkerOptions> {
+  concurrency?: number;
+}
+
+export class QueueProcessor {
+  private workers: Map<string, Worker> = new Map();
+  private connection: WorkerOptions['connection'];
+
+  constructor() {
+    this.connection = {
+      host: redisConfig.host,
+      port: redisConfig.port,
+      password: redisConfig.password,
+      db: redisConfig.db,
+    };
+  }
+
+  /**
+   * Register job processor
+   */
+  registerProcessor<T = any, R = any>(
+    queueName: string,
+    handler: JobHandler<T, R>,
+    options: ProcessorOptions = {}
+  ): Worker {
+    if (this.workers.has(queueName)) {
+      throw new Error(`Worker for queue ${queueName} already registered`);
+    }
+
+    const worker = new Worker<T, R>(
+      queueName,
+      async (job) => {
+        logger.debug(`Processing job ${job.id} from queue ${queueName}`);
+
+        try {
+          const result = await handler(job);
+          logger.debug(`Job ${job.id} completed successfully`);
+          return result;
+        } catch (error) {
+          logger.error(`Job ${job.id} failed:`, error);
+          throw error;
+        }
+      },
+      {
+        connection: this.connection,
+        concurrency: options.concurrency || 5,
+        ...options,
+      }
+    );
+
+    // Event listeners
+    worker.on('completed', (job) => {
+      logger.info(`Job ${job.id} completed in queue ${queueName}`);
+    });
+
+    worker.on('failed', (job, error) => {
+      logger.error(`Job ${job?.id} failed in queue ${queueName}:`, error);
+    });
+
+    worker.on('error', (error) => {
+      logger.error(`Worker error in queue ${queueName}:`, error);
+    });
+
+    worker.on('stalled', (jobId) => {
+      logger.warn(`Job ${jobId} stalled in queue ${queueName}`);
+    });
+
+    this.workers.set(queueName, worker);
+    logger.info(`Worker registered for queue ${queueName}`);
+
+    return worker;
+  }
+
+  /**
+   * Get worker by queue name
+   */
+  getWorker(queueName: string): Worker | undefined {
+    return this.workers.get(queueName);
+  }
+
+  /**
+   * Pause worker
+   */
+  async pauseWorker(queueName: string) {
+    const worker = this.workers.get(queueName);
+    if (worker) {
+      await worker.pause();
+      logger.info(`Worker for queue ${queueName} paused`);
+    }
+  }
+
+  /**
+   * Resume worker
+   */
+  async resumeWorker(queueName: string) {
+    const worker = this.workers.get(queueName);
+    if (worker) {
+      await worker.resume();
+      logger.info(`Worker for queue ${queueName} resumed`);
+    }
+  }
+
+  /**
+   * Close worker
+   */
+  async closeWorker(queueName: string) {
+    const worker = this.workers.get(queueName);
+    if (worker) {
+      await worker.close();
+      this.workers.delete(queueName);
+      logger.info(`Worker for queue ${queueName} closed`);
+    }
+  }
+
+  /**
+   * Close all workers
+   */
+  async closeAll() {
+    const closePromises = Array.from(this.workers.values()).map((worker) =>
+      worker.close()
+    );
+
+    await Promise.all(closePromises);
+    this.workers.clear();
+
+    logger.info('All workers closed');
+  }
+}
+
+// Singleton instance
+export const queueProcessor = new QueueProcessor();
+
+/**
+ * Example usage:
+ *
+ * // Register email processor
+ * queueProcessor.registerProcessor('email', async (job) => {
+ *   const { to, subject, body } = job.data;
+ *   await sendEmail(to, subject, body);
+ *   return { sent: true };
+ * }, { concurrency: 10 });
+ *
+ * // Add job to queue
+ * await queueService.addJob('email', 'send-welcome', {
+ *   to: 'user@example.com',
+ *   subject: 'Welcome!',
+ *   body: 'Thanks for signing up',
+ * });
+ */

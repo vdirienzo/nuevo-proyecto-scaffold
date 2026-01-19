@@ -1,0 +1,71 @@
+/**
+ * common.proto.tmpl - Common types for all services
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/{{PROJECT_NAME}}/gen/common/v1;commonv1";
+
+import "google/protobuf/timestamp.proto";
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 per_page = 2;
+  string sort_by = 3;
+  SortOrder sort_order = 4;
+}
+
+enum SortOrder {
+  SORT_ORDER_UNSPECIFIED = 0;
+  SORT_ORDER_ASC = 1;
+  SORT_ORDER_DESC = 2;
+}
+
+message PaginationResponse {
+  int32 page = 1;
+  int32 per_page = 2;
+  int32 total = 3;
+  int32 total_pages = 4;
+  bool has_next = 5;
+  bool has_prev = 6;
+}
+
+message Error {
+  string code = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+message Status {
+  bool success = 1;
+  string message = 2;
+  Error error = 3;
+}
+
+message Metadata {
+  string request_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  string version = 3;
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  HealthStatus status = 1;
+  string message = 2;
+  map<string, string> details = 3;
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_SERVING = 1;
+  HEALTH_STATUS_NOT_SERVING = 2;
+  HEALTH_STATUS_UNKNOWN = 3;
+}

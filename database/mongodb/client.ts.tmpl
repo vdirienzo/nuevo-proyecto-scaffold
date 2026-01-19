@@ -1,0 +1,98 @@
+/**
+ * client.ts - MongoDB client setup with Mongoose
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import mongoose from 'mongoose';
+import { logger } from '../utils/logger';
+
+interface MongoClientOptions {
+  uri: string;
+  retryWrites?: boolean;
+  w?: string | number;
+  maxPoolSize?: number;
+  minPoolSize?: number;
+  serverSelectionTimeoutMS?: number;
+}
+
+class MongoClient {
+  private static instance: MongoClient;
+  private isConnected: boolean = false;
+
+  private constructor() {}
+
+  public static getInstance(): MongoClient {
+    if (!MongoClient.instance) {
+      MongoClient.instance = new MongoClient();
+    }
+    return MongoClient.instance;
+  }
+
+  async connect(options: MongoClientOptions): Promise<void> {
+    if (this.isConnected) {
+      logger.info('MongoDB already connected');
+      return;
+    }
+
+    try {
+      await mongoose.connect(options.uri, {
+        retryWrites: options.retryWrites ?? true,
+        w: options.w ?? 'majority',
+        maxPoolSize: options.maxPoolSize ?? 10,
+        minPoolSize: options.minPoolSize ?? 2,
+        serverSelectionTimeoutMS: options.serverSelectionTimeoutMS ?? 5000,
+      });
+
+      this.isConnected = true;
+      logger.info('MongoDB connected successfully');
+
+      mongoose.connection.on('disconnected', () => {
+        logger.warn('MongoDB disconnected');
+        this.isConnected = false;
+      });
+
+      mongoose.connection.on('error', (error) => {
+        logger.error('MongoDB connection error:', error);
+      });
+
+      mongoose.connection.on('reconnected', () => {
+        logger.info('MongoDB reconnected');
+        this.isConnected = true;
+      });
+    } catch (error) {
+      logger.error('Failed to connect to MongoDB:', error);
+      throw error;
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    if (!this.isConnected) {
+      return;
+    }
+
+    try {
+      await mongoose.disconnect();
+      this.isConnected = false;
+      logger.info('MongoDB disconnected successfully');
+    } catch (error) {
+      logger.error('Failed to disconnect from MongoDB:', error);
+      throw error;
+    }
+  }
+
+  public getConnection(): typeof mongoose {
+    if (!this.isConnected) {
+      throw new Error('MongoDB not connected. Call connect() first.');
+    }
+    return mongoose;
+  }
+
+  public get connected(): boolean {
+    return this.isConnected;
+  }
+}
+
+export const mongoClient = MongoClient.getInstance();
+export default mongoClient;

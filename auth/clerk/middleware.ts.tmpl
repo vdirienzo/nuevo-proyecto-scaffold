@@ -1,0 +1,38 @@
+/**
+ * Clerk Middleware
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { authMiddleware } from '@clerk/nextjs';
+import { clerkConfig } from './config';
+
+export default authMiddleware({
+  publicRoutes: [
+    '/',
+    '/api/public(.*)',
+    '/sign-in',
+    '/sign-up',
+    clerkConfig.signInUrl,
+    clerkConfig.signUpUrl,
+  ],
+  ignoredRoutes: [
+    '/api/webhooks(.*)',
+    '/_next/static(.*)',
+    '/_next/image(.*)',
+    '/favicon.ico',
+  ],
+  afterAuth(auth, req) {
+    // Custom logic after authentication
+    if (!auth.userId && !auth.isPublicRoute) {
+      const signInUrl = new URL(clerkConfig.signInUrl, req.url);
+      signInUrl.searchParams.set('redirect_url', req.url);
+      return Response.redirect(signInUrl);
+    }
+  },
+});
+
+export const config = {
+  matcher: ['/((?!.+\\.[\\w]+$|_next).*)', '/', '/(api|trpc)(.*)'],
+};

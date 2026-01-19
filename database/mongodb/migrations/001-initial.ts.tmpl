@@ -1,0 +1,181 @@
+/**
+ * 001-initial.ts - Initial database migration
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { mongoClient } from '../client';
+import { createUserIndexes } from '../indexes/user.indexes';
+import { User } from '../schemas/user.schema';
+import { logger } from '../utils/logger';
+
+export interface Migration {
+  version: number;
+  name: string;
+  up: () => Promise<void>;
+  down: () => Promise<void>;
+}
+
+export const migration_001: Migration = {
+  version: 1,
+  name: 'initial_setup',
+
+  async up(): Promise<void> {
+    logger.info('Running migration 001: Initial setup');
+
+    try {
+      // Create collections
+      const db = mongoClient.getConnection().connection.db;
+
+      // Create User collection if it doesn't exist
+      const collections = await db.listCollections({ name: 'users' }).toArray();
+      if (collections.length === 0) {
+        await db.createCollection('users');
+        logger.info('Created users collection');
+      }
+
+      // Create indexes
+      await createUserIndexes();
+
+      // Create admin user if it doesn't exist
+      const adminExists = await User.findOne({ role: 'admin' });
+      if (!adminExists) {
+        await User.create({
+          email: 'admin@{{PROJECT_NAME}}.com',
+          username: 'admin',
+          password: 'ChangeMe123!', // Should be changed immediately
+          firstName: 'System',
+          lastName: 'Administrator',
+          role: 'admin',
+          isActive: true,
+          isEmailVerified: true,
+        });
+        logger.info('Created default admin user');
+      }
+
+      // Create migrations collection to track applied migrations
+      const migrationsCollections = await db.listCollections({ name: 'migrations' }).toArray();
+      if (migrationsCollections.length === 0) {
+        await db.createCollection('migrations');
+        logger.info('Created migrations collection');
+      }
+
+      // Record this migration
+      await db.collection('migrations').insertOne({
+        version: this.version,
+        name: this.name,
+        appliedAt: new Date(),
+      });
+
+      logger.info('Migration 001 completed successfully');
+    } catch (error) {
+      logger.error('Migration 001 failed:', error);
+      throw error;
+    }
+  },
+
+  async down(): Promise<void> {
+    logger.info('Rolling back migration 001: Initial setup');
+
+    try {
+      const db = mongoClient.getConnection().connection.db;
+
+      // Drop collections
+      await db.collection('users').drop();
+      logger.info('Dropped users collection');
+
+      // Remove migration record
+      await db.collection('migrations').deleteOne({
+        version: this.version,
+        name: this.name,
+      });
+
+      logger.info('Migration 001 rolled back successfully');
+    } catch (error) {
+      logger.error('Migration 001 rollback failed:', error);
+      throw error;
+    }
+  },
+};
+
+/**
+ * Migration runner utility
+ */
+export class MigrationRunner {
+  private migrations: Migration[] = [];
+
+  addMigration(migration: Migration): void {
+    this.migrations.push(migration);
+    this.migrations.sort((a, b) => a.version - b.version);
+  }
+
+  async getAppliedMigrations(): Promise<number[]> {
+    const db = mongoClient.getConnection().connection.db;
+    const records = await db.collection('migrations').find().toArray();
+    return records.map((r: any) => r.version);
+  }
+
+  async migrate(): Promise<void> {
+    logger.info('Starting migrations...');
+    const applied = await this.getAppliedMigrations();
+
+    for (const migration of this.migrations) {
+      if (!applied.includes(migration.version)) {
+        logger.info(`Applying migration ${migration.version}: ${migration.name}`);
+        await migration.up();
+      } else {
+        logger.info(`Migration ${migration.version} already applied`);
+      }
+    }
+
+    logger.info('All migrations completed');
+  }
+
+  async rollback(steps: number = 1): Promise<void> {
+    logger.info(`Rolling back ${steps} migration(s)...`);
+    const applied = await this.getAppliedMigrations();
+    const toRollback = applied.sort((a, b) => b - a).slice(0, steps);
+
+    for (const version of toRollback) {
+      const migration = this.migrations.find((m) => m.version === version);
+      if (migration) {
+        logger.info(`Rolling back migration ${migration.version}: ${migration.name}`);
+        await migration.down();
+      }
+    }
+
+    logger.info('Rollback completed');
+  }
+
+  async reset(): Promise<void> {
+    logger.info('Resetting database...');
+    const applied = await this.getAppliedMigrations();
+
+    for (const version of applied.sort((a, b) => b - a)) {
+      const migration = this.migrations.find((m) => m.version === version);
+      if (migration) {
+        await migration.down();
+      }
+    }
+
+    logger.info('Database reset completed');
+  }
+}
+
+// Create and export runner
+export const migrationRunner = new MigrationRunner();
+migrationRunner.addMigration(migration_001);
+
+/**
+ * Usage:
+ *
+ * // Run all pending migrations
+ * await migrationRunner.migrate();
+ *
+ * // Rollback last migration
+ * await migrationRunner.rollback(1);
+ *
+ * // Reset database
+ * await migrationRunner.reset();
+ */

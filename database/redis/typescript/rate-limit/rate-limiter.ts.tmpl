@@ -1,0 +1,238 @@
+/**
+ * Redis Rate Limiter
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Redis } from 'ioredis';
+import { Request, Response, NextFunction } from 'express';
+import { redisClient } from '../client';
+import { REDIS_KEYS } from '../config';
+import { logger } from '@/lib/logger';
+
+export interface RateLimitOptions {
+  windowMs: number; // Time window in milliseconds
+  maxRequests: number; // Max requests per window
+  keyPrefix?: string;
+  keyGenerator?: (req: Request) => string;
+  handler?: (req: Request, res: Response) => void;
+  skipSuccessfulRequests?: boolean;
+  skipFailedRequests?: boolean;
+}
+
+export class RateLimiter {
+  private client: Redis;
+  private options: Required<RateLimitOptions>;
+
+  constructor(options: RateLimitOptions) {
+    this.client = redisClient;
+
+    this.options = {
+      windowMs: options.windowMs,
+      maxRequests: options.maxRequests,
+      keyPrefix: options.keyPrefix || REDIS_KEYS.RATE_LIMIT,
+      keyGenerator: options.keyGenerator || this.defaultKeyGenerator,
+      handler: options.handler || this.defaultHandler,
+      skipSuccessfulRequests: options.skipSuccessfulRequests || false,
+      skipFailedRequests: options.skipFailedRequests || false,
+    };
+  }
+
+  /**
+   * Default key generator (uses IP address)
+   */
+  private defaultKeyGenerator(req: Request): string {
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  }
+
+  /**
+   * Default rate limit handler
+   */
+  private defaultHandler(req: Request, res: Response): void {
+    res.status(429).json({
+      success: false,
+      error: 'Too many requests, please try again later',
+    });
+  }
+
+  /**
+   * Build rate limit key
+   */
+  private buildKey(identifier: string): string {
+    return `${this.options.keyPrefix}${identifier}`;
+  }
+
+  /**
+   * Check rate limit
+   */
+  async checkLimit(identifier: string): Promise<{
+    allowed: boolean;
+    current: number;
+    remaining: number;
+    resetAt: Date;
+  }> {
+    const key = this.buildKey(identifier);
+    const windowSeconds = Math.ceil(this.options.windowMs / 1000);
+
+    try {
+      // Increment counter
+      const current = await this.client.incr(key);
+
+      // Set expiry on first request
+      if (current === 1) {
+        await this.client.expire(key, windowSeconds);
+      }
+
+      // Get TTL
+      const ttl = await this.client.ttl(key);
+      const resetAt = new Date(Date.now() + ttl * 1000);
+
+      const allowed = current <= this.options.maxRequests;
+      const remaining = Math.max(0, this.options.maxRequests - current);
+
+      return {
+        allowed,
+        current,
+        remaining,
+        resetAt,
+      };
+    } catch (error) {
+      logger.error(`Rate limit check error for ${identifier}:`, error);
+
+      // Fail open (allow request on Redis error)
+      return {
+        allowed: true,
+        current: 0,
+        remaining: this.options.maxRequests,
+        resetAt: new Date(Date.now() + this.options.windowMs),
+      };
+    }
+  }
+
+  /**
+   * Reset rate limit for identifier
+   */
+  async reset(identifier: string): Promise<boolean> {
+    try {
+      const key = this.buildKey(identifier);
+      const result = await this.client.del(key);
+      return result > 0;
+    } catch (error) {
+      logger.error(`Rate limit reset error for ${identifier}:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Express middleware
+   */
+  middleware() {
+    return async (req: Request, res: Response, next: NextFunction) => {
+      const identifier = this.options.keyGenerator(req);
+      const limit = await this.checkLimit(identifier);
+
+      // Set rate limit headers
+      res.setHeader('X-RateLimit-Limit', this.options.maxRequests);
+      res.setHeader('X-RateLimit-Remaining', limit.remaining);
+      res.setHeader('X-RateLimit-Reset', limit.resetAt.toISOString());
+
+      if (!limit.allowed) {
+        logger.warn(`Rate limit exceeded for ${identifier}`);
+        return this.options.handler(req, res);
+      }
+
+      // Handle response-based skipping
+      if (this.options.skipSuccessfulRequests || this.options.skipFailedRequests) {
+        const originalSend = res.send;
+
+        res.send = function (body: any) {
+          const statusCode = res.statusCode;
+          const isSuccess = statusCode >= 200 && statusCode < 300;
+          const shouldSkip =
+            (isSuccess && options.skipSuccessfulRequests) ||
+            (!isSuccess && options.skipFailedRequests);
+
+          if (shouldSkip) {
+            // Decrement counter
+            const key = `${options.keyPrefix}${identifier}`;
+            redisClient.decr(key).catch((err) => {
+              logger.error('Rate limit decrement error:', err);
+            });
+          }
+
+          return originalSend.call(this, body);
+        };
+      }
+
+      next();
+    };
+  }
+}
+
+/**
+ * Create rate limiter middleware
+ */
+export function createRateLimiter(options: RateLimitOptions) {
+  const limiter = new RateLimiter(options);
+  return limiter.middleware();
+}
+
+/**
+ * Preset rate limiters
+ */
+export const rateLimiters = {
+  /**
+   * Strict rate limiter (10 req/min)
+   */
+  strict: () =>
+    createRateLimiter({
+      windowMs: 60 * 1000, // 1 minute
+      maxRequests: 10,
+    }),
+
+  /**
+   * Standard rate limiter (100 req/min)
+   */
+  standard: () =>
+    createRateLimiter({
+      windowMs: 60 * 1000, // 1 minute
+      maxRequests: 100,
+    }),
+
+  /**
+   * Relaxed rate limiter (1000 req/min)
+   */
+  relaxed: () =>
+    createRateLimiter({
+      windowMs: 60 * 1000, // 1 minute
+      maxRequests: 1000,
+    }),
+
+  /**
+   * Auth rate limiter (5 attempts per 15 min)
+   */
+  auth: () =>
+    createRateLimiter({
+      windowMs: 15 * 60 * 1000, // 15 minutes
+      maxRequests: 5,
+      keyPrefix: `${REDIS_KEYS.RATE_LIMIT}auth:`,
+    }),
+};
+
+/**
+ * Example usage:
+ *
+ * // Apply to all routes
+ * app.use(rateLimiters.standard());
+ *
+ * // Apply to specific route
+ * app.post('/api/login', rateLimiters.auth(), loginHandler);
+ *
+ * // Custom rate limiter
+ * app.use('/api', createRateLimiter({
+ *   windowMs: 60 * 1000,
+ *   maxRequests: 50,
+ *   keyGenerator: (req) => req.user?.id || req.ip,
+ * }));
+ */

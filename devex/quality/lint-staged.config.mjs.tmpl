@@ -1,0 +1,39 @@
+/**
+ * Lint-Staged Configuration
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+export default {
+  // TypeScript/JavaScript files
+  "*.{ts,tsx,js,jsx,mjs,cjs}": [
+    "eslint --fix",
+    "prettier --write",
+  ],
+
+  // JSON/YAML files
+  "*.{json,yml,yaml}": [
+    "prettier --write",
+  ],
+
+  // Markdown files
+  "*.{md,mdx}": [
+    "prettier --write",
+  ],
+
+  // Python files
+  "*.py": [
+    "ruff check --fix",
+    "ruff format",
+  ],
+
+  // CSS/SCSS files
+  "*.{css,scss}": [
+    "prettier --write",
+  ],
+
+  // Package.json - sort keys
+  "package.json": [
+    "prettier --write",
+  ],
+};

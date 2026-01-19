@@ -1,0 +1,164 @@
+/**
+ * BullMQ Queue Setup
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Queue, QueueOptions, Worker, Job } from 'bullmq';
+import IORedis from 'ioredis';
+
+const connection = new IORedis({
+  host: process.env.REDIS_HOST || 'localhost',
+  port: parseInt(process.env.REDIS_PORT || '6379'),
+  password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: null,
+});
+
+const defaultQueueOptions: QueueOptions = {
+  connection,
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 1000,
+    },
+    removeOnComplete: {
+      count: 100,
+      age: 24 * 3600, // 24 hours
+    },
+    removeOnFail: {
+      count: 1000,
+    },
+  },
+};
+
+/**
+ * Queue definitions
+ */
+export const queues = {
+  email: new Queue('email', defaultQueueOptions),
+  export: new Queue('export', defaultQueueOptions),
+  notifications: new Queue('notifications', defaultQueueOptions),
+  cleanup: new Queue('cleanup', defaultQueueOptions),
+};
+
+/**
+ * Add job to queue
+ */
+export async function addJob<T>(
+  queueName: keyof typeof queues,
+  name: string,
+  data: T,
+  options?: {
+    delay?: number;
+    priority?: number;
+    jobId?: string;
+  }
+) {
+  const queue = queues[queueName];
+
+  return queue.add(name, data, {
+    delay: options?.delay,
+    priority: options?.priority,
+    jobId: options?.jobId,
+  });
+}
+
+/**
+ * Add recurring job (cron)
+ */
+export async function addRecurringJob<T>(
+  queueName: keyof typeof queues,
+  name: string,
+  data: T,
+  cronExpression: string
+) {
+  const queue = queues[queueName];
+
+  return queue.add(name, data, {
+    repeat: {
+      pattern: cronExpression,
+    },
+  });
+}
+
+/**
+ * Get job by ID
+ */
+export async function getJob(
+  queueName: keyof typeof queues,
+  jobId: string
+) {
+  const queue = queues[queueName];
+  return queue.getJob(jobId);
+}
+
+/**
+ * Remove job
+ */
+export async function removeJob(
+  queueName: keyof typeof queues,
+  jobId: string
+) {
+  const job = await getJob(queueName, jobId);
+  if (job) {
+    await job.remove();
+  }
+}
+
+/**
+ * Get queue stats
+ */
+export async function getQueueStats(queueName: keyof typeof queues) {
+  const queue = queues[queueName];
+
+  const [waiting, active, completed, failed, delayed] = await Promise.all([
+    queue.getWaitingCount(),
+    queue.getActiveCount(),
+    queue.getCompletedCount(),
+    queue.getFailedCount(),
+    queue.getDelayedCount(),
+  ]);
+
+  return {
+    waiting,
+    active,
+    completed,
+    failed,
+    delayed,
+  };
+}
+
+/**
+ * Pause queue
+ */
+export async function pauseQueue(queueName: keyof typeof queues) {
+  const queue = queues[queueName];
+  await queue.pause();
+}
+
+/**
+ * Resume queue
+ */
+export async function resumeQueue(queueName: keyof typeof queues) {
+  const queue = queues[queueName];
+  await queue.resume();
+}
+
+/**
+ * Clean old jobs
+ */
+export async function cleanQueue(
+  queueName: keyof typeof queues,
+  grace: number = 24 * 3600 * 1000 // 24 hours
+) {
+  const queue = queues[queueName];
+
+  await Promise.all([
+    queue.clean(grace, 100, 'completed'),
+    queue.clean(grace, 100, 'failed'),
+  ]);
+}
+
+export { connection };

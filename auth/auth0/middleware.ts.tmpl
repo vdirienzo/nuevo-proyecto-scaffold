@@ -1,0 +1,50 @@
+/**
+ * Auth0 Next.js Middleware
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+import { auth0Config } from './config';
+
+const PROTECTED_ROUTES = ['/dashboard', '/profile', '/api/protected'];
+const PUBLIC_ROUTES = ['/login', '/signup', '/'];
+
+export async function auth0Middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Allow public routes
+  if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
+
+  // Check if route is protected
+  const isProtectedRoute = PROTECTED_ROUTES.some(route => pathname.startsWith(route));
+
+  if (!isProtectedRoute) {
+    return NextResponse.next();
+  }
+
+  // Verify token from cookie or header
+  const token = request.cookies.get('auth0.token')?.value ||
+    request.headers.get('authorization')?.replace('Bearer ', '');
+
+  if (!token) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  try {
+    const secret = new TextEncoder().encode(auth0Config.clientSecret);
+    await jwtVerify(token, secret, {
+      audience: auth0Config.audience,
+      issuer: `https://${auth0Config.domain}/`,
+    });
+
+    return NextResponse.next();
+  } catch (error) {
+    console.error('Token verification failed:', error);
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+}

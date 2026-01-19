@@ -1,0 +1,103 @@
+/**
+ * ABAC Policy Definitions
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+export interface Policy {
+  id: string;
+  name: string;
+  description: string;
+  effect: 'allow' | 'deny';
+  conditions: Condition[];
+}
+
+export interface Condition {
+  attribute: string;
+  operator: Operator;
+  value: any;
+}
+
+export enum Operator {
+  EQUALS = 'equals',
+  NOT_EQUALS = 'notEquals',
+  IN = 'in',
+  NOT_IN = 'notIn',
+  GREATER_THAN = 'greaterThan',
+  LESS_THAN = 'lessThan',
+  CONTAINS = 'contains',
+  STARTS_WITH = 'startsWith',
+  ENDS_WITH = 'endsWith',
+  MATCHES = 'matches',
+}
+
+export const policies: Policy[] = [
+  {
+    id: 'allow-owner-update',
+    name: 'Allow Owner Update',
+    description: 'Resource owner can update their own resources',
+    effect: 'allow',
+    conditions: [
+      { attribute: 'user.id', operator: Operator.EQUALS, value: 'resource.ownerId' },
+      { attribute: 'action', operator: Operator.IN, value: ['update', 'delete'] },
+    ],
+  },
+  {
+    id: 'allow-admin-all',
+    name: 'Allow Admin All Actions',
+    description: 'Administrators can perform any action',
+    effect: 'allow',
+    conditions: [
+      { attribute: 'user.role', operator: Operator.IN, value: ['admin', 'super_admin'] },
+    ],
+  },
+  {
+    id: 'deny-guest-write',
+    name: 'Deny Guest Write Operations',
+    description: 'Guests cannot perform write operations',
+    effect: 'deny',
+    conditions: [
+      { attribute: 'user.role', operator: Operator.EQUALS, value: 'guest' },
+      { attribute: 'action', operator: Operator.IN, value: ['create', 'update', 'delete'] },
+    ],
+  },
+  {
+    id: 'allow-manager-department',
+    name: 'Allow Manager Department Access',
+    description: 'Managers can access resources in their department',
+    effect: 'allow',
+    conditions: [
+      { attribute: 'user.role', operator: Operator.EQUALS, value: 'manager' },
+      { attribute: 'user.department', operator: Operator.EQUALS, value: 'resource.department' },
+    ],
+  },
+  {
+    id: 'allow-time-based',
+    name: 'Allow Time-Based Access',
+    description: 'Access allowed only during business hours',
+    effect: 'allow',
+    conditions: [
+      { attribute: 'time.hour', operator: Operator.GREATER_THAN, value: 8 },
+      { attribute: 'time.hour', operator: Operator.LESS_THAN, value: 18 },
+      { attribute: 'time.weekday', operator: Operator.IN, value: [1, 2, 3, 4, 5] },
+    ],
+  },
+  {
+    id: 'deny-ip-blacklist',
+    name: 'Deny Blacklisted IPs',
+    description: 'Deny access from blacklisted IP addresses',
+    effect: 'deny',
+    conditions: [
+      { attribute: 'request.ip', operator: Operator.IN, value: ['192.168.1.100', '10.0.0.50'] },
+    ],
+  },
+];
+
+export function getPolicyById(id: string): Policy | undefined {
+  return policies.find((policy) => policy.id === id);
+}
+
+export function getPoliciesByEffect(effect: 'allow' | 'deny'): Policy[] {
+  return policies.filter((policy) => policy.effect === effect);
+}

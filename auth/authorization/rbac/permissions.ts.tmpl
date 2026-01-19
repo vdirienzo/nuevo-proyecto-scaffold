@@ -1,0 +1,111 @@
+/**
+ * RBAC Permission Definitions
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Role } from './roles';
+
+export enum Resource {
+  USER = 'USER',
+  POST = 'POST',
+  COMMENT = 'COMMENT',
+  SETTINGS = 'SETTINGS',
+  ANALYTICS = 'ANALYTICS',
+  BILLING = 'BILLING',
+}
+
+export enum Action {
+  CREATE = 'CREATE',
+  READ = 'READ',
+  UPDATE = 'UPDATE',
+  DELETE = 'DELETE',
+  LIST = 'LIST',
+  MANAGE = 'MANAGE',
+}
+
+export type Permission = `${Resource}:${Action}`;
+
+export interface PermissionRule {
+  resource: Resource;
+  action: Action;
+  roles: Role[];
+  condition?: (context: PermissionContext) => boolean;
+}
+
+export interface PermissionContext {
+  userId: string;
+  userRoles: Role[];
+  resourceOwnerId?: string;
+  [key: string]: any;
+}
+
+export const permissions: PermissionRule[] = [
+  // User permissions
+  { resource: Resource.USER, action: Action.CREATE, roles: [Role.ADMIN, Role.SUPER_ADMIN] },
+  { resource: Resource.USER, action: Action.READ, roles: [Role.USER, Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN] },
+  { resource: Resource.USER, action: Action.UPDATE, roles: [Role.ADMIN, Role.SUPER_ADMIN] },
+  { resource: Resource.USER, action: Action.DELETE, roles: [Role.SUPER_ADMIN] },
+  { resource: Resource.USER, action: Action.LIST, roles: [Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN] },
+
+  // Post permissions
+  { resource: Resource.POST, action: Action.CREATE, roles: [Role.USER, Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN] },
+  { resource: Resource.POST, action: Action.READ, roles: [Role.GUEST, Role.USER, Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN] },
+  {
+    resource: Resource.POST,
+    action: Action.UPDATE,
+    roles: [Role.USER, Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN],
+    condition: (ctx) => ctx.userId === ctx.resourceOwnerId || ctx.userRoles.includes(Role.ADMIN),
+  },
+  {
+    resource: Resource.POST,
+    action: Action.DELETE,
+    roles: [Role.USER, Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN],
+    condition: (ctx) => ctx.userId === ctx.resourceOwnerId || ctx.userRoles.includes(Role.ADMIN),
+  },
+
+  // Settings permissions
+  { resource: Resource.SETTINGS, action: Action.READ, roles: [Role.USER, Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN] },
+  { resource: Resource.SETTINGS, action: Action.UPDATE, roles: [Role.ADMIN, Role.SUPER_ADMIN] },
+
+  // Analytics permissions
+  { resource: Resource.ANALYTICS, action: Action.READ, roles: [Role.MANAGER, Role.ADMIN, Role.SUPER_ADMIN] },
+
+  // Billing permissions
+  { resource: Resource.BILLING, action: Action.READ, roles: [Role.ADMIN, Role.SUPER_ADMIN] },
+  { resource: Resource.BILLING, action: Action.MANAGE, roles: [Role.SUPER_ADMIN] },
+];
+
+export function buildPermission(resource: Resource, action: Action): Permission {
+  return `${resource}:${action}`;
+}
+
+export function hasPermission(
+  permission: Permission,
+  context: PermissionContext
+): boolean {
+  const [resource, action] = permission.split(':') as [Resource, Action];
+
+  const rule = permissions.find(
+    (p) => p.resource === resource && p.action === action
+  );
+
+  if (!rule) {
+    return false;
+  }
+
+  // Check if user has required role
+  const hasRole = context.userRoles.some((role) => rule.roles.includes(role));
+
+  if (!hasRole) {
+    return false;
+  }
+
+  // Check condition if exists
+  if (rule.condition) {
+    return rule.condition(context);
+  }
+
+  return true;
+}

@@ -1,0 +1,56 @@
+// logging.go - Request logging middleware
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package middleware
+
+import (
+	"log/slog"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Logging logs HTTP requests with structured logging
+func Logging() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		start := time.Now()
+		path := c.Request.URL.Path
+		query := c.Request.URL.RawQuery
+
+		// Process request
+		c.Next()
+
+		// Calculate latency
+		latency := time.Since(start)
+
+		// Get status code
+		status := c.Writer.Status()
+
+		// Build log fields
+		fields := []any{
+			"method", c.Request.Method,
+			"path", path,
+			"status", status,
+			"latency", latency.String(),
+			"ip", c.ClientIP(),
+		}
+
+		if query != "" {
+			fields = append(fields, "query", query)
+		}
+
+		if len(c.Errors) > 0 {
+			fields = append(fields, "errors", c.Errors.String())
+		}
+
+		// Log with appropriate level
+		if status >= 500 {
+			slog.Error("Server error", fields...)
+		} else if status >= 400 {
+			slog.Warn("Client error", fields...)
+		} else {
+			slog.Info("Request completed", fields...)
+		}
+	}
+}

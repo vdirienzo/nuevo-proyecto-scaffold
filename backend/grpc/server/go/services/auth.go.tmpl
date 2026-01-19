@@ -1,0 +1,144 @@
+/**
+ * auth.go.tmpl - Auth service implementation
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+package services
+
+import (
+	"context"
+	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	authv1 "github.com/{{PROJECT_NAME}}/gen/auth/v1"
+)
+
+type AuthService struct {
+	authv1.UnimplementedAuthServiceServer
+	db        string
+	jwtSecret string
+}
+
+func NewAuthService(databaseURL, jwtSecret string) *AuthService {
+	return &AuthService{
+		db:        databaseURL,
+		jwtSecret: jwtSecret,
+	}
+}
+
+func (s *AuthService) Login(ctx context.Context, req *authv1.LoginRequest) (*authv1.LoginResponse, error) {
+	if req.Email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+	if req.Password == "" {
+		return nil, status.Error(codes.InvalidArgument, "password is required")
+	}
+
+	// TODO: Validate credentials against database
+	// TODO: Generate actual JWT tokens
+
+	return &authv1.LoginResponse{
+		AccessToken:  "access_token_here",
+		RefreshToken: "refresh_token_here",
+		ExpiresIn:    3600, // 1 hour
+		TokenType:    authv1.TokenType_TOKEN_TYPE_BEARER,
+		User: &authv1.UserInfo{
+			Id:       "user_id",
+			Email:    req.Email,
+			Username: "username",
+			Roles:    []string{"user"},
+		},
+	}, nil
+}
+
+func (s *AuthService) Logout(ctx context.Context, req *authv1.LogoutRequest) (*authv1.LogoutResponse, error) {
+	if req.RefreshToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "refresh token is required")
+	}
+
+	// TODO: Invalidate refresh token in database
+	return &authv1.LogoutResponse{
+		Success: true,
+	}, nil
+}
+
+func (s *AuthService) RefreshToken(ctx context.Context, req *authv1.RefreshTokenRequest) (*authv1.RefreshTokenResponse, error) {
+	if req.RefreshToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "refresh token is required")
+	}
+
+	// TODO: Validate refresh token and generate new tokens
+	return &authv1.RefreshTokenResponse{
+		AccessToken:  "new_access_token",
+		RefreshToken: "new_refresh_token",
+		ExpiresIn:    3600,
+	}, nil
+}
+
+func (s *AuthService) ValidateToken(ctx context.Context, req *authv1.ValidateTokenRequest) (*authv1.ValidateTokenResponse, error) {
+	if req.AccessToken == "" {
+		return nil, status.Error(codes.InvalidArgument, "access token is required")
+	}
+
+	// TODO: Validate JWT token
+	expiresAt := time.Now().Add(1 * time.Hour)
+
+	return &authv1.ValidateTokenResponse{
+		Valid: true,
+		User: &authv1.UserInfo{
+			Id:       "user_id",
+			Email:    "user@example.com",
+			Username: "username",
+			Roles:    []string{"user"},
+		},
+		ExpiresAt: timestamppb.New(expiresAt),
+	}, nil
+}
+
+func (s *AuthService) ChangePassword(ctx context.Context, req *authv1.ChangePasswordRequest) (*authv1.ChangePasswordResponse, error) {
+	if req.UserId == "" {
+		return nil, status.Error(codes.InvalidArgument, "user id is required")
+	}
+	if req.CurrentPassword == "" {
+		return nil, status.Error(codes.InvalidArgument, "current password is required")
+	}
+	if req.NewPassword == "" {
+		return nil, status.Error(codes.InvalidArgument, "new password is required")
+	}
+
+	// TODO: Validate current password and update to new password
+	return &authv1.ChangePasswordResponse{
+		Success: true,
+	}, nil
+}
+
+func (s *AuthService) ResetPassword(ctx context.Context, req *authv1.ResetPasswordRequest) (*authv1.ResetPasswordResponse, error) {
+	if req.Email == "" {
+		return nil, status.Error(codes.InvalidArgument, "email is required")
+	}
+
+	// TODO: Generate reset token and send email
+	return &authv1.ResetPasswordResponse{
+		Success: true,
+		Message: "Password reset email sent",
+	}, nil
+}
+
+func (s *AuthService) ConfirmResetPassword(ctx context.Context, req *authv1.ConfirmResetPasswordRequest) (*authv1.ConfirmResetPasswordResponse, error) {
+	if req.Token == "" {
+		return nil, status.Error(codes.InvalidArgument, "token is required")
+	}
+	if req.NewPassword == "" {
+		return nil, status.Error(codes.InvalidArgument, "new password is required")
+	}
+
+	// TODO: Validate token and update password
+	return &authv1.ConfirmResetPasswordResponse{
+		Success: true,
+	}, nil
+}

@@ -1,0 +1,52 @@
+/**
+ * User Factory with Faker
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { faker } from "@faker-js/faker";
+
+export interface UserFactoryInput {
+  email?: string;
+  name?: string;
+  role?: "user" | "admin";
+  avatar?: string;
+}
+
+/**
+ * Generate a random user with Faker
+ */
+export function userFactory(overrides?: UserFactoryInput) {
+  const firstName = faker.person.firstName();
+  const lastName = faker.person.lastName();
+  const email = faker.internet.email({ firstName, lastName });
+
+  return {
+    email: overrides?.email ?? email,
+    name: overrides?.name ?? `${firstName} ${lastName}`,
+    role: overrides?.role ?? faker.helpers.arrayElement(["user", "admin"] as const),
+    avatar:
+      overrides?.avatar ??
+      `https://api.dicebear.com/7.x/avataaars/svg?seed=${email}`,
+    bio: faker.lorem.sentence(),
+    location: `${faker.location.city()}, ${faker.location.country()}`,
+    website: faker.internet.url(),
+    created_at: faker.date.past().toISOString(),
+  };
+}
+
+/**
+ * Generate multiple random users
+ */
+export function userFactoryBatch(count: number, overrides?: UserFactoryInput) {
+  return Array.from({ length: count }, () => userFactory(overrides));
+}
+
+/**
+ * Generate a specific type of user
+ */
+export const userFactoryPresets = {
+  admin: () => userFactory({ role: "admin" }),
+  regularUser: () => userFactory({ role: "user" }),
+  withCustomEmail: (email: string) => userFactory({ email }),
+};

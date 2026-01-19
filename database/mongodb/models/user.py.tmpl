@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""
+user.py - User model with Beanie and Pydantic
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+
+Dependencies: beanie, pydantic, bcrypt
+Install: uv add beanie pydantic bcrypt
+"""
+
+from datetime import datetime
+from typing import Optional, Literal
+from pydantic import EmailStr, Field, field_validator
+import bcrypt
+
+from .base import BaseDocument
+
+
+class User(BaseDocument):
+    """User document model."""
+
+    email: EmailStr = Field(..., unique=True, index=True)
+    username: str = Field(..., min_length=3, max_length=30, unique=True, index=True)
+    password: str = Field(..., min_length=8, exclude=True)
+    first_name: Optional[str] = Field(None, max_length=50)
+    last_name: Optional[str] = Field(None, max_length=50)
+    avatar: Optional[str] = None
+    role: Literal['user', 'admin', 'moderator'] = Field(default='user', index=True)
+    is_active: bool = Field(default=True, index=True)
+    is_email_verified: bool = Field(default=False, index=True)
+    email_verification_token: Optional[str] = None
+    password_reset_token: Optional[str] = None
+    password_reset_expires: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
+    metadata: dict = Field(default_factory=dict)
+
+    class Settings:
+        """Beanie settings."""
+        name = "users"
+        use_state_management = True
+        validate_on_save = True
+        indexes = [
+            "email",
+            "username",
+            "role",
+            "is_active",
+            [("email", 1), ("username", 1)],
+        ]
+
+    @field_validator('username')
+    @classmethod
+    def validate_username(cls, v: str) -> str:
+        """Validate username format."""
+        if not v.replace('_', '').replace('-', '').isalnum():
+            raise ValueError('Username can only contain letters, numbers, underscores and hyphens')
+        return v.lower()
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        """Normalize email."""
+        return v.lower()
+
+    @property
+    def full_name(self) -> str:
+        """Get full name."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        return self.first_name or self.last_name or self.username
+
+    def set_password(self, password: str) -> None:
+        """Hash and set password."""
+        salt = bcrypt.gensalt()
+        self.password = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+
+    def check_password(self, password: str) -> bool:
+        """Verify password."""
+        return bcrypt.checkpw(password.encode('utf-8'), self.password.encode('utf-8'))
+
+    async def update_last_login(self) -> None:
+        """Update last login timestamp."""
+        self.last_login_at = datetime.utcnow()
+        await self.save()
+
+    async def verify_email(self) -> None:
+        """Mark email as verified."""
+        self.is_email_verified = True
+        self.email_verification_token = None
+        await self.save()
+
+    def generate_password_reset_token(self) -> str:
+        """Generate password reset token."""
+        import secrets
+        token = secrets.token_urlsafe(32)
+        self.password_reset_token = token
+        self.password_reset_expires = datetime.utcnow()
+        # Add 1 hour expiration
+        from datetime import timedelta
+        self.password_reset_expires += timedelta(hours=1)
+        return token
+
+    async def reset_password(self, new_password: str) -> None:
+        """Reset password and clear token."""
+        self.set_password(new_password)
+        self.password_reset_token = None
+        self.password_reset_expires = None
+        await self.save()
+
+    @classmethod
+    async def find_by_email(cls, email: str) -> Optional['User']:
+        """Find user by email."""
+        return await cls.find_one(cls.email == email.lower())
+
+    @classmethod
+    async def find_by_username(cls, username: str) -> Optional['User']:
+        """Find user by username."""
+        return await cls.find_one(cls.username == username.lower())
+
+    @classmethod
+    async def find_active_users(cls) -> list['User']:
+        """Find all active users."""
+        return await cls.find(cls.is_active == True).to_list()
+
+    @classmethod
+    async def find_by_role(cls, role: Literal['user', 'admin', 'moderator']) -> list['User']:
+        """Find users by role."""
+        return await cls.find(cls.role == role).to_list()
+
+    @classmethod
+    async def search_users(cls, search_term: str, limit: int = 10) -> list['User']:
+        """Search users by username or email."""
+        return await cls.find(
+            {
+                "$or": [
+                    {"username": {"$regex": search_term, "$options": "i"}},
+                    {"email": {"$regex": search_term, "$options": "i"}},
+                    {"first_name": {"$regex": search_term, "$options": "i"}},
+                    {"last_name": {"$regex": search_term, "$options": "i"}},
+                ]
+            }
+        ).limit(limit).to_list()
+
+    class Config:
+        """Pydantic config."""
+        json_schema_extra = {
+            "example": {
+                "email": "user@example.com",
+                "username": "johndoe",
+                "password": "SecurePass123!",
+                "first_name": "John",
+                "last_name": "Doe",
+                "role": "user",
+            }
+        }
+
+
+# Pydantic schemas for API
+class UserCreate(BaseModel):
+    """Schema for creating user."""
+    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=30)
+    password: str = Field(..., min_length=8)
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
+class UserUpdate(BaseModel):
+    """Schema for updating user."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    avatar: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    """Schema for user response."""
+    id: str
+    email: str
+    username: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    avatar: Optional[str] = None
+    role: str
+    is_active: bool
+    is_email_verified: bool
+    created_at: datetime
+    last_login_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

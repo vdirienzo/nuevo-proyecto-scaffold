@@ -1,0 +1,114 @@
+/**
+ * context.ts.tmpl - tRPC context with request info and user
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { inferAsyncReturnType } from '@trpc/server';
+import { CreateNextContextOptions } from '@trpc/server/adapters/next';
+import { CreateFastifyContextOptions } from '@trpc/server/adapters/fastify';
+
+// Database client (adjust based on your ORM)
+// import { prisma } from '../db/client';
+
+/**
+ * User type from JWT token
+ */
+export interface User {
+  id: string;
+  email: string;
+  username: string;
+  roles: string[];
+}
+
+/**
+ * Create context for Next.js
+ */
+export async function createContextNext(opts: CreateNextContextOptions) {
+  const { req, res } = opts;
+
+  // Extract user from JWT token
+  const user = await getUserFromRequest(req);
+
+  return {
+    req,
+    res,
+    user,
+    // db: prisma, // Uncomment if using Prisma
+  };
+}
+
+/**
+ * Create context for Fastify
+ */
+export async function createContextFastify(opts: CreateFastifyContextOptions) {
+  const { req, res } = opts;
+
+  // Extract user from JWT token
+  const user = await getUserFromRequest(req);
+
+  return {
+    req,
+    res,
+    user,
+    // db: prisma, // Uncomment if using Prisma
+  };
+}
+
+/**
+ * Create context for standalone HTTP server
+ */
+export async function createContext(opts: {
+  req: any;
+  res: any;
+}) {
+  const { req, res } = opts;
+
+  // Extract user from JWT token
+  const user = await getUserFromRequest(req);
+
+  return {
+    req,
+    res,
+    user,
+    // db: prisma,
+  };
+}
+
+/**
+ * Extract and validate JWT token from request
+ */
+async function getUserFromRequest(req: any): Promise<User | null> {
+  try {
+    // Get token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      return null;
+    }
+
+    const token = authHeader.substring(7);
+
+    // TODO: Validate JWT token and decode payload
+    // Example with jsonwebtoken:
+    // import jwt from 'jsonwebtoken';
+    // const payload = jwt.verify(token, process.env.JWT_SECRET!) as JWTPayload;
+    //
+    // return {
+    //   id: payload.sub,
+    //   email: payload.email,
+    //   username: payload.username,
+    //   roles: payload.roles || [],
+    // };
+
+    return null;
+  } catch (error) {
+    console.error('Error validating token:', error);
+    return null;
+  }
+}
+
+/**
+ * Context type inference
+ */
+export type Context = inferAsyncReturnType<typeof createContext>;

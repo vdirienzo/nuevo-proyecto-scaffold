@@ -1,0 +1,104 @@
+/**
+ * user.schema.ts.tmpl - Zod schemas for user validation
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { z } from 'zod';
+
+/**
+ * User schema
+ */
+export const userSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  username: z.string().min(3).max(50),
+  fullName: z.string().max(255),
+  avatarUrl: z.string().url().nullable(),
+  isActive: z.boolean(),
+  roles: z.array(z.string()),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+export type User = z.infer<typeof userSchema>;
+
+/**
+ * Create user schema
+ */
+export const createUserSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(50, 'Username must be at most 50 characters')
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+  fullName: z.string().max(255).optional(),
+});
+
+export type CreateUser = z.infer<typeof createUserSchema>;
+
+/**
+ * Update user schema
+ */
+export const updateUserSchema = z.object({
+  id: z.string(),
+  email: z.string().email().optional(),
+  username: z
+    .string()
+    .min(3)
+    .max(50)
+    .regex(/^[a-zA-Z0-9_]+$/)
+    .optional(),
+  fullName: z.string().max(255).optional(),
+  avatarUrl: z.string().url().nullable().optional(),
+  isActive: z.boolean().optional(),
+  roles: z.array(z.string()).optional(),
+});
+
+export type UpdateUser = z.infer<typeof updateUserSchema>;
+
+/**
+ * User filter schema
+ */
+export const userFilterSchema = z.object({
+  email: z.string().optional(),
+  username: z.string().optional(),
+  isActive: z.boolean().optional(),
+  roles: z.array(z.string()).optional(),
+});
+
+export type UserFilter = z.infer<typeof userFilterSchema>;
+
+/**
+ * Pagination schema
+ */
+export const paginationSchema = z.object({
+  page: z.number().int().positive().default(1),
+  perPage: z.number().int().positive().max(100).default(20),
+  sortBy: z.string().optional(),
+  sortOrder: z.enum(['asc', 'desc']).default('asc'),
+});
+
+export type Pagination = z.infer<typeof paginationSchema>;
+
+/**
+ * Pagination response schema
+ */
+export const paginationResponseSchema = z.object({
+  page: z.number(),
+  perPage: z.number(),
+  total: z.number(),
+  totalPages: z.number(),
+  hasNext: z.boolean(),
+  hasPrev: z.boolean(),
+});
+
+export type PaginationResponse = z.infer<typeof paginationResponseSchema>;

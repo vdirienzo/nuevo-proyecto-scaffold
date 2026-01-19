@@ -1,0 +1,71 @@
+/**
+ * TOTP Setup with Speakeasy
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import speakeasy from 'speakeasy';
+import QRCode from 'qrcode';
+
+interface TOTPSetupResult {
+  secret: string;
+  qrCodeUrl: string;
+  qrCodeDataUrl: string;
+  backupCodes: string[];
+}
+
+export async function setupTOTP(
+  userId: string,
+  email: string,
+  appName: string = 'MyApp'
+): Promise<TOTPSetupResult> {
+  // Generate secret
+  const secret = speakeasy.generateSecret({
+    name: `${appName} (${email})`,
+    issuer: appName,
+    length: 32,
+  });
+
+  if (!secret.otpauth_url) {
+    throw new Error('Failed to generate TOTP secret');
+  }
+
+  // Generate QR code
+  const qrCodeDataUrl = await QRCode.toDataURL(secret.otpauth_url);
+
+  // Generate backup codes
+  const backupCodes = generateBackupCodes(8);
+
+  // Store secret and backup codes in database
+  // await db.user.update({
+  //   where: { id: userId },
+  //   data: {
+  //     totpSecret: secret.base32,
+  //     totpEnabled: false, // Will be enabled after verification
+  //     backupCodes: await hashBackupCodes(backupCodes),
+  //   },
+  // });
+
+  return {
+    secret: secret.base32,
+    qrCodeUrl: secret.otpauth_url,
+    qrCodeDataUrl,
+    backupCodes,
+  };
+}
+
+function generateBackupCodes(count: number): string[] {
+  const codes: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+    codes.push(code);
+  }
+  return codes;
+}
+
+async function hashBackupCodes(codes: string[]): Promise<string[]> {
+  // Hash codes before storing (use bcrypt or similar)
+  // This is a placeholder - implement actual hashing
+  return codes;
+}

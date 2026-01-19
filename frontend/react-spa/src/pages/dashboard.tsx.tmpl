@@ -1,0 +1,76 @@
+// dashboard.tsx - Dashboard page
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { Header } from '@/components/layout/header';
+import { Sidebar } from '@/components/layout/sidebar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/hooks/use-auth';
+import { useApi } from '@/hooks/use-api';
+
+const DashboardPage = () => {
+  const { user } = useAuth();
+  const { data: stats, isLoading } = useApi<{ users: number; posts: number }>('/stats');
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <Sidebar />
+
+      <main className="ml-64 p-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-gray-600">Welcome back, {user?.email}!</p>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200 border-t-primary-600"></div>
+          </div>
+        ) : (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Card>
+              <CardHeader>
+                <CardTitle>Total Users</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-4xl font-bold text-primary-600">{stats?.users || 0}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Total Posts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-4xl font-bold text-primary-600">{stats?.posts || 0}</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Active Sessions</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-4xl font-bold text-primary-600">24</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        <div className="mt-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">No recent activity to display.</p>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default DashboardPage;

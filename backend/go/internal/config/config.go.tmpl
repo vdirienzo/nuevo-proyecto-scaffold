@@ -1,0 +1,136 @@
+// config.go - Application configuration with viper
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package config
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
+)
+
+// Config holds all application configuration
+type Config struct {
+	Server    ServerConfig
+	Database  DatabaseConfig
+	JWT       JWTConfig
+	RateLimit RateLimitConfig
+	CORS      CORSConfig
+}
+
+// ServerConfig holds server configuration
+type ServerConfig struct {
+	Port           string
+	Env            string
+	TrustedProxies []string
+}
+
+// DatabaseConfig holds database configuration
+type DatabaseConfig struct {
+	URL string
+}
+
+// JWTConfig holds JWT configuration
+type JWTConfig struct {
+	Secret            string
+	AccessExpiration  time.Duration
+	RefreshExpiration time.Duration
+}
+
+// RateLimitConfig holds rate limiting configuration
+type RateLimitConfig struct {
+	Enabled  bool
+	Requests int64
+	Period   time.Duration
+}
+
+// CORSConfig holds CORS configuration
+type CORSConfig struct {
+	AllowedOrigins   []string
+	AllowedMethods   []string
+	AllowedHeaders   []string
+	AllowCredentials bool
+}
+
+// Load reads configuration from environment variables
+func Load() (*Config, error) {
+	// Load .env file if exists (ignore errors in production)
+	_ = godotenv.Load()
+
+	// Setup viper
+	viper.AutomaticEnv()
+	viper.SetDefault("SERVER_PORT", "8080")
+	viper.SetDefault("SERVER_ENV", "development")
+	viper.SetDefault("JWT_ACCESS_EXPIRATION", "15m")
+	viper.SetDefault("JWT_REFRESH_EXPIRATION", "168h")
+	viper.SetDefault("RATE_LIMIT_ENABLED", true)
+	viper.SetDefault("RATE_LIMIT_REQUESTS", 100)
+	viper.SetDefault("RATE_LIMIT_PERIOD", "1m")
+	viper.SetDefault("LOG_LEVEL", "info")
+
+	// Parse durations
+	accessExp, err := time.ParseDuration(viper.GetString("JWT_ACCESS_EXPIRATION"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWT_ACCESS_EXPIRATION: %w", err)
+	}
+
+	refreshExp, err := time.ParseDuration(viper.GetString("JWT_REFRESH_EXPIRATION"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid JWT_REFRESH_EXPIRATION: %w", err)
+	}
+
+	rateLimitPeriod, err := time.ParseDuration(viper.GetString("RATE_LIMIT_PERIOD"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid RATE_LIMIT_PERIOD: %w", err)
+	}
+
+	config := &Config{
+		Server: ServerConfig{
+			Port:           viper.GetString("SERVER_PORT"),
+			Env:            viper.GetString("SERVER_ENV"),
+			TrustedProxies: viper.GetStringSlice("SERVER_TRUSTED_PROXIES"),
+		},
+		Database: DatabaseConfig{
+			URL: viper.GetString("DATABASE_URL"),
+		},
+		JWT: JWTConfig{
+			Secret:            viper.GetString("JWT_SECRET"),
+			AccessExpiration:  accessExp,
+			RefreshExpiration: refreshExp,
+		},
+		RateLimit: RateLimitConfig{
+			Enabled:  viper.GetBool("RATE_LIMIT_ENABLED"),
+			Requests: viper.GetInt64("RATE_LIMIT_REQUESTS"),
+			Period:   rateLimitPeriod,
+		},
+		CORS: CORSConfig{
+			AllowedOrigins:   viper.GetStringSlice("CORS_ALLOWED_ORIGINS"),
+			AllowedMethods:   viper.GetStringSlice("CORS_ALLOWED_METHODS"),
+			AllowedHeaders:   viper.GetStringSlice("CORS_ALLOWED_HEADERS"),
+			AllowCredentials: viper.GetBool("CORS_ALLOW_CREDENTIALS"),
+		},
+	}
+
+	// Validate required fields
+	if config.Database.URL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is required")
+	}
+	if config.JWT.Secret == "" {
+		return nil, fmt.Errorf("JWT_SECRET is required")
+	}
+
+	return config, nil
+}
+
+// IsProduction returns true if running in production
+func (c *Config) IsProduction() bool {
+	return c.Server.Env == "production"
+}
+
+// IsDevelopment returns true if running in development
+func (c *Config) IsDevelopment() bool {
+	return c.Server.Env == "development"
+}

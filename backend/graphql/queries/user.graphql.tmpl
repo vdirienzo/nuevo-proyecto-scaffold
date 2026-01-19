@@ -1,0 +1,21 @@
+# User Queries
+# Author: {{AUTHOR}}
+# Project: {{PROJECT_NAME}}
+
+query Me {
+  me {
+    ...UserFragment
+  }
+}
+
+query GetUser($id: ID!) {
+  user(id: $id) {
+    ...UserFragment
+  }
+}
+
+query ListUsers($skip: Int, $take: Int) {
+  users(skip: $skip, take: $take) {
+    ...UserFragment
+  }
+}

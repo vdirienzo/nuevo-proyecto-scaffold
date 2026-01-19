@@ -1,0 +1,64 @@
+#!/bin/bash
+# {{PROJECT_NAME}} Post-Create Setup Script
+# Author: {{AUTHOR}}
+
+set -e
+
+echo "🚀 Setting up {{PROJECT_NAME}} development environment..."
+
+# Install Node.js dependencies
+echo "📦 Installing Node.js dependencies..."
+pnpm install
+
+# Install Python dependencies (if backend exists)
+if [ -f "apps/api/pyproject.toml" ]; then
+  echo "🐍 Installing Python dependencies..."
+  cd apps/api
+  uv sync
+  cd ../..
+fi
+
+# Setup pre-commit hooks
+echo "🪝 Setting up pre-commit hooks..."
+pnpm prepare
+
+# Copy environment files if they don't exist
+if [ ! -f ".env.local" ]; then
+  echo "📝 Creating .env.local from .env.example..."
+  cp .env.example .env.local
+fi
+
+if [ -f "apps/api/.env.example" ] && [ ! -f "apps/api/.env" ]; then
+  echo "📝 Creating apps/api/.env from .env.example..."
+  cp apps/api/.env.example apps/api/.env
+fi
+
+# Wait for database to be ready
+echo "⏳ Waiting for database..."
+until pg_isready -h db -p 5432 -U {{PROJECT_NAME}}; do
+  sleep 1
+done
+
+# Run database migrations (if they exist)
+if [ -f "apps/api/alembic.ini" ]; then
+  echo "🗄️  Running database migrations..."
+  cd apps/api
+  uv run alembic upgrade head
+  cd ../..
+fi
+
+# Seed database (optional)
+read -p "📊 Do you want to seed the database? (y/N) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+  echo "🌱 Seeding database..."
+  pnpm seed
+fi
+
+echo "✅ Development environment setup complete!"
+echo ""
+echo "Next steps:"
+echo "  1. Review .env.local and configure your environment"
+echo "  2. Run 'pnpm dev' to start development servers"
+echo "  3. Visit http://localhost:3000 for the web app"
+echo "  4. Visit http://localhost:8000/docs for API documentation"

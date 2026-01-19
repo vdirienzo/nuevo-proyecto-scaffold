@@ -1,0 +1,227 @@
+/**
+ * auth.router.ts.tmpl - Auth routes
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { TRPCError } from '@trpc/server';
+import { z } from 'zod';
+
+import { router, publicProcedure, protectedProcedure } from '../trpc';
+import {
+  loginSchema,
+  refreshTokenSchema,
+  changePasswordSchema,
+  resetPasswordSchema,
+  confirmResetPasswordSchema,
+} from '../../shared/schemas/auth.schema';
+
+/**
+ * Auth router with authentication operations
+ */
+export const authRouter = router({
+  /**
+   * Login with email and password
+   */
+  login: publicProcedure
+    .input(loginSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { email, password, deviceId } = input;
+
+      // TODO: Validate credentials
+      // const user = await ctx.db.user.findUnique({
+      //   where: { email },
+      // });
+      //
+      // if (!user || !(await verifyPassword(password, user.password))) {
+      //   throw new TRPCError({
+      //     code: 'UNAUTHORIZED',
+      //     message: 'Invalid credentials',
+      //   });
+      // }
+
+      // TODO: Generate JWT tokens
+      // const accessToken = generateAccessToken(user);
+      // const refreshToken = generateRefreshToken(user, deviceId);
+
+      return {
+        accessToken: 'mock-access-token',
+        refreshToken: 'mock-refresh-token',
+        expiresIn: 3600, // 1 hour
+        tokenType: 'Bearer' as const,
+        user: {
+          id: 'user-id',
+          email,
+          username: 'username',
+          roles: ['user'],
+        },
+      };
+    }),
+
+  /**
+   * Logout (invalidate refresh token)
+   */
+  logout: protectedProcedure
+    .input(z.object({ refreshToken: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      // TODO: Invalidate refresh token in database
+      // await ctx.db.refreshToken.delete({
+      //   where: { token: input.refreshToken },
+      // });
+
+      return { success: true };
+    }),
+
+  /**
+   * Refresh access token
+   */
+  refreshToken: publicProcedure
+    .input(refreshTokenSchema)
+    .mutation(async ({ input, ctx }) => {
+      // TODO: Validate refresh token and generate new tokens
+      // const tokenRecord = await ctx.db.refreshToken.findUnique({
+      //   where: { token: input.refreshToken },
+      //   include: { user: true },
+      // });
+      //
+      // if (!tokenRecord || tokenRecord.expiresAt < new Date()) {
+      //   throw new TRPCError({
+      //     code: 'UNAUTHORIZED',
+      //     message: 'Invalid or expired refresh token',
+      //   });
+      // }
+
+      return {
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+        expiresIn: 3600,
+      };
+    }),
+
+  /**
+   * Validate access token
+   */
+  validateToken: publicProcedure
+    .input(z.object({ accessToken: z.string() }))
+    .query(async ({ input, ctx }) => {
+      // TODO: Validate JWT token
+      // try {
+      //   const payload = verifyAccessToken(input.accessToken);
+      //   return {
+      //     valid: true,
+      //     user: {
+      //       id: payload.sub,
+      //       email: payload.email,
+      //       username: payload.username,
+      //       roles: payload.roles,
+      //     },
+      //     expiresAt: new Date(payload.exp * 1000),
+      //   };
+      // } catch (error) {
+      //   return { valid: false };
+      // }
+
+      return {
+        valid: true,
+        user: {
+          id: 'user-id',
+          email: 'user@example.com',
+          username: 'username',
+          roles: ['user'],
+        },
+        expiresAt: new Date(Date.now() + 3600000),
+      };
+    }),
+
+  /**
+   * Change password
+   */
+  changePassword: protectedProcedure
+    .input(changePasswordSchema)
+    .mutation(async ({ input, ctx }) => {
+      const { currentPassword, newPassword } = input;
+
+      // TODO: Validate current password and update
+      // const user = await ctx.db.user.findUnique({
+      //   where: { id: ctx.user.id },
+      // });
+      //
+      // if (!user || !(await verifyPassword(currentPassword, user.password))) {
+      //   throw new TRPCError({
+      //     code: 'UNAUTHORIZED',
+      //     message: 'Invalid current password',
+      //   });
+      // }
+      //
+      // const hashedPassword = await hashPassword(newPassword);
+      // await ctx.db.user.update({
+      //   where: { id: ctx.user.id },
+      //   data: { password: hashedPassword },
+      // });
+
+      return { success: true };
+    }),
+
+  /**
+   * Request password reset
+   */
+  resetPassword: publicProcedure
+    .input(resetPasswordSchema)
+    .mutation(async ({ input, ctx }) => {
+      // TODO: Generate reset token and send email
+      // const user = await ctx.db.user.findUnique({
+      //   where: { email: input.email },
+      // });
+      //
+      // if (user) {
+      //   const resetToken = generateResetToken();
+      //   await ctx.db.passwordReset.create({
+      //     data: {
+      //       userId: user.id,
+      //       token: resetToken,
+      //       expiresAt: new Date(Date.now() + 3600000), // 1 hour
+      //     },
+      //   });
+      //   await sendResetEmail(user.email, resetToken);
+      // }
+
+      // Always return success (don't reveal if email exists)
+      return {
+        success: true,
+        message: 'Password reset email sent if account exists',
+      };
+    }),
+
+  /**
+   * Confirm password reset
+   */
+  confirmResetPassword: publicProcedure
+    .input(confirmResetPasswordSchema)
+    .mutation(async ({ input, ctx }) => {
+      // TODO: Validate token and update password
+      // const resetRecord = await ctx.db.passwordReset.findUnique({
+      //   where: { token: input.token },
+      //   include: { user: true },
+      // });
+      //
+      // if (!resetRecord || resetRecord.expiresAt < new Date()) {
+      //   throw new TRPCError({
+      //     code: 'BAD_REQUEST',
+      //     message: 'Invalid or expired reset token',
+      //   });
+      // }
+      //
+      // const hashedPassword = await hashPassword(input.newPassword);
+      // await ctx.db.user.update({
+      //   where: { id: resetRecord.userId },
+      //   data: { password: hashedPassword },
+      // });
+      //
+      // await ctx.db.passwordReset.delete({
+      //   where: { id: resetRecord.id },
+      // });
+
+      return { success: true };
+    }),
+});

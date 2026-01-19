@@ -1,0 +1,113 @@
+// health_test.go - Health check tests
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package tests
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+func TestHealthCheck(t *testing.T) {
+	srv, _ := setupTestServer(t)
+
+	tests := []struct {
+		name           string
+		method         string
+		expectedStatus int
+		checkResponse  func(t *testing.T, body map[string]interface{})
+	}{
+		{
+			name:           "successful health check",
+			method:         http.MethodGet,
+			expectedStatus: http.StatusOK,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				assert.True(t, body["success"].(bool))
+				data := body["data"].(map[string]interface{})
+				assert.Equal(t, "healthy", data["status"])
+				assert.Equal(t, "connected", data["database"])
+			},
+		},
+		{
+			name:           "method not allowed",
+			method:         http.MethodPost,
+			expectedStatus: http.StatusNotFound,
+			checkResponse: func(t *testing.T, body map[string]interface{}) {
+				// POST should return 404 since route doesn't exist
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create request
+			req := httptest.NewRequest(tt.method, "/api/v1/health", nil)
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// Serve request
+			srv.Router().ServeHTTP(w, req)
+
+			// Check status code
+			assert.Equal(t, tt.expectedStatus, w.Code)
+
+			// Parse response if successful
+			if w.Code == http.StatusOK {
+				var response map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				assert.NoError(t, err)
+
+				// Run custom checks
+				tt.checkResponse(t, response)
+			}
+		})
+	}
+}
+
+func TestHealthCheckDatabaseConnection(t *testing.T) {
+	srv, db := setupTestServer(t)
+
+	// Test with healthy database
+	t.Run("database connected", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		w := httptest.NewRecorder()
+
+		srv.Router().ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+
+		assert.True(t, response["success"].(bool))
+		data := response["data"].(map[string]interface{})
+		assert.Equal(t, "connected", data["database"])
+	})
+
+	// Test with closed database (simulate failure)
+	t.Run("database disconnected", func(t *testing.T) {
+		// Close database connection
+		sqlDB, _ := db.DB()
+		sqlDB.Close()
+
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/health", nil)
+		w := httptest.NewRecorder()
+
+		srv.Router().ServeHTTP(w, req)
+
+		// Should return service unavailable
+		assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+
+		var response map[string]interface{}
+		json.Unmarshal(w.Body.Bytes(), &response)
+
+		assert.False(t, response["success"].(bool))
+		assert.Contains(t, response["error"].(string), "Database")
+	})
+}

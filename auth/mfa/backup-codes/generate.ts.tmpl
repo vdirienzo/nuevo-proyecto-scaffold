@@ -1,0 +1,76 @@
+/**
+ * Backup Codes Generation
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
+
+const SALT_ROUNDS = 10;
+const CODE_LENGTH = 8;
+const CODE_COUNT = 8;
+
+interface BackupCode {
+  code: string;
+  hash: string;
+}
+
+export function generateBackupCodes(count: number = CODE_COUNT): BackupCode[] {
+  const codes: BackupCode[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const code = crypto.randomBytes(CODE_LENGTH / 2).toString('hex').toUpperCase();
+    codes.push({ code, hash: '' });
+  }
+
+  return codes;
+}
+
+export async function hashBackupCodes(codes: BackupCode[]): Promise<BackupCode[]> {
+  const hashedCodes = await Promise.all(
+    codes.map(async ({ code }) => ({
+      code,
+      hash: await bcrypt.hash(code, SALT_ROUNDS),
+    }))
+  );
+
+  return hashedCodes;
+}
+
+export async function storeBackupCodes(
+  userId: string,
+  codes: BackupCode[]
+): Promise<boolean> {
+  try {
+    const hashedCodes = await hashBackupCodes(codes);
+
+    // Store only hashes in database
+    // await db.backupCode.createMany({
+    //   data: hashedCodes.map(({ hash }) => ({
+    //     userId,
+    //     hash,
+    //     used: false,
+    //   })),
+    // });
+
+    return true;
+  } catch (error) {
+    console.error('Failed to store backup codes:', error);
+    return false;
+  }
+}
+
+export async function generateAndStoreBackupCodes(userId: string): Promise<string[]> {
+  const codes = generateBackupCodes();
+  await storeBackupCodes(userId, codes);
+
+  // Return plain text codes for user to save
+  return codes.map(({ code }) => code);
+}
+
+export function formatBackupCode(code: string): string {
+  // Format as XXXX-XXXX for readability
+  return code.match(/.{1,4}/g)?.join('-') || code;
+}

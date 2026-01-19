@@ -1,0 +1,111 @@
+/**
+ * Stripe Checkout Session
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { stripe } from './client';
+
+interface CheckoutItem {
+  priceId: string;
+  quantity: number;
+}
+
+/**
+ * Create checkout session
+ */
+export async function createCheckoutSession(
+  customerId: string,
+  items: CheckoutItem[],
+  options?: {
+    successUrl?: string;
+    cancelUrl?: string;
+    metadata?: Record<string, string>;
+    mode?: 'payment' | 'subscription';
+    allowPromotionCodes?: boolean;
+  }
+) {
+  const mode = options?.mode || 'payment';
+
+  return stripe.checkout.sessions.create({
+    customer: customerId,
+    line_items: items.map((item) => ({
+      price: item.priceId,
+      quantity: item.quantity,
+    })),
+    mode,
+    success_url:
+      options?.successUrl ||
+      `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url:
+      options?.cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL}/checkout`,
+    metadata: options?.metadata,
+    allow_promotion_codes: options?.allowPromotionCodes ?? true,
+    automatic_tax: { enabled: true },
+    billing_address_collection: 'required',
+  });
+}
+
+/**
+ * Retrieve checkout session
+ */
+export async function retrieveCheckoutSession(sessionId: string) {
+  return stripe.checkout.sessions.retrieve(sessionId, {
+    expand: ['line_items', 'customer'],
+  });
+}
+
+/**
+ * Create one-time payment link
+ */
+export async function createPaymentLink(
+  priceId: string,
+  quantity: number = 1,
+  metadata?: Record<string, string>
+) {
+  return stripe.paymentLinks.create({
+    line_items: [
+      {
+        price: priceId,
+        quantity,
+      },
+    ],
+    metadata,
+  });
+}
+
+/**
+ * Create subscription checkout
+ */
+export async function createSubscriptionCheckout(
+  customerId: string,
+  priceId: string,
+  options?: {
+    trialPeriodDays?: number;
+    metadata?: Record<string, string>;
+    successUrl?: string;
+    cancelUrl?: string;
+  }
+) {
+  return stripe.checkout.sessions.create({
+    customer: customerId,
+    line_items: [
+      {
+        price: priceId,
+        quantity: 1,
+      },
+    ],
+    mode: 'subscription',
+    subscription_data: {
+      trial_period_days: options?.trialPeriodDays,
+      metadata: options?.metadata,
+    },
+    success_url:
+      options?.successUrl ||
+      `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?subscribed=true`,
+    cancel_url:
+      options?.cancelUrl || `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+    allow_promotion_codes: true,
+  });
+}

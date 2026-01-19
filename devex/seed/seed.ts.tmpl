@@ -1,0 +1,54 @@
+/**
+ * TypeScript Database Seeder
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { PrismaClient } from "@prisma/client";
+import { userFactory } from "./factories/user.factory";
+import userData from "./data/users.json";
+
+const prisma = new PrismaClient();
+
+async function main() {
+  console.log("🌱 Starting database seed...");
+
+  // Clear existing data
+  console.log("🧹 Clearing existing data...");
+  await prisma.user.deleteMany();
+
+  // Seed users from JSON file
+  console.log("👥 Seeding users from JSON...");
+  for (const user of userData) {
+    await prisma.user.create({
+      data: user,
+    });
+  }
+  console.log(`✅ Created ${userData.length} users from JSON`);
+
+  // Generate additional random users with Faker
+  console.log("🎲 Generating random users...");
+  const randomUsers = Array.from({ length: 10 }, () => userFactory());
+
+  for (const user of randomUsers) {
+    await prisma.user.create({
+      data: user,
+    });
+  }
+  console.log(`✅ Created ${randomUsers.length} random users`);
+
+  // Summary
+  const totalUsers = await prisma.user.count();
+  console.log("\n📊 Seed Summary:");
+  console.log(`   Total Users: ${totalUsers}`);
+  console.log("\n✨ Seed completed successfully!");
+}
+
+main()
+  .catch((e) => {
+    console.error("❌ Seed failed:", e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

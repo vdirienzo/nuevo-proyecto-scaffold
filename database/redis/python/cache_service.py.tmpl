@@ -1,0 +1,218 @@
+"""
+Cache Service (Async)
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+import json
+from typing import Any, Optional, Callable, TypeVar
+from functools import wraps
+
+from redis.asyncio import Redis
+from loguru import logger
+
+from .redis_client import get_redis, RedisKeys, RedisTTL
+
+
+T = TypeVar("T")
+
+
+class CacheService:
+    """Generic cache service with Redis."""
+
+    def __init__(
+        self,
+        redis: Redis,
+        prefix: str = RedisKeys.CACHE,
+        default_ttl: int = RedisTTL.MEDIUM,
+    ):
+        self.redis = redis
+        self.prefix = prefix
+        self.default_ttl = default_ttl
+
+    def _build_key(self, key: str) -> str:
+        """Build full cache key with prefix."""
+        return f"{self.prefix}{key}"
+
+    async def get(self, key: str) -> Optional[Any]:
+        """Get value from cache."""
+        try:
+            full_key = self._build_key(key)
+            value = await self.redis.get(full_key)
+
+            if value is None:
+                return None
+
+            return json.loads(value)
+        except Exception as e:
+            logger.error(f"Cache get error for key {key}: {e}")
+            return None
+
+    async def set(
+        self,
+        key: str,
+        value: Any,
+        ttl: Optional[int] = None,
+    ) -> bool:
+        """Set value in cache."""
+        try:
+            full_key = self._build_key(key)
+            serialized = json.dumps(value)
+            expiry = ttl or self.default_ttl
+
+            await self.redis.setex(full_key, expiry, serialized)
+            return True
+        except Exception as e:
+            logger.error(f"Cache set error for key {key}: {e}")
+            return False
+
+    async def delete(self, key: str) -> bool:
+        """Delete key from cache."""
+        try:
+            full_key = self._build_key(key)
+            result = await self.redis.delete(full_key)
+            return result > 0
+        except Exception as e:
+            logger.error(f"Cache delete error for key {key}: {e}")
+            return False
+
+    async def delete_pattern(self, pattern: str) -> int:
+        """Delete multiple keys by pattern."""
+        try:
+            full_pattern = self._build_key(pattern)
+            keys = []
+
+            async for key in self.redis.scan_iter(match=full_pattern):
+                keys.append(key)
+
+            if not keys:
+                return 0
+
+            return await self.redis.delete(*keys)
+        except Exception as e:
+            logger.error(f"Cache delete pattern error for {pattern}: {e}")
+            return 0
+
+    async def exists(self, key: str) -> bool:
+        """Check if key exists."""
+        try:
+            full_key = self._build_key(key)
+            result = await self.redis.exists(full_key)
+            return result == 1
+        except Exception as e:
+            logger.error(f"Cache exists error for key {key}: {e}")
+            return False
+
+    async def ttl(self, key: str) -> int:
+        """Get TTL for key."""
+        try:
+            full_key = self._build_key(key)
+            return await self.redis.ttl(full_key)
+        except Exception as e:
+            logger.error(f"Cache TTL error for key {key}: {e}")
+            return -2  # Key doesn't exist
+
+    async def expire(self, key: str, ttl: int) -> bool:
+        """Set expiry for key."""
+        try:
+            full_key = self._build_key(key)
+            result = await self.redis.expire(full_key, ttl)
+            return result == 1
+        except Exception as e:
+            logger.error(f"Cache expire error for key {key}: {e}")
+            return False
+
+    async def increment(self, key: str, amount: int = 1) -> int:
+        """Increment counter."""
+        try:
+            full_key = self._build_key(key)
+            return await self.redis.incrby(full_key, amount)
+        except Exception as e:
+            logger.error(f"Cache increment error for key {key}: {e}")
+            raise
+
+    async def decrement(self, key: str, amount: int = 1) -> int:
+        """Decrement counter."""
+        try:
+            full_key = self._build_key(key)
+            return await self.redis.decrby(full_key, amount)
+        except Exception as e:
+            logger.error(f"Cache decrement error for key {key}: {e}")
+            raise
+
+    async def get_or_set(
+        self,
+        key: str,
+        factory: Callable[[], T],
+        ttl: Optional[int] = None,
+    ) -> T:
+        """Get or set pattern (cache-aside)."""
+        cached = await self.get(key)
+
+        if cached is not None:
+            return cached
+
+        value = await factory() if asyncio.iscoroutinefunction(factory) else factory()
+        await self.set(key, value, ttl)
+
+        return value
+
+    async def clear(self) -> int:
+        """Clear all keys with current prefix."""
+        return await self.delete_pattern("*")
+
+
+def cached(
+    key_builder: Callable[..., str],
+    ttl: int = RedisTTL.MEDIUM,
+    prefix: str = RedisKeys.CACHE,
+):
+    """
+    Decorator for caching function results.
+
+    Usage:
+        @cached(key_builder=lambda user_id: f"user:{user_id}", ttl=RedisTTL.LONG)
+        async def get_user(user_id: str):
+            return await db.get_user(user_id)
+    """
+
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        @wraps(func)
+        async def wrapper(*args, **kwargs) -> T:
+            # Build cache key
+            cache_key = key_builder(*args, **kwargs)
+
+            # Get Redis client
+            redis = await get_redis()
+            cache = CacheService(redis, prefix=prefix)
+
+            # Try to get from cache
+            cached_value = await cache.get(cache_key)
+
+            if cached_value is not None:
+                logger.debug(f"Cache hit for {cache_key}")
+                return cached_value
+
+            logger.debug(f"Cache miss for {cache_key}")
+
+            # Execute function
+            result = await func(*args, **kwargs)
+
+            # Store in cache
+            await cache.set(cache_key, result, ttl)
+
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+# Example usage:
+# from fastapi import Depends
+#
+# @router.get("/users/{user_id}")
+# @cached(key_builder=lambda user_id: f"user:{user_id}", ttl=RedisTTL.LONG)
+# async def get_user(user_id: str, cache: CacheService = Depends(get_cache_service)):
+#     return await db.get_user(user_id)

@@ -1,0 +1,116 @@
+/**
+ * Redis Pub/Sub Publisher
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Redis } from 'ioredis';
+import { redisClient } from '../client';
+import { REDIS_KEYS } from '../config';
+import { logger } from '@/lib/logger';
+
+export interface PublishOptions {
+  channel: string;
+  message: any;
+  pattern?: boolean;
+}
+
+export class Publisher {
+  private client: Redis;
+  private prefix: string;
+
+  constructor() {
+    this.client = redisClient;
+    this.prefix = REDIS_KEYS.PUBSUB;
+  }
+
+  /**
+   * Build channel name with prefix
+   */
+  private buildChannel(channel: string): string {
+    return `${this.prefix}${channel}`;
+  }
+
+  /**
+   * Publish message to channel
+   */
+  async publish<T = any>(channel: string, message: T): Promise<number> {
+    try {
+      const fullChannel = this.buildChannel(channel);
+      const serialized = JSON.stringify(message);
+
+      const subscribers = await this.client.publish(fullChannel, serialized);
+
+      logger.debug(`Published to ${fullChannel}: ${subscribers} subscribers`);
+
+      return subscribers;
+    } catch (error) {
+      logger.error(`Publish error to channel ${channel}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Publish to multiple channels
+   */
+  async publishToMany<T = any>(
+    channels: string[],
+    message: T
+  ): Promise<number[]> {
+    const publishPromises = channels.map((channel) =>
+      this.publish(channel, message)
+    );
+
+    return await Promise.all(publishPromises);
+  }
+
+  /**
+   * Publish event with metadata
+   */
+  async publishEvent<T = any>(
+    channel: string,
+    eventName: string,
+    data: T,
+    metadata?: Record<string, any>
+  ): Promise<number> {
+    const event = {
+      eventName,
+      data,
+      metadata: {
+        ...metadata,
+        timestamp: new Date().toISOString(),
+        source: '{{PROJECT_NAME}}',
+      },
+    };
+
+    return await this.publish(channel, event);
+  }
+}
+
+// Singleton instance
+export const publisher = new Publisher();
+
+// Common channels
+export const CHANNELS = {
+  USER_EVENTS: 'user:events',
+  NOTIFICATIONS: 'notifications',
+  ANALYTICS: 'analytics',
+  SYSTEM_EVENTS: 'system:events',
+  REALTIME_UPDATES: 'realtime:updates',
+} as const;
+
+/**
+ * Example usage:
+ *
+ * // Simple publish
+ * await publisher.publish('user:events', { action: 'login', userId: '123' });
+ *
+ * // Publish event with metadata
+ * await publisher.publishEvent(
+ *   'notifications',
+ *   'user.created',
+ *   { id: '123', email: 'user@example.com' },
+ *   { priority: 'high' }
+ * );
+ */

@@ -1,0 +1,88 @@
+// user.go - User service
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package services
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"{{PROJECT_NAME}}/internal/models"
+	"{{PROJECT_NAME}}/internal/repository"
+)
+
+// UserService handles user business logic
+type UserService struct {
+	userRepo *repository.UserRepository
+}
+
+// NewUserService creates a new user service
+func NewUserService(userRepo *repository.UserRepository) *UserService {
+	return &UserService{userRepo: userRepo}
+}
+
+// GetByID returns a user by ID
+func (s *UserService) GetByID(ctx context.Context, id uint) (*models.User, error) {
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+	return user, nil
+}
+
+// List returns paginated users
+func (s *UserService) List(ctx context.Context, page, perPage int) ([]*models.User, int64, error) {
+	offset := (page - 1) * perPage
+	return s.userRepo.List(ctx, offset, perPage)
+}
+
+// Update updates a user
+func (s *UserService) Update(ctx context.Context, id uint, name, email string) (*models.User, error) {
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Update fields if provided
+	if name != "" {
+		user.Name = name
+	}
+	if email != "" {
+		// Check if email is already taken
+		exists, err := s.userRepo.ExistsByEmail(ctx, email)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check email: %w", err)
+		}
+		if exists && user.Email != email {
+			return nil, errors.New("email already in use")
+		}
+		user.Email = email
+	}
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, fmt.Errorf("failed to update user: %w", err)
+	}
+
+	return user, nil
+}
+
+// Delete deletes a user
+func (s *UserService) Delete(ctx context.Context, id uint) error {
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to get user: %w", err)
+	}
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	return s.userRepo.Delete(ctx, id)
+}

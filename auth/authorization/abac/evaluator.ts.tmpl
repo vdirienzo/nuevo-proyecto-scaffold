@@ -1,0 +1,157 @@
+/**
+ * ABAC Policy Evaluator
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Policy, Condition, Operator } from './policies';
+
+export interface EvaluationContext {
+  user: Record<string, any>;
+  resource?: Record<string, any>;
+  action?: string;
+  request?: Record<string, any>;
+  time?: {
+    hour: number;
+    minute: number;
+    weekday: number;
+    date: Date;
+  };
+  [key: string]: any;
+}
+
+export interface EvaluationResult {
+  allowed: boolean;
+  matchedPolicies: string[];
+  deniedPolicies: string[];
+}
+
+export class PolicyEvaluator {
+  private policies: Policy[];
+
+  constructor(policies: Policy[]) {
+    this.policies = policies;
+  }
+
+  evaluate(context: EvaluationContext): EvaluationResult {
+    const matchedPolicies: string[] = [];
+    const deniedPolicies: string[] = [];
+
+    // Add current time to context if not provided
+    if (!context.time) {
+      const now = new Date();
+      context.time = {
+        hour: now.getHours(),
+        minute: now.getMinutes(),
+        weekday: now.getDay(),
+        date: now,
+      };
+    }
+
+    for (const policy of this.policies) {
+      const matches = this.evaluatePolicy(policy, context);
+
+      if (matches) {
+        if (policy.effect === 'deny') {
+          deniedPolicies.push(policy.id);
+        } else {
+          matchedPolicies.push(policy.id);
+        }
+      }
+    }
+
+    // Deny takes precedence
+    const allowed = deniedPolicies.length === 0 && matchedPolicies.length > 0;
+
+    return {
+      allowed,
+      matchedPolicies,
+      deniedPolicies,
+    };
+  }
+
+  private evaluatePolicy(policy: Policy, context: EvaluationContext): boolean {
+    return policy.conditions.every((condition) =>
+      this.evaluateCondition(condition, context)
+    );
+  }
+
+  private evaluateCondition(condition: Condition, context: EvaluationContext): boolean {
+    const actualValue = this.resolveAttribute(condition.attribute, context);
+    const expectedValue = this.resolveValue(condition.value, context);
+
+    switch (condition.operator) {
+      case Operator.EQUALS:
+        return actualValue === expectedValue;
+
+      case Operator.NOT_EQUALS:
+        return actualValue !== expectedValue;
+
+      case Operator.IN:
+        return Array.isArray(expectedValue) && expectedValue.includes(actualValue);
+
+      case Operator.NOT_IN:
+        return Array.isArray(expectedValue) && !expectedValue.includes(actualValue);
+
+      case Operator.GREATER_THAN:
+        return actualValue > expectedValue;
+
+      case Operator.LESS_THAN:
+        return actualValue < expectedValue;
+
+      case Operator.CONTAINS:
+        return String(actualValue).includes(String(expectedValue));
+
+      case Operator.STARTS_WITH:
+        return String(actualValue).startsWith(String(expectedValue));
+
+      case Operator.ENDS_WITH:
+        return String(actualValue).endsWith(String(expectedValue));
+
+      case Operator.MATCHES:
+        const regex = new RegExp(String(expectedValue));
+        return regex.test(String(actualValue));
+
+      default:
+        return false;
+    }
+  }
+
+  private resolveAttribute(attribute: string, context: EvaluationContext): any {
+    const parts = attribute.split('.');
+    let value: any = context;
+
+    for (const part of parts) {
+      if (value === null || value === undefined) {
+        return undefined;
+      }
+      value = value[part];
+    }
+
+    return value;
+  }
+
+  private resolveValue(value: any, context: EvaluationContext): any {
+    // If value is a string starting with a context reference, resolve it
+    if (typeof value === 'string' && value.includes('.')) {
+      return this.resolveAttribute(value, context);
+    }
+    return value;
+  }
+
+  addPolicy(policy: Policy): void {
+    this.policies.push(policy);
+  }
+
+  removePolicy(policyId: string): void {
+    this.policies = this.policies.filter((p) => p.id !== policyId);
+  }
+
+  getPolicies(): Policy[] {
+    return [...this.policies];
+  }
+}
+
+// Default evaluator instance
+export const defaultEvaluator = new PolicyEvaluator([]);

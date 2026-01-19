@@ -1,0 +1,38 @@
+// user.go - User model
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package models
+
+import (
+	"golang.org/x/crypto/bcrypt"
+)
+
+// User represents a user in the system
+type User struct {
+	BaseModel
+	Email        string `gorm:"uniqueIndex;not null" json:"email"`
+	PasswordHash string `gorm:"not null" json:"-"`
+	Name         string `gorm:"not null" json:"name"`
+}
+
+// TableName specifies the table name
+func (User) TableName() string {
+	return "users"
+}
+
+// SetPassword hashes and sets the user password
+func (u *User) SetPassword(password string) error {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	u.PasswordHash = string(hash)
+	return nil
+}
+
+// CheckPassword verifies the password
+func (u *User) CheckPassword(password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
+	return err == nil
+}

@@ -1,0 +1,82 @@
+/**
+ * Sentry Client Configuration (Browser)
+ * Project: {{PROJECT_NAME}}
+ * Author: {{AUTHOR}}
+ */
+
+import * as Sentry from '@sentry/nextjs';
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+  // Environment
+  environment: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
+
+  // Release tracking
+  release: process.env.NEXT_PUBLIC_APP_VERSION,
+
+  // Sample rate for performance monitoring
+  tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
+
+  // Sample rate for session replay
+  replaysSessionSampleRate: 0.1,
+  replaysOnErrorSampleRate: 1.0,
+
+  // Integrations
+  integrations: [
+    new Sentry.BrowserTracing({
+      tracePropagationTargets: [
+        'localhost',
+        /^https:\/\/{{PROJECT_DOMAIN}}/,
+      ],
+    }),
+    new Sentry.Replay({
+      maskAllText: true,
+      blockAllMedia: true,
+    }),
+  ],
+
+  // Ignore specific errors
+  ignoreErrors: [
+    // Browser extensions
+    'top.GLOBALS',
+    'ResizeObserver loop limit exceeded',
+    'Non-Error promise rejection captured',
+    // Network errors
+    'NetworkError',
+    'Failed to fetch',
+  ],
+
+  // Ignore specific URLs
+  denyUrls: [
+    /extensions\//i,
+    /^chrome:\/\//i,
+    /^chrome-extension:\/\//i,
+  ],
+
+  // Before send hook
+  beforeSend(event, hint) {
+    // Filter out events in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Sentry event:', event);
+      return null;
+    }
+
+    // Scrub sensitive data
+    if (event.request) {
+      delete event.request.cookies;
+    }
+
+    return event;
+  },
+
+  // Before breadcrumb hook
+  beforeBreadcrumb(breadcrumb) {
+    // Filter out console breadcrumbs
+    if (breadcrumb.category === 'console') {
+      return null;
+    }
+
+    return breadcrumb;
+  },
+});

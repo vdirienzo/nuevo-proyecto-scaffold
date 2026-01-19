@@ -1,0 +1,108 @@
+/**
+ * client.ts.tmpl - TypeScript gRPC client
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import * as grpc from '@grpc/grpc-js';
+import { GrpcWebFetchTransport } from '@protobuf-ts/grpcweb-transport';
+
+// Generated protobuf imports (adjust paths based on your generation)
+// import { UserServiceClient } from './gen/user/v1/user.client';
+// import { AuthServiceClient } from './gen/auth/v1/auth.client';
+
+import { authInterceptor } from './interceptors';
+
+export interface GrpcClientConfig {
+  host: string;
+  port: number;
+  useTls?: boolean;
+  useGrpcWeb?: boolean;
+  accessToken?: string;
+}
+
+export class GrpcClient {
+  private host: string;
+  private credentials: grpc.ChannelCredentials;
+  private metadata: grpc.Metadata;
+
+  // Service clients
+  // public userService: UserServiceClient;
+  // public authService: AuthServiceClient;
+
+  constructor(config: GrpcClientConfig) {
+    const { host, port, useTls = false, useGrpcWeb = false, accessToken } = config;
+
+    this.host = `${host}:${port}`;
+    this.credentials = useTls
+      ? grpc.credentials.createSsl()
+      : grpc.credentials.createInsecure();
+
+    this.metadata = new grpc.Metadata();
+    if (accessToken) {
+      this.metadata.set('authorization', `Bearer ${accessToken}`);
+    }
+
+    // Initialize service clients
+    if (useGrpcWeb) {
+      this.initializeGrpcWebClients();
+    } else {
+      this.initializeGrpcClients();
+    }
+  }
+
+  private initializeGrpcClients(): void {
+    // TODO: Initialize gRPC clients when protobuf is generated
+    // this.userService = new UserServiceClient(
+    //   this.host,
+    //   this.credentials,
+    //   { interceptors: [authInterceptor(this.metadata)] }
+    // );
+    //
+    // this.authService = new AuthServiceClient(
+    //   this.host,
+    //   this.credentials,
+    // );
+  }
+
+  private initializeGrpcWebClients(): void {
+    // For browser environments using gRPC-Web
+    const transport = new GrpcWebFetchTransport({
+      baseUrl: `http://${this.host}`,
+      meta: this.metadata as any,
+    });
+
+    // TODO: Initialize gRPC-Web clients
+    // this.userService = new UserServiceClient(transport);
+    // this.authService = new AuthServiceClient(transport);
+  }
+
+  setAccessToken(token: string): void {
+    this.metadata.set('authorization', `Bearer ${token}`);
+  }
+
+  clearAccessToken(): void {
+    this.metadata.remove('authorization');
+  }
+}
+
+/**
+ * Create a gRPC client instance
+ */
+export function createGrpcClient(config: GrpcClientConfig): GrpcClient {
+  return new GrpcClient(config);
+}
+
+/**
+ * Example usage:
+ *
+ * const client = createGrpcClient({
+ *   host: 'localhost',
+ *   port: 50051,
+ *   accessToken: 'your-jwt-token',
+ * });
+ *
+ * const response = await client.userService.getUser({ id: '123' });
+ * console.log(response.user);
+ */

@@ -1,0 +1,95 @@
+/**
+ * Custom Metrics with OpenTelemetry
+ * Project: {{PROJECT_NAME}}
+ * Author: {{AUTHOR}}
+ */
+
+import { metrics } from '@opentelemetry/api';
+
+const meter = metrics.getMeter('{{PROJECT_NAME}}');
+
+// Counters
+export const httpRequestCounter = meter.createCounter('http.requests.total', {
+  description: 'Total number of HTTP requests',
+});
+
+export const httpErrorCounter = meter.createCounter('http.errors.total', {
+  description: 'Total number of HTTP errors',
+});
+
+export const businessEventCounter = meter.createCounter('business.events.total', {
+  description: 'Total number of business events',
+});
+
+// Histograms
+export const httpRequestDuration = meter.createHistogram('http.request.duration', {
+  description: 'HTTP request duration in milliseconds',
+  unit: 'ms',
+});
+
+export const dbQueryDuration = meter.createHistogram('db.query.duration', {
+  description: 'Database query duration in milliseconds',
+  unit: 'ms',
+});
+
+// Gauges
+export const activeConnections = meter.createObservableGauge('active.connections', {
+  description: 'Number of active connections',
+});
+
+export const memoryUsage = meter.createObservableGauge('memory.usage', {
+  description: 'Memory usage in bytes',
+  unit: 'bytes',
+});
+
+// Helper function to record HTTP request
+export function recordHttpRequest(
+  method: string,
+  path: string,
+  statusCode: number,
+  duration: number
+) {
+  const attributes = {
+    'http.method': method,
+    'http.path': path,
+    'http.status_code': statusCode,
+  };
+
+  httpRequestCounter.add(1, attributes);
+  httpRequestDuration.record(duration, attributes);
+
+  if (statusCode >= 400) {
+    httpErrorCounter.add(1, attributes);
+  }
+}
+
+// Helper function to record database query
+export function recordDbQuery(operation: string, table: string, duration: number) {
+  const attributes = {
+    'db.operation': operation,
+    'db.table': table,
+  };
+
+  dbQueryDuration.record(duration, attributes);
+}
+
+// Helper function to record business event
+export function recordBusinessEvent(eventType: string, attributes: Record<string, string> = {}) {
+  businessEventCounter.add(1, {
+    'event.type': eventType,
+    ...attributes,
+  });
+}
+
+// Register gauge callbacks
+activeConnections.addCallback((observableResult) => {
+  // Replace with actual connection count
+  const count = 0; // Get from connection pool
+  observableResult.observe(count);
+});
+
+memoryUsage.addCallback((observableResult) => {
+  const usage = process.memoryUsage();
+  observableResult.observe(usage.heapUsed, { type: 'heap' });
+  observableResult.observe(usage.rss, { type: 'rss' });
+});

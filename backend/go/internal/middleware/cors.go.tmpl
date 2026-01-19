@@ -1,0 +1,70 @@
+// cors.go - CORS middleware
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package middleware
+
+import (
+	"github.com/gin-gonic/gin"
+
+	"{{PROJECT_NAME}}/internal/config"
+)
+
+// CORS handles Cross-Origin Resource Sharing
+func CORS(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+
+		// Check if origin is allowed
+		allowed := false
+		for _, allowedOrigin := range cfg.CORS.AllowedOrigins {
+			if allowedOrigin == "*" || allowedOrigin == origin {
+				allowed = true
+				c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+				break
+			}
+		}
+
+		if !allowed && origin != "" {
+			c.AbortWithStatus(403)
+			return
+		}
+
+		// Set CORS headers
+		if len(cfg.CORS.AllowedMethods) > 0 {
+			methods := ""
+			for i, method := range cfg.CORS.AllowedMethods {
+				if i > 0 {
+					methods += ","
+				}
+				methods += method
+			}
+			c.Writer.Header().Set("Access-Control-Allow-Methods", methods)
+		}
+
+		if len(cfg.CORS.AllowedHeaders) > 0 {
+			headers := ""
+			for i, header := range cfg.CORS.AllowedHeaders {
+				if i > 0 {
+					headers += ","
+				}
+				headers += header
+			}
+			c.Writer.Header().Set("Access-Control-Allow-Headers", headers)
+		}
+
+		if cfg.CORS.AllowCredentials {
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
+
+		c.Writer.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Handle preflight requests
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	}
+}

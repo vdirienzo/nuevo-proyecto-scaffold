@@ -1,0 +1,223 @@
+/**
+ * use-mongodb.ts - React hook for MongoDB operations via API
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { useState, useCallback, useEffect } from 'react';
+
+interface UseMongoDBOptions {
+  autoFetch?: boolean;
+  onSuccess?: (data: any) => void;
+  onError?: (error: Error) => void;
+}
+
+interface UseMongoDBResult<T> {
+  data: T | null;
+  loading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+  execute: (params?: any) => Promise<void>;
+}
+
+/**
+ * Hook for fetching data from MongoDB via API
+ */
+export function useMongoDBQuery<T>(
+  endpoint: string,
+  options: UseMongoDBOptions = {}
+): UseMongoDBResult<T> {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const { autoFetch = false, onSuccess, onError } = options;
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      setData(result);
+      onSuccess?.(result);
+    } catch (err) {
+      const error = err as Error;
+      setError(error);
+      onError?.(error);
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint, onSuccess, onError]);
+
+  useEffect(() => {
+    if (autoFetch) {
+      fetchData();
+    }
+  }, [autoFetch, fetchData]);
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: fetchData,
+    execute: fetchData,
+  };
+}
+
+/**
+ * Hook for mutations (POST, PUT, DELETE)
+ */
+export function useMongoDBMutation<TData, TVariables = any>(
+  endpoint: string,
+  method: 'POST' | 'PUT' | 'DELETE' | 'PATCH' = 'POST',
+  options: UseMongoDBOptions = {}
+): UseMongoDBResult<TData> {
+  const [data, setData] = useState<TData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const { onSuccess, onError } = options;
+
+  const execute = useCallback(
+    async (variables?: TVariables) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(endpoint, {
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: variables ? JSON.stringify(variables) : undefined,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        setData(result);
+        onSuccess?.(result);
+      } catch (err) {
+        const error = err as Error;
+        setError(error);
+        onError?.(error);
+        throw error;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [endpoint, method, onSuccess, onError]
+  );
+
+  return {
+    data,
+    loading,
+    error,
+    refetch: async () => {},
+    execute,
+  };
+}
+
+/**
+ * Hook for paginated queries
+ */
+export function useMongoDBPagination<T>(
+  endpoint: string,
+  initialPage: number = 1,
+  limit: number = 10
+) {
+  const [page, setPage] = useState(initialPage);
+  const [data, setData] = useState<T[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchPage = useCallback(
+    async (pageNum: number) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const url = `${endpoint}?page=${pageNum}&limit=${limit}`;
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        setData(result.data || []);
+        setTotal(result.total || 0);
+        setPage(pageNum);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [endpoint, limit]
+  );
+
+  useEffect(() => {
+    fetchPage(page);
+  }, [page, fetchPage]);
+
+  const nextPage = useCallback(() => {
+    if (page * limit < total) {
+      setPage((prev) => prev + 1);
+    }
+  }, [page, limit, total]);
+
+  const prevPage = useCallback(() => {
+    if (page > 1) {
+      setPage((prev) => prev - 1);
+    }
+  }, [page]);
+
+  const goToPage = useCallback((pageNum: number) => {
+    setPage(pageNum);
+  }, []);
+
+  return {
+    data,
+    loading,
+    error,
+    page,
+    total,
+    totalPages: Math.ceil(total / limit),
+    hasNext: page * limit < total,
+    hasPrev: page > 1,
+    nextPage,
+    prevPage,
+    goToPage,
+    refetch: () => fetchPage(page),
+  };
+}
+
+/**
+ * Example usage:
+ *
+ * // Query
+ * const { data, loading, error, refetch } = useMongoDBQuery('/api/users', { autoFetch: true });
+ *
+ * // Mutation
+ * const { execute: createUser } = useMongoDBMutation('/api/users', 'POST', {
+ *   onSuccess: () => console.log('User created'),
+ * });
+ *
+ * // Pagination
+ * const { data, page, totalPages, nextPage, prevPage } = useMongoDBPagination('/api/users', 1, 10);
+ */

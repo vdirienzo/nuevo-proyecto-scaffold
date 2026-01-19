@@ -1,0 +1,40 @@
+/**
+ * graphql.module.ts - GraphQL Module Configuration
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Module } from '@nestjs/common';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { join } from 'path';
+import { UserResolver } from './resolvers/user.resolver';
+import { AuthResolver } from './resolvers/auth.resolver';
+
+@Module({
+  imports: [
+    GraphQLModule.forRoot<ApolloDriverConfig>({
+      driver: ApolloDriver,
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+      sortSchema: true,
+      playground: process.env.NODE_ENV !== 'production',
+      introspection: true,
+      context: ({ req, res }) => ({ req, res }),
+      formatError: (error) => {
+        const graphQLFormattedError = {
+          message: error.message,
+          code: error.extensions?.code,
+          path: error.path,
+        };
+        return graphQLFormattedError;
+      },
+      cors: {
+        origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+        credentials: true,
+      },
+    }),
+  ],
+  providers: [UserResolver, AuthResolver],
+})
+export class GraphqlModule {}

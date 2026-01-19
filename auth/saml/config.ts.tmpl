@@ -1,0 +1,38 @@
+/**
+ * SAML Configuration
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+export const samlConfig = {
+  // Service Provider (SP) configuration
+  callbackUrl: process.env.SAML_CALLBACK_URL || `${process.env.APP_URL}/api/auth/saml/callback`,
+  entryPoint: process.env.SAML_ENTRY_POINT || '',
+  issuer: process.env.SAML_ISSUER || 'urn:example:sp',
+  audience: process.env.SAML_AUDIENCE || '',
+
+  // Identity Provider (IdP) configuration
+  idpCert: process.env.SAML_IDP_CERT || '',
+
+  // SP certificate (optional, for signed requests)
+  cert: process.env.SAML_CERT || '',
+  privateKey: process.env.SAML_PRIVATE_KEY || '',
+
+  // Configuration options
+  wantAssertionsSigned: true,
+  wantAuthnResponseSigned: true,
+  signatureAlgorithm: 'sha256',
+  digestAlgorithm: 'sha256',
+
+  // Attribute mapping
+  identifierFormat: 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+  attributeMapping: {
+    email: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress',
+    firstName: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname',
+    lastName: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname',
+    displayName: 'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name',
+  },
+} as const;
+
+export type SAMLConfig = typeof samlConfig;

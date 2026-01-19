@@ -1,0 +1,28 @@
+// migrations.go - Auto migrations
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package database
+
+import (
+	"log/slog"
+
+	"gorm.io/gorm"
+
+	"{{PROJECT_NAME}}/internal/models"
+)
+
+// RunMigrations runs all database migrations
+func RunMigrations(db *gorm.DB) error {
+	slog.Info("Running database migrations...")
+
+	// Add all models here
+	if err := db.AutoMigrate(
+		&models.User{},
+	); err != nil {
+		return err
+	}
+
+	slog.Info("Database migrations completed successfully")
+	return nil
+}

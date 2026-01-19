@@ -1,0 +1,80 @@
+// home.tsx - Home page
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
+import { Header } from '@/components/layout/header';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+const HomePage = () => {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+
+      <main className="container mx-auto px-4 py-16">
+        {/* Hero Section */}
+        <div className="mb-16 text-center">
+          <h1 className="mb-4 text-5xl font-bold text-gray-900">
+            Welcome to <span className="text-primary-600">{{PROJECT_NAME}}</span>
+          </h1>
+          <p className="mb-8 text-xl text-gray-600">
+            A modern, production-ready React SPA built with Vite, TypeScript, and Tailwind CSS
+          </p>
+          <div className="flex justify-center space-x-4">
+            <Link to="/dashboard">
+              <Button size="lg">
+                Get Started
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+            <Link to="/login">
+              <Button variant="outline" size="lg">
+                Login
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* Features */}
+        <div className="grid gap-6 md:grid-cols-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>⚡ Fast</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                Built with Vite for lightning-fast development and optimized production builds
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>🎨 Beautiful</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                Tailwind CSS for rapid UI development with utility-first styling
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>🔒 Secure</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                JWT authentication with Zustand state management and protected routes
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default HomePage;

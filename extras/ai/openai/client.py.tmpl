@@ -1,0 +1,76 @@
+"""
+OpenAI Client - Python
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+import os
+from typing import AsyncGenerator
+
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+
+async def chat_completion(
+    messages: list[dict[str, str]],
+    model: str = "gpt-4-turbo-preview",
+    temperature: float = 0.7,
+    max_tokens: int | None = None,
+) -> str:
+    """Generate chat completion."""
+    response = await client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+    )
+
+    return response.choices[0].message.content or ""
+
+
+async def stream_chat_completion(
+    messages: list[dict[str, str]],
+    model: str = "gpt-4-turbo-preview",
+    temperature: float = 0.7,
+    max_tokens: int | None = None,
+) -> AsyncGenerator[str, None]:
+    """Stream chat completion."""
+    stream = await client.chat.completions.create(
+        model=model,
+        messages=messages,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        stream=True,
+    )
+
+    async for chunk in stream:
+        content = chunk.choices[0].delta.content
+        if content:
+            yield content
+
+
+async def generate_embeddings(
+    text: str | list[str],
+    model: str = "text-embedding-3-small",
+) -> list[list[float]]:
+    """Generate embeddings."""
+    response = await client.embeddings.create(
+        model=model,
+        input=text,
+    )
+
+    return [item.embedding for item in response.data]
+
+
+async def moderate_content(text: str) -> dict:
+    """Moderate content."""
+    response = await client.moderations.create(input=text)
+
+    result = response.results[0]
+    return {
+        "flagged": result.flagged,
+        "categories": result.categories.model_dump(),
+        "category_scores": result.category_scores.model_dump(),
+    }

@@ -1,0 +1,74 @@
+/**
+ * Passport SAML Strategy
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { Strategy as SamlStrategy } from 'passport-saml';
+import { samlConfig } from './config';
+
+interface SAMLProfile {
+  issuer: string;
+  sessionIndex: string;
+  nameID: string;
+  nameIDFormat: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  displayName?: string;
+}
+
+export const samlStrategy = new SamlStrategy(
+  {
+    callbackUrl: samlConfig.callbackUrl,
+    entryPoint: samlConfig.entryPoint,
+    issuer: samlConfig.issuer,
+    audience: samlConfig.audience,
+    cert: samlConfig.idpCert,
+    privateKey: samlConfig.privateKey,
+    decryptionPvk: samlConfig.privateKey,
+    signatureAlgorithm: samlConfig.signatureAlgorithm,
+    digestAlgorithm: samlConfig.digestAlgorithm,
+    wantAssertionsSigned: samlConfig.wantAssertionsSigned,
+    wantAuthnResponseSigned: samlConfig.wantAuthnResponseSigned,
+    identifierFormat: samlConfig.identifierFormat,
+  },
+  async (profile: SAMLProfile, done: (error: any, user?: any) => void) => {
+    try {
+      // Extract user information from SAML profile
+      const user = {
+        id: profile.nameID,
+        email: profile.email || profile.nameID,
+        firstName: profile.firstName,
+        lastName: profile.lastName,
+        displayName: profile.displayName || profile.email,
+        samlSessionIndex: profile.sessionIndex,
+        provider: 'saml',
+      };
+
+      // Here you would typically find or create the user in your database
+      // const dbUser = await findOrCreateUser(user);
+
+      return done(null, user);
+    } catch (error) {
+      return done(error);
+    }
+  }
+);
+
+export function extractProfileAttributes(profile: any): SAMLProfile {
+  const { nameID, nameIDFormat, sessionIndex } = profile;
+  const attrs = samlConfig.attributeMapping;
+
+  return {
+    issuer: profile.issuer,
+    sessionIndex,
+    nameID,
+    nameIDFormat,
+    email: profile[attrs.email] || profile.email,
+    firstName: profile[attrs.firstName],
+    lastName: profile[attrs.lastName],
+    displayName: profile[attrs.displayName],
+  };
+}

@@ -1,0 +1,62 @@
+// use-auth.ts - Auth hook with Zustand
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+import { useAuthStore } from '@/stores/auth.store';
+import { api } from '@/lib/api';
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export const useAuth = () => {
+  const { user, token, isAuthenticated, setAuth, clearAuth } = useAuthStore();
+
+  const login = async (email: string, password: string) => {
+    try {
+      const response = await api.post<{ user: { id: number; email: string }; token: string }>(
+        '/auth/login',
+        { email, password }
+      );
+
+      const { user: userData, token: authToken } = response.data;
+
+      setAuth(userData, authToken);
+
+      return userData;
+    } catch (error) {
+      throw new Error('Invalid credentials');
+    }
+  };
+
+  const logout = () => {
+    clearAuth();
+  };
+
+  const register = async (email: string, password: string) => {
+    try {
+      const response = await api.post<{ user: { id: number; email: string }; token: string }>(
+        '/auth/register',
+        { email, password }
+      );
+
+      const { user: userData, token: authToken } = response.data;
+
+      setAuth(userData, authToken);
+
+      return userData;
+    } catch (error) {
+      throw new Error('Registration failed');
+    }
+  };
+
+  return {
+    user,
+    token,
+    isAuthenticated,
+    login,
+    logout,
+    register,
+  };
+};

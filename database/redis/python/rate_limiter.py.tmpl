@@ -1,0 +1,190 @@
+"""
+Rate Limiter Middleware (FastAPI)
+
+Author: {{AUTHOR}}
+Project: {{PROJECT_NAME}}
+"""
+
+from typing import Callable, Optional
+from datetime import datetime, timedelta
+
+from fastapi import Request, Response, HTTPException, status
+from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
+from loguru import logger
+
+from .redis_client import get_redis, RedisKeys
+
+
+class RateLimiter:
+    """Redis-based rate limiter."""
+
+    def __init__(
+        self,
+        redis: Redis,
+        max_requests: int = 100,
+        window_seconds: int = 60,
+        key_prefix: str = RedisKeys.RATE_LIMIT,
+        key_func: Optional[Callable[[Request], str]] = None,
+    ):
+        self.redis = redis
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.key_prefix = key_prefix
+        self.key_func = key_func or self._default_key_func
+
+    def _default_key_func(self, request: Request) -> str:
+        """Default key function (uses client IP)."""
+        client_ip = request.client.host if request.client else "unknown"
+        return f"{self.key_prefix}{client_ip}"
+
+    async def check_limit(self, identifier: str) -> dict:
+        """Check rate limit for identifier."""
+        key = f"{self.key_prefix}{identifier}"
+
+        try:
+            # Increment counter
+            current = await self.redis.incr(key)
+
+            # Set expiry on first request
+            if current == 1:
+                await self.redis.expire(key, self.window_seconds)
+
+            # Get TTL
+            ttl = await self.redis.ttl(key)
+            reset_at = datetime.now() + timedelta(seconds=ttl)
+
+            allowed = current <= self.max_requests
+            remaining = max(0, self.max_requests - current)
+
+            return {
+                "allowed": allowed,
+                "current": current,
+                "remaining": remaining,
+                "reset_at": reset_at,
+            }
+        except Exception as e:
+            logger.error(f"Rate limit check error for {identifier}: {e}")
+
+            # Fail open (allow request on Redis error)
+            return {
+                "allowed": True,
+                "current": 0,
+                "remaining": self.max_requests,
+                "reset_at": datetime.now() + timedelta(seconds=self.window_seconds),
+            }
+
+    async def reset(self, identifier: str) -> bool:
+        """Reset rate limit for identifier."""
+        try:
+            key = f"{self.key_prefix}{identifier}"
+            result = await self.redis.delete(key)
+            return result > 0
+        except Exception as e:
+            logger.error(f"Rate limit reset error for {identifier}: {e}")
+            return False
+
+    async def __call__(self, request: Request, call_next):
+        """Middleware callable."""
+        identifier = self.key_func(request)
+        limit = await self.check_limit(identifier)
+
+        # Set rate limit headers
+        response = await call_next(request)
+        response.headers["X-RateLimit-Limit"] = str(self.max_requests)
+        response.headers["X-RateLimit-Remaining"] = str(limit["remaining"])
+        response.headers["X-RateLimit-Reset"] = limit["reset_at"].isoformat()
+
+        return response
+
+
+def rate_limit_dependency(
+    max_requests: int = 100,
+    window_seconds: int = 60,
+    key_func: Optional[Callable[[Request], str]] = None,
+):
+    """
+    FastAPI dependency for rate limiting.
+
+    Usage:
+        @app.get("/api/resource", dependencies=[Depends(rate_limit_dependency(max_requests=10))])
+        async def resource():
+            return {"message": "Success"}
+    """
+
+    async def dependency(request: Request):
+        redis = await get_redis()
+        limiter = RateLimiter(
+            redis=redis,
+            max_requests=max_requests,
+            window_seconds=window_seconds,
+            key_func=key_func,
+        )
+
+        identifier = limiter.key_func(request)
+        limit = await limiter.check_limit(identifier)
+
+        if not limit["allowed"]:
+            logger.warn(f"Rate limit exceeded for {identifier}")
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many requests, please try again later",
+                headers={
+                    "X-RateLimit-Limit": str(max_requests),
+                    "X-RateLimit-Remaining": "0",
+                    "X-RateLimit-Reset": limit["reset_at"].isoformat(),
+                },
+            )
+
+        return limit
+
+    return dependency
+
+
+# Preset rate limiters
+class RateLimitPresets:
+    """Preset rate limit configurations."""
+
+    @staticmethod
+    def strict():
+        """Strict rate limiter (10 req/min)."""
+        return rate_limit_dependency(max_requests=10, window_seconds=60)
+
+    @staticmethod
+    def standard():
+        """Standard rate limiter (100 req/min)."""
+        return rate_limit_dependency(max_requests=100, window_seconds=60)
+
+    @staticmethod
+    def relaxed():
+        """Relaxed rate limiter (1000 req/min)."""
+        return rate_limit_dependency(max_requests=1000, window_seconds=60)
+
+    @staticmethod
+    def auth():
+        """Auth rate limiter (5 attempts per 15 min)."""
+        return rate_limit_dependency(max_requests=5, window_seconds=900)
+
+
+# Example usage:
+# from fastapi import Depends, FastAPI
+#
+# app = FastAPI()
+#
+# # Apply to specific endpoint
+# @app.post("/api/login", dependencies=[Depends(RateLimitPresets.auth())])
+# async def login(credentials: LoginCredentials):
+#     return await authenticate(credentials)
+#
+# # Custom rate limiter with user ID
+# def user_key_func(request: Request) -> str:
+#     user_id = request.state.user_id  # Assume set by auth middleware
+#     return f"user:{user_id}"
+#
+# @app.get("/api/data", dependencies=[Depends(rate_limit_dependency(
+#     max_requests=50,
+#     window_seconds=60,
+#     key_func=user_key_func
+# ))])
+# async def get_data():
+#     return {"data": "..."}

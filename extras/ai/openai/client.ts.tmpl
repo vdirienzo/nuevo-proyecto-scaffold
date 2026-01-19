@@ -1,0 +1,95 @@
+/**
+ * OpenAI Client - TypeScript
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import OpenAI from 'openai';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+/**
+ * Generate chat completion
+ */
+export async function chatCompletion(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  options?: {
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+    stream?: boolean;
+  }
+) {
+  const response = await openai.chat.completions.create({
+    model: options?.model || 'gpt-4-turbo-preview',
+    messages,
+    temperature: options?.temperature ?? 0.7,
+    max_tokens: options?.maxTokens,
+    stream: options?.stream ?? false,
+  });
+
+  return response;
+}
+
+/**
+ * Stream chat completion
+ */
+export async function* streamChatCompletion(
+  messages: OpenAI.ChatCompletionMessageParam[],
+  options?: {
+    model?: string;
+    temperature?: number;
+    maxTokens?: number;
+  }
+) {
+  const stream = await openai.chat.completions.create({
+    model: options?.model || 'gpt-4-turbo-preview',
+    messages,
+    temperature: options?.temperature ?? 0.7,
+    max_tokens: options?.maxTokens,
+    stream: true,
+  });
+
+  for await (const chunk of stream) {
+    const content = chunk.choices[0]?.delta?.content;
+    if (content) {
+      yield content;
+    }
+  }
+}
+
+/**
+ * Generate embeddings
+ */
+export async function generateEmbeddings(
+  text: string | string[],
+  model: string = 'text-embedding-3-small'
+) {
+  const response = await openai.embeddings.create({
+    model,
+    input: text,
+  });
+
+  return response.data.map((item) => item.embedding);
+}
+
+/**
+ * Moderate content
+ */
+export async function moderateContent(text: string) {
+  const response = await openai.moderations.create({
+    input: text,
+  });
+
+  const result = response.results[0];
+  return {
+    flagged: result.flagged,
+    categories: result.categories,
+    categoryScores: result.category_scores,
+  };
+}
+
+export { openai };

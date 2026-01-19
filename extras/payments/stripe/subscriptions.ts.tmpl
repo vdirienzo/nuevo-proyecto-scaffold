@@ -1,0 +1,124 @@
+/**
+ * Stripe Subscription Management
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { stripe } from './client';
+
+/**
+ * Create subscription
+ */
+export async function createSubscription(
+  customerId: string,
+  priceId: string,
+  options?: {
+    trialPeriodDays?: number;
+    metadata?: Record<string, string>;
+    prorationBehavior?: 'create_prorations' | 'none';
+  }
+) {
+  return stripe.subscriptions.create({
+    customer: customerId,
+    items: [{ price: priceId }],
+    trial_period_days: options?.trialPeriodDays,
+    metadata: options?.metadata,
+    proration_behavior: options?.prorationBehavior || 'create_prorations',
+    payment_behavior: 'default_incomplete',
+    payment_settings: {
+      save_default_payment_method: 'on_subscription',
+    },
+    expand: ['latest_invoice.payment_intent'],
+  });
+}
+
+/**
+ * Update subscription
+ */
+export async function updateSubscription(
+  subscriptionId: string,
+  priceId: string,
+  options?: {
+    prorationBehavior?: 'create_prorations' | 'none';
+    prorationDate?: number;
+  }
+) {
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  return stripe.subscriptions.update(subscriptionId, {
+    items: [
+      {
+        id: subscription.items.data[0].id,
+        price: priceId,
+      },
+    ],
+    proration_behavior: options?.prorationBehavior || 'create_prorations',
+    proration_date: options?.prorationDate,
+  });
+}
+
+/**
+ * Cancel subscription
+ */
+export async function cancelSubscription(
+  subscriptionId: string,
+  options?: {
+    cancelAtPeriodEnd?: boolean;
+    invoiceNow?: boolean;
+    prorate?: boolean;
+  }
+) {
+  if (options?.cancelAtPeriodEnd) {
+    return stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    });
+  }
+
+  return stripe.subscriptions.cancel(subscriptionId, {
+    invoice_now: options?.invoiceNow,
+    prorate: options?.prorate,
+  });
+}
+
+/**
+ * Resume canceled subscription
+ */
+export async function resumeSubscription(subscriptionId: string) {
+  return stripe.subscriptions.update(subscriptionId, {
+    cancel_at_period_end: false,
+  });
+}
+
+/**
+ * Get customer subscriptions
+ */
+export async function getCustomerSubscriptions(customerId: string) {
+  return stripe.subscriptions.list({
+    customer: customerId,
+    status: 'all',
+    expand: ['data.default_payment_method'],
+  });
+}
+
+/**
+ * Get subscription details
+ */
+export async function getSubscription(subscriptionId: string) {
+  return stripe.subscriptions.retrieve(subscriptionId, {
+    expand: ['default_payment_method', 'latest_invoice'],
+  });
+}
+
+/**
+ * Get upcoming invoice
+ */
+export async function getUpcomingInvoice(
+  customerId: string,
+  subscriptionId?: string
+) {
+  return stripe.invoices.retrieveUpcoming({
+    customer: customerId,
+    subscription: subscriptionId,
+  });
+}

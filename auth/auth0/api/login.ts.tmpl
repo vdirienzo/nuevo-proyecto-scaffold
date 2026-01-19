@@ -1,0 +1,30 @@
+/**
+ * Auth0 Login Route
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { NextApiRequest, NextApiResponse } from 'next';
+import { auth0Config } from '../config';
+
+export default async function loginHandler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const { returnTo } = req.query;
+
+  // Build authorization URL
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: auth0Config.clientId,
+    redirect_uri: auth0Config.redirectUri,
+    scope: auth0Config.scope,
+    audience: auth0Config.audience,
+    ...(returnTo && { state: returnTo as string }),
+  });
+
+  const authorizationUrl = `https://${auth0Config.domain}/authorize?${params.toString()}`;
+
+  res.redirect(302, authorizationUrl);
+}

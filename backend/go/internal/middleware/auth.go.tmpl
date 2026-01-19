@@ -1,0 +1,53 @@
+// auth.go - JWT authentication middleware
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package middleware
+
+import (
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+
+	"{{PROJECT_NAME}}/internal/config"
+	"{{PROJECT_NAME}}/pkg/jwt"
+	"{{PROJECT_NAME}}/pkg/response"
+)
+
+// Auth validates JWT token and sets user context
+func Auth(cfg *config.Config) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Get token from Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			response.Error(c, http.StatusUnauthorized, "Authorization header required")
+			c.Abort()
+			return
+		}
+
+		// Check Bearer scheme
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			response.Error(c, http.StatusUnauthorized, "Invalid authorization header format")
+			c.Abort()
+			return
+		}
+
+		token := parts[1]
+
+		// Verify token
+		claims, err := jwt.VerifyToken(token, cfg.JWT.Secret)
+		if err != nil {
+			response.Error(c, http.StatusUnauthorized, "Invalid or expired token")
+			c.Abort()
+			return
+		}
+
+		// Set user context
+		c.Set("user_id", claims.UserID)
+		c.Set("email", claims.Email)
+
+		c.Next()
+	}
+}

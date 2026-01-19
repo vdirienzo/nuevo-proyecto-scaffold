@@ -1,0 +1,84 @@
+/**
+ * Anthropic Client - TypeScript
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import Anthropic from '@anthropic-ai/sdk';
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+/**
+ * Generate message completion
+ */
+export async function createMessage(
+  messages: Anthropic.MessageParam[],
+  options?: {
+    model?: string;
+    maxTokens?: number;
+    temperature?: number;
+    system?: string;
+  }
+) {
+  const response = await anthropic.messages.create({
+    model: options?.model || 'claude-3-5-sonnet-20241022',
+    max_tokens: options?.maxTokens || 4096,
+    temperature: options?.temperature ?? 1,
+    system: options?.system,
+    messages,
+  });
+
+  return response;
+}
+
+/**
+ * Stream message completion
+ */
+export async function* streamMessage(
+  messages: Anthropic.MessageParam[],
+  options?: {
+    model?: string;
+    maxTokens?: number;
+    temperature?: number;
+    system?: string;
+  }
+) {
+  const stream = await anthropic.messages.create({
+    model: options?.model || 'claude-3-5-sonnet-20241022',
+    max_tokens: options?.maxTokens || 4096,
+    temperature: options?.temperature ?? 1,
+    system: options?.system,
+    messages,
+    stream: true,
+  });
+
+  for await (const event of stream) {
+    if (
+      event.type === 'content_block_delta' &&
+      event.delta.type === 'text_delta'
+    ) {
+      yield event.delta.text;
+    }
+  }
+}
+
+/**
+ * Count tokens
+ */
+export async function countTokens(
+  messages: Anthropic.MessageParam[],
+  system?: string
+) {
+  const response = await anthropic.messages.countTokens({
+    model: 'claude-3-5-sonnet-20241022',
+    messages,
+    system,
+  });
+
+  return response.input_tokens;
+}
+
+export { anthropic };

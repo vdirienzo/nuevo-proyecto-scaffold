@@ -1,0 +1,155 @@
+/**
+ * interceptors.ts.tmpl - gRPC client interceptors
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import * as grpc from '@grpc/grpc-js';
+
+/**
+ * Auth interceptor that adds JWT token to requests
+ */
+export function authInterceptor(metadata: grpc.Metadata): grpc.Interceptor {
+  return (options, nextCall) => {
+    return new grpc.InterceptingCall(nextCall(options), {
+      start(metadata, listener, next) {
+        // Add custom metadata (e.g., authorization header)
+        next(metadata, {
+          onReceiveMetadata(metadata, next) {
+            next(metadata);
+          },
+          onReceiveMessage(message, next) {
+            next(message);
+          },
+          onReceiveStatus(status, next) {
+            next(status);
+          },
+        });
+      },
+    });
+  };
+}
+
+/**
+ * Logging interceptor that logs all RPC calls
+ */
+export function loggingInterceptor(): grpc.Interceptor {
+  return (options, nextCall) => {
+    const startTime = Date.now();
+    const method = options.method_definition.path;
+
+    console.log(`[gRPC] Starting call: ${method}`);
+
+    return new grpc.InterceptingCall(nextCall(options), {
+      start(metadata, listener, next) {
+        next(metadata, {
+          onReceiveMetadata(metadata, next) {
+            console.log(`[gRPC] Received metadata for: ${method}`);
+            next(metadata);
+          },
+          onReceiveMessage(message, next) {
+            console.log(`[gRPC] Received message for: ${method}`);
+            next(message);
+          },
+          onReceiveStatus(status, next) {
+            const duration = Date.now() - startTime;
+            console.log(
+              `[gRPC] Completed call: ${method} | Status: ${status.code} | Duration: ${duration}ms`
+            );
+            next(status);
+          },
+        });
+      },
+    });
+  };
+}
+
+/**
+ * Retry interceptor with exponential backoff
+ */
+export function retryInterceptor(maxRetries = 3, baseDelay = 100): grpc.Interceptor {
+  return (options, nextCall) => {
+    let retries = 0;
+
+    const makeCall = (opts: any): grpc.InterceptingCall => {
+      return new grpc.InterceptingCall(nextCall(opts), {
+        start(metadata, listener, next) {
+          next(metadata, {
+            onReceiveMetadata(metadata, next) {
+              next(metadata);
+            },
+            onReceiveMessage(message, next) {
+              next(message);
+            },
+            onReceiveStatus(status, next) {
+              // Retry on specific error codes
+              const retryableCodes = [
+                grpc.status.UNAVAILABLE,
+                grpc.status.DEADLINE_EXCEEDED,
+                grpc.status.INTERNAL,
+              ];
+
+              if (
+                retryableCodes.includes(status.code) &&
+                retries < maxRetries
+              ) {
+                retries++;
+                const delay = baseDelay * Math.pow(2, retries - 1);
+
+                console.log(
+                  `[gRPC] Retrying call (${retries}/${maxRetries}) after ${delay}ms`
+                );
+
+                setTimeout(() => {
+                  makeCall(options);
+                }, delay);
+
+                return;
+              }
+
+              next(status);
+            },
+          });
+        },
+      });
+    };
+
+    return makeCall(options);
+  };
+}
+
+/**
+ * Error handling interceptor
+ */
+export function errorInterceptor(
+  onError?: (error: grpc.StatusObject) => void
+): grpc.Interceptor {
+  return (options, nextCall) => {
+    return new grpc.InterceptingCall(nextCall(options), {
+      start(metadata, listener, next) {
+        next(metadata, {
+          onReceiveMetadata(metadata, next) {
+            next(metadata);
+          },
+          onReceiveMessage(message, next) {
+            next(message);
+          },
+          onReceiveStatus(status, next) {
+            if (status.code !== grpc.status.OK) {
+              console.error(
+                `[gRPC] Error in ${options.method_definition.path}:`,
+                status
+              );
+
+              if (onError) {
+                onError(status);
+              }
+            }
+            next(status);
+          },
+        });
+      },
+    });
+  };
+}

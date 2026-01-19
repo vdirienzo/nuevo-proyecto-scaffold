@@ -1,0 +1,126 @@
+// auth.go - Authentication handlers
+// Author: {{AUTHOR}}
+// Project: {{PROJECT_NAME}}
+
+package handlers
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+
+	"{{PROJECT_NAME}}/internal/services"
+	"{{PROJECT_NAME}}/pkg/response"
+	"{{PROJECT_NAME}}/pkg/validator"
+)
+
+// AuthHandler handles authentication requests
+type AuthHandler struct {
+	authService *services.AuthService
+}
+
+// NewAuthHandler creates a new auth handler
+func NewAuthHandler(authService *services.AuthService) *AuthHandler {
+	return &AuthHandler{authService: authService}
+}
+
+// RegisterRequest represents registration request
+type RegisterRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8"`
+	Name     string `json:"name" validate:"required,min=2"`
+}
+
+// LoginRequest represents login request
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required"`
+}
+
+// RefreshRequest represents token refresh request
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+// Register handles user registration
+func (h *AuthHandler) Register(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if err := validator.Validate(req); err != nil {
+		response.ValidationError(c, err)
+		return
+	}
+
+	// Register user
+	user, tokens, err := h.authService.Register(c.Request.Context(), req.Email, req.Password, req.Name)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	response.Success(c, gin.H{
+		"user":          user,
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
+	})
+}
+
+// Login handles user login
+func (h *AuthHandler) Login(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if err := validator.Validate(req); err != nil {
+		response.ValidationError(c, err)
+		return
+	}
+
+	// Authenticate user
+	user, tokens, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "Invalid credentials")
+		return
+	}
+
+	response.Success(c, gin.H{
+		"user":          user,
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
+	})
+}
+
+// Refresh handles token refresh
+func (h *AuthHandler) Refresh(c *gin.Context) {
+	var req RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate request
+	if err := validator.Validate(req); err != nil {
+		response.ValidationError(c, err)
+		return
+	}
+
+	// Refresh tokens
+	tokens, err := h.authService.RefreshTokens(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		response.Error(c, http.StatusUnauthorized, "Invalid refresh token")
+		return
+	}
+
+	response.Success(c, gin.H{
+		"access_token":  tokens.AccessToken,
+		"refresh_token": tokens.RefreshToken,
+	})
+}

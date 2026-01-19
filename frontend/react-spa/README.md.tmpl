@@ -1,0 +1,304 @@
+# {{PROJECT_NAME}} - React SPA Frontend
+
+Production-ready React Single Page Application built with modern tools and best practices.
+
+**Author:** {{AUTHOR}}
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Framework** | React 19 |
+| **Build Tool** | Vite 5 |
+| **Language** | TypeScript |
+| **Styling** | Tailwind CSS 3 |
+| **Routing** | React Router 6 |
+| **State Management** | Zustand |
+| **Data Fetching** | TanStack Query (React Query) |
+| **HTTP Client** | Axios |
+| **Icons** | Lucide React |
+
+---
+
+## Features
+
+- ⚡ Lightning-fast development with Vite and Hot Module Replacement (HMR)
+- 🎨 Beautiful UI with Tailwind CSS utility-first approach
+- 🔒 JWT authentication with protected routes
+- 📦 Optimized production builds with code splitting
+- 🚀 Ready for deployment with Docker multi-stage builds
+- 📱 Fully responsive design
+- ♿ Accessible components following best practices
+- 🧪 Testing-ready setup
+
+---
+
+## Project Structure
+
+```
+src/
+├── components/
+│   ├── ui/           # Reusable UI components (Button, Input, Card)
+│   └── layout/       # Layout components (Header, Sidebar)
+├── pages/            # Route pages (Home, Login, Dashboard)
+├── hooks/            # Custom React hooks (useAuth, useApi)
+├── lib/              # Libraries and utilities (API client, utils)
+├── stores/           # Zustand stores (auth store)
+├── styles/           # Global styles
+└── types/            # TypeScript types and interfaces
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+ and npm
+
+### Installation
+
+```bash
+# Install dependencies
+npm install
+
+# Copy environment variables
+cp .env.example .env
+
+# Start development server
+npm run dev
+```
+
+The app will be available at `http://localhost:3000`
+
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
+```env
+VITE_API_URL=http://localhost:8000
+VITE_API_TIMEOUT=30000
+VITE_APP_NAME={{PROJECT_NAME}}
+```
+
+---
+
+## Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Start development server with HMR |
+| `npm run build` | Build for production |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | Run ESLint |
+| `npm run type-check` | Check TypeScript types |
+
+---
+
+## Components
+
+### UI Components
+
+Pre-built, accessible UI components ready to use:
+
+- **Button** - Multiple variants (primary, secondary, outline, ghost) and sizes
+- **Input** - Form input with label, error, and helper text support
+- **Card** - Flexible card container with header and content sections
+
+### Layout Components
+
+- **Header** - Top navigation with user menu and authentication
+- **Sidebar** - Side navigation with route highlighting
+
+---
+
+## State Management
+
+### Zustand Store
+
+Authentication state managed with Zustand and persisted to localStorage:
+
+```typescript
+import { useAuthStore } from '@/stores/auth.store';
+
+const { user, token, isAuthenticated, setAuth, clearAuth } = useAuthStore();
+```
+
+---
+
+## API Integration
+
+### Custom Hooks
+
+#### useAuth
+
+```typescript
+import { useAuth } from '@/hooks/use-auth';
+
+const { login, logout, register, user } = useAuth();
+```
+
+#### useApi
+
+TanStack Query wrapper for GET requests:
+
+```typescript
+import { useApi } from '@/hooks/use-api';
+
+const { data, isLoading, error } = useApi<User[]>('/users');
+```
+
+#### useApiMutation
+
+TanStack Query wrapper for mutations:
+
+```typescript
+import { useApiMutation } from '@/hooks/use-api';
+
+const createUser = useApiMutation<User, CreateUserData>('/users', 'POST');
+```
+
+---
+
+## Protected Routes
+
+Routes are protected using a `ProtectedRoute` wrapper:
+
+```typescript
+<Route
+  path="/dashboard"
+  element={
+    <ProtectedRoute>
+      <DashboardPage />
+    </ProtectedRoute>
+  }
+/>
+```
+
+Unauthenticated users are redirected to `/login`.
+
+---
+
+## Docker Deployment
+
+### Build Docker Image
+
+```bash
+docker build -t {{PROJECT_NAME}}-frontend .
+```
+
+### Run Container
+
+```bash
+docker run -p 80:80 {{PROJECT_NAME}}-frontend
+```
+
+The multi-stage Dockerfile:
+1. **Builder stage**: Installs dependencies and builds the app
+2. **Runtime stage**: Serves static files with nginx
+
+---
+
+## Styling
+
+### Tailwind CSS
+
+Utility-first CSS framework configured with custom theme:
+
+- Custom color palette (primary shades)
+- Inter font family
+- Custom utilities (scrollbar-hide)
+
+### Adding Custom Styles
+
+Global styles in `src/styles/globals.css`:
+
+```css
+@layer utilities {
+  .custom-utility {
+    @apply bg-primary-500 text-white;
+  }
+}
+```
+
+---
+
+## Type Safety
+
+Full TypeScript support with strict mode enabled:
+
+- Type-safe API responses
+- Strongly typed components and props
+- Path aliases (`@/` for `src/`)
+
+---
+
+## Best Practices
+
+✅ **DO:**
+- Use custom hooks for reusable logic
+- Keep components small and focused
+- Leverage TanStack Query for server state
+- Use Zustand for client state
+- Follow React best practices (hooks, composition)
+
+❌ **DON'T:**
+- Mutate state directly
+- Use inline styles (use Tailwind classes)
+- Fetch data in components (use hooks)
+- Store server state in Zustand (use React Query)
+
+---
+
+## Performance Optimization
+
+- **Code splitting**: Automatic chunking by Vite
+- **Lazy loading**: Dynamic imports for routes
+- **Image optimization**: Use WebP format
+- **Bundle analysis**: `npm run build` shows chunk sizes
+
+---
+
+## Browser Support
+
+- Chrome (last 2 versions)
+- Firefox (last 2 versions)
+- Safari (last 2 versions)
+- Edge (last 2 versions)
+
+---
+
+## Contributing
+
+1. Follow the existing code style
+2. Write meaningful commit messages
+3. Test your changes before committing
+4. Update documentation as needed
+
+---
+
+## License
+
+MIT
+
+---
+
+## Changelog
+
+### [1.0.0] - {{CURRENT_DATE}}
+
+#### Added
+- Initial React SPA setup with Vite
+- Authentication with JWT and Zustand
+- TanStack Query for data fetching
+- Tailwind CSS styling system
+- Reusable UI components
+- Protected routes with React Router
+- Docker multi-stage build
+- Nginx production configuration
+
+---
+
+**Built with ❤️ by {{AUTHOR}}**

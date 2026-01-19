@@ -1,0 +1,128 @@
+/**
+ * React Feature Flag Hook
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { FeatureKey, isFeatureEnabled, getFeatureValue } from '../flagsmith/client';
+
+/**
+ * Hook to check if feature is enabled
+ */
+export function useFeature(featureKey: FeatureKey, userId?: string) {
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkFeature = async () => {
+      try {
+        const enabled = await isFeatureEnabled(featureKey, userId);
+        setIsEnabled(enabled);
+      } catch (error) {
+        console.error('Failed to check feature:', error);
+        setIsEnabled(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkFeature();
+  }, [featureKey, userId]);
+
+  return { isEnabled, isLoading };
+}
+
+/**
+ * Hook to get feature value
+ */
+export function useFeatureValue<T = string>(
+  featureKey: FeatureKey,
+  userId?: string
+) {
+  const [value, setValue] = useState<T | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchValue = async () => {
+      try {
+        const featureValue = await getFeatureValue<T>(featureKey, userId);
+        setValue(featureValue);
+      } catch (error) {
+        console.error('Failed to get feature value:', error);
+        setValue(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchValue();
+  }, [featureKey, userId]);
+
+  return { value, isLoading };
+}
+
+/**
+ * Component wrapper for feature flag
+ */
+export function FeatureFlag({
+  feature,
+  userId,
+  children,
+  fallback = null,
+}: {
+  feature: FeatureKey;
+  userId?: string;
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}) {
+  const { isEnabled, isLoading } = useFeature(feature, userId);
+
+  if (isLoading) {
+    return <>{fallback}</>;
+  }
+
+  return isEnabled ? <>{children}</> : <>{fallback}</>;
+}
+
+/**
+ * Hook for multiple features
+ */
+export function useFeatures(features: FeatureKey[], userId?: string) {
+  const [flags, setFlags] = useState<Record<string, boolean>>({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const checkFeatures = async () => {
+      try {
+        const results = await Promise.all(
+          features.map(async (feature) => ({
+            feature,
+            enabled: await isFeatureEnabled(feature, userId),
+          }))
+        );
+
+        const flagsMap = results.reduce(
+          (acc, { feature, enabled }) => ({
+            ...acc,
+            [feature]: enabled,
+          }),
+          {}
+        );
+
+        setFlags(flagsMap);
+      } catch (error) {
+        console.error('Failed to check features:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkFeatures();
+  }, [features.join(','), userId]);
+
+  return { flags, isLoading };
+}
