@@ -1,0 +1,82 @@
+/**
+ * GlassCard.tsx - Glass Card Component
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+import React from 'react'
+import { cn } from '@/lib/utils'
+
+export interface GlassCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'light' | 'dark' | 'purple' | 'blue' | 'cyan' | 'pink'
+  intensity?: 'sm' | 'md' | 'lg'
+  hover?: boolean
+  glow?: boolean
+}
+
+const variantStyles = {
+  light: 'bg-glass-white border-glass-white',
+  dark: 'bg-glass-dark border-glass-dark',
+  purple: 'bg-glass-purple border-glass-purple',
+  blue: 'bg-glass-blue border-glass-blue',
+  cyan: 'bg-glass-cyan border-glass-cyan',
+  pink: 'bg-glass-pink border-glass-pink',
+}
+
+const intensityStyles = {
+  sm: 'backdrop-blur-sm',
+  md: 'backdrop-blur-md',
+  lg: 'backdrop-blur-xl',
+}
+
+const glowStyles = {
+  light: 'shadow-glow',
+  dark: 'shadow-glow',
+  purple: 'shadow-glow-purple',
+  blue: 'shadow-glow-blue',
+  cyan: 'shadow-glow-cyan',
+  pink: 'shadow-glow-pink',
+}
+
+export const GlassCard = React.forwardRef<HTMLDivElement, GlassCardProps>(
+  (
+    {
+      variant = 'light',
+      intensity = 'lg',
+      hover = true,
+      glow = false,
+      className,
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'glass-card relative rounded-xl border transition-all duration-300',
+          variantStyles[variant],
+          intensityStyles[intensity],
+          glow && glowStyles[variant],
+          hover && 'hover:bg-opacity-20 hover:border-opacity-50 hover:shadow-glow-md',
+          className
+        )}
+        {...props}
+      >
+        {/* Inner glow overlay */}
+        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+
+        {/* Content */}
+        <div className="relative z-10 p-6">
+          {children}
+        </div>
+      </div>
+    )
+  }
+)
+
+GlassCard.displayName = 'GlassCard'
+
+export default GlassCard

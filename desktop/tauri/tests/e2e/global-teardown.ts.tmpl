@@ -1,0 +1,52 @@
+/**
+ * Global teardown for Tauri E2E tests
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { FullConfig } from '@playwright/test';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+import { rm } from 'fs/promises';
+import { resolve } from 'path';
+
+const execAsync = promisify(exec);
+
+/**
+ * Global teardown runs after all tests
+ * Use this to clean up the test environment
+ */
+async function globalTeardown(config: FullConfig): Promise<void> {
+  console.log('🧹 Starting global teardown for Tauri E2E tests...');
+
+  try {
+    // Kill any remaining Tauri processes
+    if (process.platform === 'win32') {
+      await execAsync('taskkill /F /IM {{PROJECT_NAME}}.exe /T').catch(() => {
+        // Process might not be running, that's ok
+      });
+    } else {
+      await execAsync('pkill -f "{{PROJECT_NAME}}"').catch(() => {
+        // Process might not be running, that's ok
+      });
+    }
+    console.log('✅ Cleaned up Tauri processes');
+
+    // Clean up test artifacts in CI
+    if (process.env.CI && process.env.CLEANUP_ARTIFACTS === 'true') {
+      const artifactsDir = resolve(__dirname, '../../test-results');
+      await rm(artifactsDir, { recursive: true, force: true });
+      console.log('✅ Cleaned up test artifacts');
+    }
+
+    // Clean up any test databases or temporary files
+    // Add your cleanup logic here
+
+    console.log('✅ Global teardown completed');
+  } catch (error) {
+    console.error('⚠️  Error during teardown:', error);
+    // Don't throw - teardown errors shouldn't fail the test run
+  }
+}
+
+export default globalTeardown;

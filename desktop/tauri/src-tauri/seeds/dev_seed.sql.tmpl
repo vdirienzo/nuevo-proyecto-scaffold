@@ -1,0 +1,79 @@
+-- Development Seed Data
+-- Author: {{AUTHOR}}
+-- Project: {{PROJECT_NAME}}
+-- WARNING: Only for development environments!
+
+-- Default admin user
+-- Email: {{DEFAULT_ADMIN_EMAIL}}
+-- Password: admin123 (change immediately in production!)
+-- Password hash generated with argon2: argon2id$v=19$m=19456,t=2,p=1$...
+INSERT OR IGNORE INTO users (id, email, password_hash, is_active, is_admin, created_at, updated_at)
+VALUES (
+    1,
+    '{{DEFAULT_ADMIN_EMAIL}}',
+    '$argon2id$v=19$m=19456,t=2,p=1$8zDzYxLMHSBXpvTfJVYZqQ$xWkMvV9RN6S0KQ8YvZ0p8gMvVrN6S0KQ8YvZ0p8gM',
+    1,
+    1,
+    strftime('%s', 'now'),
+    strftime('%s', 'now')
+);
+
+-- Default test user
+-- Email: test@example.com
+-- Password: test123
+INSERT OR IGNORE INTO users (id, email, password_hash, is_active, is_admin, created_at, updated_at)
+VALUES (
+    2,
+    'test@example.com',
+    '$argon2id$v=19$m=19456,t=2,p=1$8zDzYxLMHSBXpvTfJVYZqQ$xWkMvV9RN6S0KQ8YvZ0p8gMvVrN6S0KQ8YvZ0p8gM',
+    1,
+    0,
+    strftime('%s', 'now'),
+    strftime('%s', 'now')
+);
+
+-- Global application settings
+INSERT OR IGNORE INTO settings (key, value, user_id, is_global)
+VALUES
+    ('app.theme', 'light', NULL, 1),
+    ('app.language', 'en', NULL, 1),
+    ('app.telemetry_enabled', 'false', NULL, 1),
+    ('app.auto_update', 'true', NULL, 1),
+    ('app.version', '1.0.0', NULL, 1);
+
+-- User-specific settings for admin
+INSERT OR IGNORE INTO settings (key, value, user_id, is_global)
+VALUES
+    ('ui.sidebar_collapsed', 'false', 1, 0),
+    ('ui.notifications_enabled', 'true', 1, 0),
+    ('ui.theme_preference', 'system', 1, 0);
+
+-- User-specific settings for test user
+INSERT OR IGNORE INTO settings (key, value, user_id, is_global)
+VALUES
+    ('ui.sidebar_collapsed', 'false', 2, 0),
+    ('ui.notifications_enabled', 'true', 2, 0),
+    ('ui.theme_preference', 'light', 2, 0);
+
+-- Sample audit log entries (for testing)
+INSERT OR IGNORE INTO audit_logs (action, entity_type, entity_id, user_id, payload, severity)
+VALUES
+    ('system.started', 'system', NULL, NULL, '{"version": "1.0.0"}', 'info'),
+    ('database.seeded', 'database', NULL, 1, '{"environment": "development"}', 'info');
+
+-- Development session for quick testing (expires in 30 days)
+INSERT OR IGNORE INTO sessions (user_id, token, expires_at, ip_address, user_agent)
+VALUES (
+    1,
+    'dev_admin_token_' || hex(randomblob(16)),
+    strftime('%s', 'now', '+30 days'),
+    '127.0.0.1',
+    'Development Environment'
+);
+
+-- Output summary
+SELECT 'Seed data inserted successfully!' as message;
+SELECT 'Users created: ' || COUNT(*) as summary FROM users;
+SELECT 'Settings created: ' || COUNT(*) as summary FROM settings;
+SELECT 'Sessions created: ' || COUNT(*) as summary FROM sessions;
+SELECT 'Audit logs: ' || COUNT(*) as summary FROM audit_logs;

@@ -1,0 +1,95 @@
+/*!
+Database migrations module
+
+Author: {{AUTHOR}}
+*/
+
+use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
+use std::path::PathBuf;
+
+/// Run all pending database migrations
+///
+/// This function uses sqlx's compile-time migration verification
+/// to ensure all migrations are valid and run in order.
+pub async fn run_migrations(database_url: &str) -> Result<(), Box<dyn std::error::Error>> {
+    // Create database if it doesn't exist
+    if !Sqlite::database_exists(database_url).await? {
+        log::info!("Creating database: {}", database_url);
+        Sqlite::create_database(database_url).await?;
+    }
+
+    // Connect to database
+    let pool = SqlitePool::connect(database_url).await?;
+
+    // Run migrations
+    log::info!("Running database migrations...");
+    sqlx::migrate!("./migrations")
+        .run(&pool)
+        .await?;
+
+    log::info!("Migrations completed successfully");
+
+    pool.close().await;
+    Ok(())
+}
+
+/// Get the database file path for the application
+pub fn get_database_path(app_name: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let data_dir = dirs::data_local_dir()
+        .ok_or("Could not determine local data directory")?;
+
+    let app_dir = data_dir.join(app_name);
+    std::fs::create_dir_all(&app_dir)?;
+
+    Ok(app_dir.join("database.db"))
+}
+
+/// Get the database URL for SQLite
+pub fn get_database_url(db_path: &PathBuf) -> String {
+    format!("sqlite://{}", db_path.display())
+}
+
+/// Initialize database with migrations
+pub async fn init_database(app_name: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let db_path = get_database_path(app_name)?;
+    let db_url = get_database_url(&db_path);
+
+    log::info!("Database path: {:?}", db_path);
+
+    // Run migrations
+    run_migrations(&db_url).await?;
+
+    Ok(db_url)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_migrations() {
+        let db_url = "sqlite::memory:";
+
+        // Should not panic
+        run_migrations(db_url).await.expect("Migrations failed");
+
+        // Verify tables exist
+        let pool = SqlitePool::connect(db_url).await.unwrap();
+
+        let tables: Vec<(String,)> = sqlx::query_as(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+
+        let table_names: Vec<String> = tables.into_iter().map(|(name,)| name).collect();
+
+        assert!(table_names.contains(&"users".to_string()));
+        assert!(table_names.contains(&"settings".to_string()));
+        assert!(table_names.contains(&"sessions".to_string()));
+        assert!(table_names.contains(&"audit_logs".to_string()));
+
+        pool.close().await;
+    }
+}

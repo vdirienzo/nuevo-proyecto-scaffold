@@ -1,0 +1,392 @@
+/**
+ * LandingPage.tsx - Neumorphism Design System Landing Page Example
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * Soft UI landing page with extruded/embossed effects and subtle shadows.
+ * Design principles: Minimalism, tactility, depth through light.
+ */
+
+import React, { useState } from 'react';
+import { NeuButton } from '../components/react/NeuButton';
+import { NeuCard } from '../components/react/NeuCard';
+import { NeuInput } from '../components/react/NeuInput';
+import { NeuToggle } from '../components/react/NeuToggle';
+import { NeuSlider } from '../components/react/NeuSlider';
+import { NeuCheckbox } from '../components/react/NeuCheckbox';
+import { NeuProgress } from '../components/react/NeuProgress';
+
+const LandingPage: React.FC = () => {
+  const [darkMode, setDarkMode] = useState(false);
+  const [sliderValue, setSliderValue] = useState(75);
+  const [acceptTerms, setAcceptTerms] = useState(false);
+
+  return (
+    <div className={`min-h-screen transition-colors duration-300 ${
+      darkMode ? 'bg-gray-800' : 'bg-gray-100'
+    }`}>
+      {/* Hero Section - Soft raised card */}
+      <section className="container mx-auto px-6 pt-24 pb-16">
+        <NeuCard
+          variant="raised"
+          className={`max-w-5xl mx-auto p-12 text-center ${
+            darkMode ? 'text-white' : 'text-gray-800'
+          }`}
+        >
+          <h1 className="text-6xl md:text-7xl font-bold mb-6">
+            Soft. Simple. Beautiful.
+          </h1>
+          <p className="text-xl md:text-2xl mb-10 max-w-3xl mx-auto opacity-80">
+            {{APP_TITLE}} brings the tactile, minimalist aesthetic of neumorphism to your fingertips.
+          </p>
+          <div className="flex gap-4 justify-center items-center flex-wrap">
+            <NeuButton variant="raised" size="lg">
+              Get Started
+            </NeuButton>
+            <NeuButton variant="flat" size="lg">
+              View Demo
+            </NeuButton>
+            <div className="flex items-center gap-3">
+              <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Dark Mode</span>
+              <NeuToggle checked={darkMode} onChange={setDarkMode} />
+            </div>
+          </div>
+        </NeuCard>
+      </section>
+
+      {/* Features Grid - Soft cards */}
+      <section className="container mx-auto px-6 py-16">
+        <h2 className={`text-4xl md:text-5xl font-bold text-center mb-12 ${
+          darkMode ? 'text-white' : 'text-gray-800'
+        }`}>
+          Why Neumorphism?
+        </h2>
+        <div className="grid md:grid-cols-3 gap-8">
+          <NeuCard variant="raised" className="p-8 hover:scale-105 transition-transform">
+            <div className="text-4xl mb-4">🎨</div>
+            <h3 className={`text-2xl font-semibold mb-3 ${
+              darkMode ? 'text-white' : 'text-gray-800'
+            }`}>
+              Minimalist Design
+            </h3>
+            <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+              Clean, soft shadows create depth without visual clutter.
+            </p>
+          </NeuCard>
+          <NeuCard variant="raised" className="p-8 hover:scale-105 transition-transform">
+            <div className="text-4xl mb-4">👆</div>
+            <h3 className={`text-2xl font-semibold mb-3 ${
+              darkMode ? 'text-white' : 'text-gray-800'
+            }`}>
+              Tactile Feel
+            </h3>
+            <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+              Buttons and elements appear touchable, like physical objects.
+            </p>
+          </NeuCard>
+          <NeuCard variant="raised" className="p-8 hover:scale-105 transition-transform">
+            <div className="text-4xl mb-4">✨</div>
+            <h3 className={`text-2xl font-semibold mb-3 ${
+              darkMode ? 'text-white' : 'text-gray-800'
+            }`}>
+              Subtle Elegance
+            </h3>
+            <p className={darkMode ? 'text-gray-300' : 'text-gray-600'}>
+              Understated aesthetics that let content shine.
+            </p>
+          </NeuCard>
+        </div>
+      </section>
+
+      {/* Interactive Components Showcase */}
+      <section className="container mx-auto px-6 py-16">
+        <h2 className={`text-4xl font-bold text-center mb-12 ${
+          darkMode ? 'text-white' : 'text-gray-800'
+        }`}>
+          Interactive Components
+        </h2>
+        <NeuCard variant="raised" className="max-w-3xl mx-auto p-10 space-y-8">
+          {/* Toggles */}
+          <div>
+            <h3 className={`text-xl font-semibold mb-4 ${
+              darkMode ? 'text-white' : 'text-gray-800'
+            }`}>
+              Toggle Switches
+            </h3>
+            <div className="flex gap-6 flex-wrap">
+              <div className="flex items-center gap-3">
+                <NeuToggle checked onChange={() => {}} />
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Enabled</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <NeuToggle checked={false} onChange={() => {}} />
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Disabled</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sliders */}
+          <div>
+            <h3 className={`text-xl font-semibold mb-4 ${
+              darkMode ? 'text-white' : 'text-gray-800'
+            }`}>
+              Slider Control
+            </h3>
+            <NeuSlider
+              value={sliderValue}
+              onChange={setSliderValue}
+              min={0}
+              max={100}
+            />
+            <p className={`mt-2 text-center ${
+              darkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              Value: {sliderValue}%
+            </p>
+          </div>
+
+          {/* Progress Bar */}
+          <div>
+            <h3 className={`text-xl font-semibold mb-4 ${
+              darkMode ? 'text-white' : 'text-gray-800'
+            }`}>
+              Progress Indicator
+            </h3>
+            <NeuProgress value={sliderValue} max={100} />
+          </div>
+
+          {/* Checkboxes */}
+          <div>
+            <h3 className={`text-xl font-semibold mb-4 ${
+              darkMode ? 'text-white' : 'text-gray-800'
+            }`}>
+              Checkboxes
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <NeuCheckbox checked onChange={() => {}} />
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Option 1</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <NeuCheckbox checked={false} onChange={() => {}} />
+                <span className={darkMode ? 'text-gray-300' : 'text-gray-600'}>Option 2</span>
+              </div>
+            </div>
+          </div>
+        </NeuCard>
+      </section>
+
+      {/* Pricing - Soft cards */}
+      <section className="container mx-auto px-6 py-16">
+        <h2 className={`text-4xl font-bold text-center mb-4 ${
+          darkMode ? 'text-white' : 'text-gray-800'
+        }`}>
+          Simple Pricing
+        </h2>
+        <p className={`text-center mb-12 ${
+          darkMode ? 'text-gray-300' : 'text-gray-600'
+        }`}>
+          Choose the plan that works for you
+        </p>
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <NeuCard variant="raised" className="p-8">
+            <div className="mb-6">
+              <div className={`text-sm mb-2 ${
+                darkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                Starter
+              </div>
+              <div className={`text-5xl font-bold ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                $0
+              </div>
+              <div className={darkMode ? 'text-gray-400' : 'text-gray-500'}>
+                forever
+              </div>
+            </div>
+            <ul className={`space-y-3 mb-8 ${
+              darkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              <li>✓ Basic components</li>
+              <li>✓ Community support</li>
+              <li>✓ MIT License</li>
+            </ul>
+            <NeuButton variant="raised" fullWidth>
+              Get Started
+            </NeuButton>
+          </NeuCard>
+
+          <NeuCard variant="raised" className="p-8 scale-105">
+            <div className="mb-6">
+              <div className={`text-sm mb-2 ${
+                darkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                Pro
+              </div>
+              <div className={`text-5xl font-bold ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                $19
+              </div>
+              <div className={darkMode ? 'text-gray-400' : 'text-gray-500'}>
+                per month
+              </div>
+            </div>
+            <ul className={`space-y-3 mb-8 ${
+              darkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              <li>✓ All components</li>
+              <li>✓ Priority support</li>
+              <li>✓ Advanced themes</li>
+              <li>✓ Figma files</li>
+            </ul>
+            <NeuButton variant="pressed" fullWidth>
+              Upgrade Now
+            </NeuButton>
+          </NeuCard>
+
+          <NeuCard variant="raised" className="p-8">
+            <div className="mb-6">
+              <div className={`text-sm mb-2 ${
+                darkMode ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                Enterprise
+              </div>
+              <div className={`text-5xl font-bold ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                Custom
+              </div>
+              <div className={darkMode ? 'text-gray-400' : 'text-gray-500'}>
+                contact us
+              </div>
+            </div>
+            <ul className={`space-y-3 mb-8 ${
+              darkMode ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              <li>✓ Unlimited projects</li>
+              <li>✓ Dedicated support</li>
+              <li>✓ Custom components</li>
+              <li>✓ SLA guarantee</li>
+            </ul>
+            <NeuButton variant="raised" fullWidth>
+              Contact Sales
+            </NeuButton>
+          </NeuCard>
+        </div>
+      </section>
+
+      {/* Contact Form - Neumorphic inputs */}
+      <section className="container mx-auto px-6 py-16">
+        <NeuCard variant="raised" className="max-w-2xl mx-auto p-10">
+          <h2 className={`text-3xl font-bold mb-8 text-center ${
+            darkMode ? 'text-white' : 'text-gray-800'
+          }`}>
+            Get in Touch
+          </h2>
+          <form className="space-y-6">
+            <NeuInput
+              type="text"
+              placeholder="Your name"
+            />
+            <NeuInput
+              type="email"
+              placeholder="your@email.com"
+            />
+            <NeuInput
+              type="text"
+              placeholder="Subject"
+            />
+            <div className="flex items-start gap-3">
+              <NeuCheckbox
+                checked={acceptTerms}
+                onChange={setAcceptTerms}
+              />
+              <span className={`text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                I agree to the terms and conditions
+              </span>
+            </div>
+            <NeuButton
+              variant="raised"
+              fullWidth
+              disabled={!acceptTerms}
+            >
+              Send Message
+            </NeuButton>
+          </form>
+        </NeuCard>
+      </section>
+
+      {/* Footer - Soft and minimal */}
+      <footer className="container mx-auto px-6 py-12 mt-16">
+        <NeuCard variant="flat" className="p-8">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <div className={`font-bold text-xl mb-4 ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                {{PROJECT_NAME}}
+              </div>
+              <p className={`text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                Soft UI for modern apps.
+              </p>
+            </div>
+            <div>
+              <div className={`font-semibold mb-3 ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                Product
+              </div>
+              <ul className={`space-y-2 text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                <li><a href="#">Features</a></li>
+                <li><a href="#">Pricing</a></li>
+                <li><a href="#">Docs</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className={`font-semibold mb-3 ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                Company
+              </div>
+              <ul className={`space-y-2 text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                <li><a href="#">About</a></li>
+                <li><a href="#">Blog</a></li>
+                <li><a href="#">Careers</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className={`font-semibold mb-3 ${
+                darkMode ? 'text-white' : 'text-gray-800'
+              }`}>
+                Legal
+              </div>
+              <ul className={`space-y-2 text-sm ${
+                darkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}>
+                <li><a href="#">Privacy</a></li>
+                <li><a href="#">Terms</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className={`text-center text-sm pt-6 border-t ${
+            darkMode ? 'border-gray-700 text-gray-400' : 'border-gray-300 text-gray-500'
+          }`}>
+            © {new Date().getFullYear()} {{PROJECT_NAME}}. Designed with softness in mind.
+          </div>
+        </NeuCard>
+      </footer>
+    </div>
+  );
+};
+
+export default LandingPage;

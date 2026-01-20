@@ -1,0 +1,14 @@
+/*! Plugin module exports
+ *
+ * Author: {{AUTHOR}}
+ */
+
+pub mod log;
+pub mod store;
+pub mod updater;
+pub mod window_state;
+
+pub use log::setup_logging;
+pub use store::setup_store;
+pub use updater::setup_updater;
+pub use window_state::setup_window_state;

@@ -1,0 +1,80 @@
+/**
+ * BrutalLink.tsx - Neo-Brutalism link component
+ *
+ * Autor: Homero Thompson del Lago del Terror
+ * Project: {{PROJECT_NAME}}
+ */
+
+import React from 'react'
+import { cn } from '@/lib/utils'
+
+export interface BrutalLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
+  underlineColor?: 'yellow' | 'magenta' | 'cyan' | 'lime' | 'black'
+  showArrow?: boolean
+  external?: boolean
+  children: React.ReactNode
+}
+
+const BrutalLink = React.forwardRef<HTMLAnchorElement, BrutalLinkProps>(
+  (
+    {
+      className,
+      underlineColor = 'black',
+      showArrow = false,
+      external = false,
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const underlineClasses = {
+      yellow: 'decoration-brutal-yellow hover:decoration-brutal-magenta',
+      magenta: 'decoration-brutal-magenta hover:decoration-brutal-cyan',
+      cyan: 'decoration-brutal-cyan hover:decoration-brutal-lime',
+      lime: 'decoration-brutal-lime hover:decoration-brutal-yellow',
+      black: 'decoration-brutal-black hover:decoration-brutal-yellow',
+    }
+
+    return (
+      <a
+        ref={ref}
+        className={cn(
+          'font-bold text-brutal-base underline',
+          'decoration-4 underline-offset-4',
+          'transition-all duration-200',
+          'hover:underline-offset-8',
+          'inline-flex items-center gap-2',
+          underlineClasses[underlineColor],
+          className
+        )}
+        {...(external && {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+        })}
+        {...props}
+      >
+        {children}
+        {showArrow && (
+          <svg
+            className="w-4 h-4 transition-transform duration-200 group-hover:translate-x-1"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              strokeLinecap="square"
+              strokeLinejoin="miter"
+              strokeWidth={3}
+              d="M14 5l7 7m0 0l-7 7m7-7H3"
+            />
+          </svg>
+        )}
+      </a>
+    )
+  }
+)
+
+BrutalLink.displayName = 'BrutalLink'
+
+export default BrutalLink

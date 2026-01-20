@@ -1,0 +1,28 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/capability",
+  "identifier": "minimal",
+  "description": "Minimal permissions for {{APP_TITLE}} - Sandboxed mode with only essential capabilities",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-set-title",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+    "dialog:allow-message",
+    "dialog:allow-confirm",
+    "os:allow-platform",
+    "os:allow-version",
+    "os:allow-arch",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-delete",
+    "store:allow-load",
+    "store:allow-save",
+    "log:allow-log"
+  ],
+  "remote": {
+    "urls": []
+  }
+}

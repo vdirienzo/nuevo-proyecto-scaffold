@@ -1,0 +1,167 @@
+<template>
+  <button
+    :type="type"
+    :disabled="disabled || loading"
+    :class="buttonClasses"
+    @mousedown="handleMouseDown"
+    @mouseup="handleMouseUp"
+    @mouseleave="handleMouseUp"
+    @click="handleClick"
+  >
+    <span v-if="loading" class="inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+    <slot />
+  </button>
+</template>
+
+<script setup lang="ts">
+/**
+ * NeuButton Component - Neumorphism Design System (Vue 3)
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Tactile button with raised/flat/pressed variants
+ */
+
+import { ref, computed } from 'vue';
+
+export interface NeuButtonProps {
+  /** Visual variant */
+  variant?: 'raised' | 'flat' | 'pressed';
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Button type */
+  type?: 'button' | 'submit' | 'reset';
+  /** Full width */
+  fullWidth?: boolean;
+  /** Loading state */
+  loading?: boolean;
+  /** Disabled state */
+  disabled?: boolean;
+  /** Icon only mode */
+  iconOnly?: boolean;
+}
+
+const props = withDefaults(defineProps<NeuButtonProps>(), {
+  variant: 'raised',
+  size: 'md',
+  type: 'button',
+  fullWidth: false,
+  loading: false,
+  disabled: false,
+  iconOnly: false,
+});
+
+const emit = defineEmits<{
+  click: [event: MouseEvent];
+}>();
+
+const isPressed = ref(false);
+
+const handleMouseDown = () => {
+  if (!props.disabled && !props.loading) {
+    isPressed.value = true;
+  }
+};
+
+const handleMouseUp = () => {
+  isPressed.value = false;
+};
+
+const handleClick = (event: MouseEvent) => {
+  if (!props.disabled && !props.loading) {
+    emit('click', event);
+  }
+};
+
+const buttonClasses = computed(() => {
+  const classes = [
+    'inline-flex items-center justify-center',
+    'font-medium tracking-wide',
+    'transition-neu focus:outline-none',
+    'rounded-soft-md',
+    'neu-text',
+    'select-none',
+  ];
+
+  // Size variants
+  if (props.iconOnly) {
+    if (props.size === 'sm') classes.push('aspect-square p-2');
+    else if (props.size === 'md') classes.push('aspect-square p-3');
+    else if (props.size === 'lg') classes.push('aspect-square p-4');
+  } else {
+    if (props.size === 'sm') classes.push('px-3 py-1.5 text-sm gap-1.5');
+    else if (props.size === 'md') classes.push('px-5 py-2.5 text-base gap-2');
+    else if (props.size === 'lg') classes.push('px-7 py-3.5 text-lg gap-2.5');
+  }
+
+  // Full width
+  if (props.fullWidth) classes.push('w-full');
+
+  // Disabled
+  if (props.disabled || props.loading) classes.push('neu-disabled');
+
+  // Variant styles
+  if (props.variant === 'raised') {
+    if (!isPressed.value) {
+      classes.push('neu-surface');
+      if (!props.disabled && !props.loading) {
+        classes.push('hover:shadow-neu-hover dark:hover:shadow-neu-hover-dark');
+        classes.push('active:shadow-neu-pressed dark:active:shadow-neu-pressed-dark');
+      }
+    } else {
+      classes.push('neu-pressed');
+    }
+  } else if (props.variant === 'flat') {
+    if (!isPressed.value) {
+      classes.push('neu-convex');
+      if (!props.disabled && !props.loading) {
+        classes.push('hover:shadow-neu-convex dark:hover:shadow-neu-convex-dark');
+      }
+    } else {
+      classes.push('neu-concave');
+    }
+  } else if (props.variant === 'pressed') {
+    classes.push('neu-pressed');
+    if (!props.disabled && !props.loading) {
+      classes.push('hover:opacity-80');
+    }
+  }
+
+  return classes.join(' ');
+});
+</script>
+
+<!--
+Usage Examples:
+
+// Raised button (default)
+<NeuButton>Click me</NeuButton>
+
+// Flat button
+<NeuButton variant="flat">Flat</NeuButton>
+
+// Pressed/inset button
+<NeuButton variant="pressed">Pressed</NeuButton>
+
+// Sizes
+<NeuButton size="sm">Small</NeuButton>
+<NeuButton size="lg">Large</NeuButton>
+
+// Loading state
+<NeuButton :loading="true">Loading...</NeuButton>
+
+// Disabled
+<NeuButton :disabled="true">Disabled</NeuButton>
+
+// Icon only
+<NeuButton icon-only>
+  <IconComponent />
+</NeuButton>
+
+// Full width
+<NeuButton full-width>Full Width</NeuButton>
+
+// With click handler
+<NeuButton @click="handleSubmit">Submit</NeuButton>
+-->

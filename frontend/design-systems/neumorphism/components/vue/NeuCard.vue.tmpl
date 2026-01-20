@@ -1,0 +1,107 @@
+<template>
+  <div :class="cardClasses">
+    <slot />
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * NeuCard Component - Neumorphism Design System (Vue 3)
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Container with soft shadows and optional hover effect
+ */
+
+import { computed } from 'vue';
+
+export interface NeuCardProps {
+  /** Visual variant */
+  variant?: 'flat' | 'convex' | 'raised' | 'pressed';
+  /** Enable hover effect */
+  hoverable?: boolean;
+  /** Padding size */
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Border radius */
+  rounded?: 'sm' | 'md' | 'lg' | 'xl';
+}
+
+const props = withDefaults(defineProps<NeuCardProps>(), {
+  variant: 'flat',
+  hoverable: false,
+  padding: 'md',
+  rounded: 'md',
+});
+
+const cardClasses = computed(() => {
+  const classes = ['neu-surface transition-neu'];
+
+  // Padding
+  if (props.padding === 'none') classes.push('p-0');
+  else if (props.padding === 'sm') classes.push('p-3');
+  else if (props.padding === 'md') classes.push('p-5');
+  else if (props.padding === 'lg') classes.push('p-7');
+
+  // Border radius
+  if (props.rounded === 'sm') classes.push('rounded-soft-sm');
+  else if (props.rounded === 'md') classes.push('rounded-soft-md');
+  else if (props.rounded === 'lg') classes.push('rounded-soft-lg');
+  else if (props.rounded === 'xl') classes.push('rounded-soft-xl');
+
+  // Variant styles
+  if (props.variant === 'flat') {
+    classes.push('shadow-neu-flat dark:shadow-neu-flat-dark');
+  } else if (props.variant === 'convex') {
+    classes.push('shadow-neu-convex dark:shadow-neu-convex-dark');
+  } else if (props.variant === 'raised') {
+    classes.push('shadow-neu-raised dark:shadow-neu-raised-dark');
+  } else if (props.variant === 'pressed') {
+    classes.push('shadow-neu-pressed dark:shadow-neu-pressed-dark');
+  }
+
+  // Hover styles
+  if (props.hoverable && props.variant !== 'pressed') {
+    classes.push('hover:shadow-neu-hover dark:hover:shadow-neu-hover-dark hover:-translate-y-0.5');
+    classes.push('cursor-pointer');
+  }
+
+  return classes.join(' ');
+});
+</script>
+
+<!--
+Usage Examples:
+
+// Basic card
+<NeuCard>
+  <h3>Card Title</h3>
+  <p>Card content</p>
+</NeuCard>
+
+// Convex card
+<NeuCard variant="convex">
+  Content here
+</NeuCard>
+
+// Raised card with hover
+<NeuCard variant="raised" :hoverable="true">
+  Hover me!
+</NeuCard>
+
+// Pressed/inset card
+<NeuCard variant="pressed" padding="lg">
+  Inset container
+</NeuCard>
+
+// Custom padding and radius
+<NeuCard padding="lg" rounded="xl">
+  Large padding and radius
+</NeuCard>
+
+// No padding (for custom content)
+<NeuCard padding="none">
+  <img src="image.jpg" alt="Full width" />
+  <div class="p-5">Content</div>
+</NeuCard>
+-->

@@ -1,0 +1,83 @@
+/*! App Information Commands - Application metadata and version info
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use serde::{Deserialize, Serialize};
+use tauri::Manager;
+
+use crate::error::AppError;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppInfo {
+    pub name: String,
+    pub version: String,
+    pub platform: String,
+    pub arch: String,
+    pub tauri_version: String,
+}
+
+/// Get comprehensive application information
+///
+/// Returns metadata about the application including name, version,
+/// platform, architecture, and Tauri version.
+#[tauri::command]
+pub async fn get_app_info(app: tauri::AppHandle) -> Result<AppInfo, AppError> {
+    let name = app
+        .package_info()
+        .name
+        .clone();
+
+    let version = app
+        .package_info()
+        .version
+        .to_string();
+
+    let platform = std::env::consts::OS.to_string();
+    let arch = std::env::consts::ARCH.to_string();
+    let tauri_version = app.package_info().version.to_string();
+
+    Ok(AppInfo {
+        name,
+        version,
+        platform,
+        arch,
+        tauri_version,
+    })
+}
+
+/// Get application version string
+///
+/// Returns just the version number as a simple string.
+#[tauri::command]
+pub async fn get_app_version(app: tauri::AppHandle) -> Result<String, AppError> {
+    Ok(app.package_info().version.to_string())
+}
+
+/// Get application name
+///
+/// Returns the configured application name.
+#[tauri::command]
+pub async fn get_app_name(app: tauri::AppHandle) -> Result<String, AppError> {
+    Ok(app.package_info().name.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_app_info_serialization() {
+        let info = AppInfo {
+            name: "{{PROJECT_NAME}}".to_string(),
+            version: "1.0.0".to_string(),
+            platform: "linux".to_string(),
+            arch: "x86_64".to_string(),
+            tauri_version: "1.5.0".to_string(),
+        };
+
+        let json = serde_json::to_string(&info).unwrap();
+        assert!(json.contains("{{PROJECT_NAME}}"));
+        assert!(json.contains("1.0.0"));
+    }
+}

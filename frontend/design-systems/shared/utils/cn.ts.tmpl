@@ -1,0 +1,172 @@
+/**
+ * cn.ts - Class name utility for merging Tailwind CSS classes
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Combines clsx for conditional classes and tailwind-merge to handle
+ * conflicting Tailwind classes intelligently.
+ */
+
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+/**
+ * Merge Tailwind CSS classes with proper conflict resolution
+ *
+ * Features:
+ * - Conditional class names (via clsx)
+ * - Tailwind conflict resolution (via tailwind-merge)
+ * - Type-safe with ClassValue
+ * - Handles arrays, objects, and strings
+ *
+ * @param inputs - Class values to merge
+ * @returns Merged class string with conflicts resolved
+ *
+ * @example
+ * ```tsx
+ * // Basic usage
+ * cn('px-2 py-1', 'px-3') // => 'py-1 px-3'
+ *
+ * // Conditional classes
+ * cn('base-class', { 'active': isActive, 'disabled': isDisabled })
+ *
+ * // With arrays
+ * cn(['class-1', 'class-2'], 'class-3')
+ *
+ * // Complex component example
+ * function Button({ variant, size, className }) {
+ *   return (
+ *     <button className={cn(
+ *       'rounded font-medium transition-colors',
+ *       {
+ *         'bg-blue-500 text-white hover:bg-blue-600': variant === 'primary',
+ *         'bg-gray-200 text-gray-900 hover:bg-gray-300': variant === 'secondary',
+ *       },
+ *       {
+ *         'px-4 py-2 text-sm': size === 'sm',
+ *         'px-6 py-3 text-base': size === 'md',
+ *         'px-8 py-4 text-lg': size === 'lg',
+ *       },
+ *       className // User overrides always last
+ *     )}>
+ *       Click me
+ *     </button>
+ *   );
+ * }
+ * ```
+ */
+export function cn(...inputs: ClassValue[]): string {
+  return twMerge(clsx(inputs));
+}
+
+/**
+ * Create a composable class name builder with base classes
+ *
+ * Useful for component variants with shared base classes
+ *
+ * @example
+ * ```tsx
+ * const buttonClasses = createClassBuilder(
+ *   'rounded font-medium transition-colors focus:outline-none focus:ring-2'
+ * );
+ *
+ * // In component
+ * <button className={buttonClasses('bg-blue-500 hover:bg-blue-600', className)} />
+ * ```
+ */
+export function createClassBuilder(...baseClasses: ClassValue[]) {
+  const base = cn(...baseClasses);
+  return (...additionalClasses: ClassValue[]) => {
+    return cn(base, ...additionalClasses);
+  };
+}
+
+/**
+ * Variant-based class name builder
+ *
+ * Type-safe variant selection with base classes
+ *
+ * @example
+ * ```tsx
+ * const button = createVariants({
+ *   base: 'rounded font-medium transition-colors',
+ *   variants: {
+ *     variant: {
+ *       primary: 'bg-blue-500 text-white hover:bg-blue-600',
+ *       secondary: 'bg-gray-200 text-gray-900 hover:bg-gray-300',
+ *       ghost: 'bg-transparent hover:bg-gray-100',
+ *     },
+ *     size: {
+ *       sm: 'px-4 py-2 text-sm',
+ *       md: 'px-6 py-3 text-base',
+ *       lg: 'px-8 py-4 text-lg',
+ *     },
+ *   },
+ *   defaultVariants: {
+ *     variant: 'primary',
+ *     size: 'md',
+ *   },
+ * });
+ *
+ * // Usage
+ * <button className={button({ variant: 'secondary', size: 'sm' })} />
+ * ```
+ */
+export function createVariants<V extends Record<string, Record<string, string>>>({
+  base,
+  variants,
+  defaultVariants = {},
+}: {
+  base?: string;
+  variants: V;
+  defaultVariants?: { [K in keyof V]?: keyof V[K] };
+}) {
+  return function (props?: { [K in keyof V]?: keyof V[K] } & { className?: string }) {
+    const { className, ...variantProps } = props || {};
+
+    const variantClasses = Object.entries(variants).map(([variantKey, variantOptions]) => {
+      const selectedVariant =
+        variantProps[variantKey as keyof typeof variantProps] ||
+        defaultVariants[variantKey as keyof typeof defaultVariants];
+
+      return selectedVariant ? variantOptions[selectedVariant as string] : '';
+    });
+
+    return cn(base, ...variantClasses, className);
+  };
+}
+
+/**
+ * Responsive class name builder
+ *
+ * Apply different classes at different breakpoints
+ *
+ * @example
+ * ```tsx
+ * responsive({
+ *   mobile: 'text-sm px-2',
+ *   tablet: 'text-base px-4',
+ *   desktop: 'text-lg px-6',
+ * })
+ * // => 'text-sm px-2 md:text-base md:px-4 lg:text-lg lg:px-6'
+ * ```
+ */
+export function responsive({
+  mobile,
+  tablet,
+  desktop,
+  wide,
+}: {
+  mobile?: string;
+  tablet?: string;
+  desktop?: string;
+  wide?: string;
+}): string {
+  return cn(
+    mobile,
+    tablet && `md:${tablet}`,
+    desktop && `lg:${desktop}`,
+    wide && `xl:${wide}`
+  );
+}

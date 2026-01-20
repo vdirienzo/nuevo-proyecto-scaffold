@@ -1,0 +1,230 @@
+/**
+ * Input.tsx - Geist design system Input component
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Dark input field with gradient focus state, error handling, and icon support.
+ */
+
+import React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
+import { cn } from '@/lib/utils';
+
+const inputVariants = cva(
+  [
+    'w-full rounded-geist px-4 py-2.5 text-base',
+    'bg-geist-black-lighter border text-geist-white',
+    'placeholder:text-geist-gray-500',
+    'transition-all duration-200',
+    'focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
+  ].join(' '),
+  {
+    variants: {
+      variant: {
+        default: [
+          'border-geist-gray-800',
+          'focus:border-geist-blue focus:ring-1 focus:ring-geist-blue',
+        ].join(' '),
+        gradient: [
+          'border-geist-gray-800',
+          'focus:border-transparent',
+          'focus:ring-2 focus:ring-transparent',
+          'relative',
+        ].join(' '),
+        error: [
+          'border-geist-error',
+          'focus:border-geist-error focus:ring-1 focus:ring-geist-error',
+        ].join(' '),
+      },
+      size: {
+        sm: 'h-8 px-3 py-1.5 text-sm',
+        md: 'h-10 px-4 py-2.5 text-base',
+        lg: 'h-12 px-5 py-3 text-lg',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'md',
+    },
+  }
+);
+
+export interface InputProps
+  extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'size'>,
+    VariantProps<typeof inputVariants> {
+  /** Label text */
+  label?: string;
+  /** Helper text below input */
+  helperText?: string;
+  /** Error message */
+  error?: string;
+  /** Icon to display before input */
+  leftIcon?: React.ReactNode;
+  /** Icon to display after input */
+  rightIcon?: React.ReactNode;
+  /** Container className */
+  containerClassName?: string;
+}
+
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  (
+    {
+      className,
+      containerClassName,
+      variant,
+      size,
+      label,
+      helperText,
+      error,
+      leftIcon,
+      rightIcon,
+      type = 'text',
+      ...props
+    },
+    ref
+  ) => {
+    const hasError = !!error;
+    const finalVariant = hasError ? 'error' : variant;
+
+    return (
+      <div className={cn('w-full', containerClassName)}>
+        {label && (
+          <label className="block text-sm font-medium text-geist-white mb-2">
+            {label}
+            {props.required && <span className="text-geist-error ml-1">*</span>}
+          </label>
+        )}
+
+        <div className="relative">
+          {leftIcon && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-geist-gray-500 pointer-events-none">
+              {leftIcon}
+            </div>
+          )}
+
+          <input
+            ref={ref}
+            type={type}
+            className={cn(
+              inputVariants({ variant: finalVariant, size }),
+              leftIcon && 'pl-10',
+              rightIcon && 'pr-10',
+              className
+            )}
+            {...props}
+          />
+
+          {rightIcon && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 text-geist-gray-500 pointer-events-none">
+              {rightIcon}
+            </div>
+          )}
+
+          {/* Gradient border for gradient variant */}
+          {variant === 'gradient' && (
+            <div
+              className={cn(
+                'absolute inset-0 rounded-geist -z-10 p-[1px]',
+                'bg-gradient-to-r from-geist-blue via-geist-violet to-geist-magenta',
+                'opacity-0 transition-opacity duration-200',
+                'focus-within:opacity-100'
+              )}
+              aria-hidden="true"
+            />
+          )}
+        </div>
+
+        {(error || helperText) && (
+          <p
+            className={cn(
+              'mt-2 text-sm',
+              hasError ? 'text-geist-error' : 'text-geist-gray-500'
+            )}
+          >
+            {error || helperText}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+
+Input.displayName = 'Input';
+
+// Textarea variant
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  /** Label text */
+  label?: string;
+  /** Helper text below textarea */
+  helperText?: string;
+  /** Error message */
+  error?: string;
+  /** Container className */
+  containerClassName?: string;
+}
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  (
+    {
+      className,
+      containerClassName,
+      label,
+      helperText,
+      error,
+      ...props
+    },
+    ref
+  ) => {
+    const hasError = !!error;
+
+    return (
+      <div className={cn('w-full', containerClassName)}>
+        {label && (
+          <label className="block text-sm font-medium text-geist-white mb-2">
+            {label}
+            {props.required && <span className="text-geist-error ml-1">*</span>}
+          </label>
+        )}
+
+        <textarea
+          ref={ref}
+          className={cn(
+            'w-full rounded-geist px-4 py-2.5 text-base min-h-[120px]',
+            'bg-geist-black-lighter border text-geist-white',
+            'placeholder:text-geist-gray-500',
+            'transition-all duration-200',
+            'focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed',
+            'resize-y',
+            hasError
+              ? 'border-geist-error focus:border-geist-error focus:ring-1 focus:ring-geist-error'
+              : 'border-geist-gray-800 focus:border-geist-blue focus:ring-1 focus:ring-geist-blue',
+            className
+          )}
+          {...props}
+        />
+
+        {(error || helperText) && (
+          <p
+            className={cn(
+              'mt-2 text-sm',
+              hasError ? 'text-geist-error' : 'text-geist-gray-500'
+            )}
+          >
+            {error || helperText}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+
+Textarea.displayName = 'Textarea';
+
+// Utility function for className merging
+function cn(...inputs: (string | undefined | null | false)[]) {
+  return inputs.filter(Boolean).join(' ');
+}
+
+export default Input;

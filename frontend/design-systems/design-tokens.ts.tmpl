@@ -1,0 +1,754 @@
+/**
+ * design-tokens.ts - Shared Design Tokens Interface
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ *
+ * Interfaz común para tokens de diseño entre todos los sistemas.
+ * Permite cambiar de sistema sin reescribir componentes.
+ */
+
+export interface ColorTokens {
+  background: {
+    primary: string;
+    secondary: string;
+    tertiary: string;
+  };
+  foreground: {
+    primary: string;
+    secondary: string;
+    tertiary: string;
+  };
+  accent: {
+    primary: string;
+    secondary: string;
+  };
+  semantic: {
+    success: string;
+    warning: string;
+    error: string;
+    info: string;
+  };
+  border: {
+    default: string;
+    focus: string;
+    hover: string;
+  };
+}
+
+export interface SpacingTokens {
+  xs: string;
+  sm: string;
+  md: string;
+  lg: string;
+  xl: string;
+  xxl: string;
+}
+
+export interface TypographyTokens {
+  fontFamily: {
+    sans: string;
+    mono: string;
+    display?: string;
+  };
+  fontSize: {
+    xs: string;
+    sm: string;
+    base: string;
+    lg: string;
+    xl: string;
+    xxl: string;
+    display: string;
+  };
+  fontWeight: {
+    light: number;
+    normal: number;
+    medium: number;
+    semibold: number;
+    bold: number;
+  };
+  lineHeight: {
+    tight: number;
+    normal: number;
+    relaxed: number;
+  };
+}
+
+export interface BorderRadiusTokens {
+  none: string;
+  sm: string;
+  md: string;
+  lg: string;
+  xl: string;
+  full: string;
+}
+
+export interface ShadowTokens {
+  sm: string;
+  md: string;
+  lg: string;
+  xl: string;
+  inner: string;
+  none: string;
+}
+
+export interface EffectTokens {
+  blur: {
+    sm: string;
+    md: string;
+    lg: string;
+  };
+  opacity: {
+    disabled: number;
+    hover: number;
+    active: number;
+  };
+}
+
+export interface AnimationTokens {
+  duration: {
+    fast: string;
+    normal: string;
+    slow: string;
+  };
+  easing: {
+    default: string;
+    in: string;
+    out: string;
+    inOut: string;
+  };
+}
+
+export interface DesignTokens {
+  colors: ColorTokens;
+  spacing: SpacingTokens;
+  typography: TypographyTokens;
+  borderRadius: BorderRadiusTokens;
+  shadows: ShadowTokens;
+  effects: EffectTokens;
+  animations: AnimationTokens;
+}
+
+// ============================================================================
+// GEIST TOKENS
+// ============================================================================
+
+export const geistTokens: DesignTokens = {
+  colors: {
+    background: {
+      primary: '#FFFFFF',
+      secondary: '#FAFAFA',
+      tertiary: '#F5F5F5'
+    },
+    foreground: {
+      primary: '#000000',
+      secondary: '#666666',
+      tertiary: '#999999'
+    },
+    accent: {
+      primary: '#0070F3',
+      secondary: '#3291FF'
+    },
+    semantic: {
+      success: '#0070F3',
+      warning: '#F5A623',
+      error: '#E00',
+      info: '#0070F3'
+    },
+    border: {
+      default: '#EAEAEA',
+      focus: '#0070F3',
+      hover: '#CCCCCC'
+    }
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    xxl: '3rem'
+  },
+  typography: {
+    fontFamily: {
+      sans: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      mono: 'Menlo, Monaco, "Courier New", monospace'
+    },
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      xxl: '1.5rem',
+      display: '2.5rem'
+    },
+    fontWeight: {
+      light: 300,
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75
+    }
+  },
+  borderRadius: {
+    none: '0',
+    sm: '4px',
+    md: '8px',
+    lg: '12px',
+    xl: '16px',
+    full: '9999px'
+  },
+  shadows: {
+    sm: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    md: '0 4px 14px rgba(0, 0, 0, 0.1)',
+    lg: '0 8px 30px rgba(0, 0, 0, 0.12)',
+    xl: '0 12px 48px rgba(0, 0, 0, 0.15)',
+    inner: 'inset 0 2px 4px rgba(0, 0, 0, 0.06)',
+    none: 'none'
+  },
+  effects: {
+    blur: {
+      sm: '4px',
+      md: '8px',
+      lg: '12px'
+    },
+    opacity: {
+      disabled: 0.4,
+      hover: 0.8,
+      active: 0.6
+    }
+  },
+  animations: {
+    duration: {
+      fast: '150ms',
+      normal: '300ms',
+      slow: '500ms'
+    },
+    easing: {
+      default: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      in: 'cubic-bezier(0.4, 0, 1, 1)',
+      out: 'cubic-bezier(0, 0, 0.2, 1)',
+      inOut: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    }
+  }
+};
+
+// ============================================================================
+// GLASSMORPHISM TOKENS
+// ============================================================================
+
+export const glassmorphismTokens: DesignTokens = {
+  colors: {
+    background: {
+      primary: 'rgba(255, 255, 255, 0.1)',
+      secondary: 'rgba(255, 255, 255, 0.05)',
+      tertiary: 'rgba(0, 0, 0, 0.1)'
+    },
+    foreground: {
+      primary: '#FFFFFF',
+      secondary: 'rgba(255, 255, 255, 0.8)',
+      tertiary: 'rgba(255, 255, 255, 0.6)'
+    },
+    accent: {
+      primary: '#A855F7',
+      secondary: '#3B82F6'
+    },
+    semantic: {
+      success: '#10B981',
+      warning: '#F59E0B',
+      error: '#EF4444',
+      info: '#3B82F6'
+    },
+    border: {
+      default: 'rgba(255, 255, 255, 0.2)',
+      focus: 'rgba(168, 85, 247, 0.5)',
+      hover: 'rgba(255, 255, 255, 0.3)'
+    }
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    xxl: '3rem'
+  },
+  typography: {
+    fontFamily: {
+      sans: 'Inter, -apple-system, sans-serif',
+      mono: 'Fira Code, monospace'
+    },
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      xxl: '1.5rem',
+      display: '3rem'
+    },
+    fontWeight: {
+      light: 300,
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75
+    }
+  },
+  borderRadius: {
+    none: '0',
+    sm: '8px',
+    md: '16px',
+    lg: '24px',
+    xl: '32px',
+    full: '9999px'
+  },
+  shadows: {
+    sm: '0 4px 16px rgba(31, 38, 135, 0.2)',
+    md: '0 8px 32px rgba(31, 38, 135, 0.37)',
+    lg: '0 12px 48px rgba(31, 38, 135, 0.5)',
+    xl: '0 16px 64px rgba(31, 38, 135, 0.6)',
+    inner: 'inset 0 0 16px rgba(255, 255, 255, 0.1)',
+    none: 'none'
+  },
+  effects: {
+    blur: {
+      sm: '8px',
+      md: '16px',
+      lg: '24px'
+    },
+    opacity: {
+      disabled: 0.3,
+      hover: 0.15,
+      active: 0.2
+    }
+  },
+  animations: {
+    duration: {
+      fast: '200ms',
+      normal: '400ms',
+      slow: '600ms'
+    },
+    easing: {
+      default: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      in: 'cubic-bezier(0.4, 0, 1, 1)',
+      out: 'cubic-bezier(0, 0, 0.2, 1)',
+      inOut: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    }
+  }
+};
+
+// ============================================================================
+// NEUMORPHISM TOKENS
+// ============================================================================
+
+export const neumorphismTokens: DesignTokens = {
+  colors: {
+    background: {
+      primary: '#E0E5EC',
+      secondary: '#D1D9E6',
+      tertiary: '#C8D0E7'
+    },
+    foreground: {
+      primary: '#4A5568',
+      secondary: '#718096',
+      tertiary: '#A0AEC0'
+    },
+    accent: {
+      primary: '#667EEA',
+      secondary: '#764BA2'
+    },
+    semantic: {
+      success: '#48BB78',
+      warning: '#ED8936',
+      error: '#F56565',
+      info: '#4299E1'
+    },
+    border: {
+      default: 'transparent',
+      focus: '#667EEA',
+      hover: 'transparent'
+    }
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    xxl: '3rem'
+  },
+  typography: {
+    fontFamily: {
+      sans: 'Poppins, -apple-system, sans-serif',
+      mono: 'Source Code Pro, monospace'
+    },
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      xxl: '1.5rem',
+      display: '2.5rem'
+    },
+    fontWeight: {
+      light: 300,
+      normal: 400,
+      medium: 500,
+      semibold: 600,
+      bold: 700
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75
+    }
+  },
+  borderRadius: {
+    none: '0',
+    sm: '12px',
+    md: '20px',
+    lg: '28px',
+    xl: '36px',
+    full: '9999px'
+  },
+  shadows: {
+    sm: '5px 5px 10px #A3B1C6, -5px -5px 10px #FFFFFF',
+    md: '9px 9px 16px #A3B1C6, -9px -9px 16px #FFFFFF',
+    lg: '15px 15px 30px #A3B1C6, -15px -15px 30px #FFFFFF',
+    xl: '20px 20px 40px #A3B1C6, -20px -20px 40px #FFFFFF',
+    inner: 'inset 9px 9px 16px #A3B1C6, inset -9px -9px 16px #FFFFFF',
+    none: 'none'
+  },
+  effects: {
+    blur: {
+      sm: '0px',
+      md: '0px',
+      lg: '0px'
+    },
+    opacity: {
+      disabled: 0.5,
+      hover: 0.9,
+      active: 0.8
+    }
+  },
+  animations: {
+    duration: {
+      fast: '150ms',
+      normal: '300ms',
+      slow: '500ms'
+    },
+    easing: {
+      default: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      in: 'cubic-bezier(0.4, 0, 1, 1)',
+      out: 'cubic-bezier(0, 0, 0.2, 1)',
+      inOut: 'cubic-bezier(0.4, 0, 0.2, 1)'
+    }
+  }
+};
+
+// ============================================================================
+// CLAYMORPHISM TOKENS
+// ============================================================================
+
+export const claymorphismTokens: DesignTokens = {
+  colors: {
+    background: {
+      primary: '#FF6B6B',
+      secondary: '#4ECDC4',
+      tertiary: '#FFE66D'
+    },
+    foreground: {
+      primary: '#2C3E50',
+      secondary: '#34495E',
+      tertiary: '#7F8C8D'
+    },
+    accent: {
+      primary: '#A8E6CF',
+      secondary: '#FF8B94'
+    },
+    semantic: {
+      success: '#A8E6CF',
+      warning: '#FFE66D',
+      error: '#FF8B94',
+      info: '#4ECDC4'
+    },
+    border: {
+      default: 'rgba(0, 0, 0, 0.1)',
+      focus: 'rgba(0, 0, 0, 0.3)',
+      hover: 'rgba(0, 0, 0, 0.2)'
+    }
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    xxl: '3rem'
+  },
+  typography: {
+    fontFamily: {
+      sans: 'Nunito, -apple-system, sans-serif',
+      mono: 'JetBrains Mono, monospace',
+      display: 'Fredoka One, cursive'
+    },
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      xxl: '1.5rem',
+      display: '2.5rem'
+    },
+    fontWeight: {
+      light: 300,
+      normal: 400,
+      medium: 600,
+      semibold: 700,
+      bold: 800
+    },
+    lineHeight: {
+      tight: 1.25,
+      normal: 1.5,
+      relaxed: 1.75
+    }
+  },
+  borderRadius: {
+    none: '0',
+    sm: '16px',
+    md: '24px',
+    lg: '32px',
+    xl: '40px',
+    full: '9999px'
+  },
+  shadows: {
+    sm: 'inset 0 -2px 4px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1)',
+    md: 'inset 0 -4px 8px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.1)',
+    lg: 'inset 0 -8px 16px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.1)',
+    xl: 'inset 0 -12px 24px rgba(0, 0, 0, 0.2), 0 12px 24px rgba(0, 0, 0, 0.1)',
+    inner: 'inset 0 2px 8px rgba(0, 0, 0, 0.3)',
+    none: 'none'
+  },
+  effects: {
+    blur: {
+      sm: '20px',
+      md: '40px',
+      lg: '60px'
+    },
+    opacity: {
+      disabled: 0.5,
+      hover: 0.9,
+      active: 0.8
+    }
+  },
+  animations: {
+    duration: {
+      fast: '200ms',
+      normal: '400ms',
+      slow: '600ms'
+    },
+    easing: {
+      default: 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+      in: 'cubic-bezier(0.6, 0.04, 0.98, 0.34)',
+      out: 'cubic-bezier(0.08, 0.82, 0.17, 1)',
+      inOut: 'cubic-bezier(0.87, 0, 0.13, 1)'
+    }
+  }
+};
+
+// ============================================================================
+// NEO-BRUTALISM TOKENS
+// ============================================================================
+
+export const neoBrutalismTokens: DesignTokens = {
+  colors: {
+    background: {
+      primary: '#FFFFFF',
+      secondary: '#FFFF00',
+      tertiary: '#00FFFF'
+    },
+    foreground: {
+      primary: '#000000',
+      secondary: '#000000',
+      tertiary: '#000000'
+    },
+    accent: {
+      primary: '#FF00FF',
+      secondary: '#00FF00'
+    },
+    semantic: {
+      success: '#00FF00',
+      warning: '#FFFF00',
+      error: '#FF0000',
+      info: '#00FFFF'
+    },
+    border: {
+      default: '#000000',
+      focus: '#000000',
+      hover: '#000000'
+    }
+  },
+  spacing: {
+    xs: '0.25rem',
+    sm: '0.5rem',
+    md: '1rem',
+    lg: '1.5rem',
+    xl: '2rem',
+    xxl: '3rem'
+  },
+  typography: {
+    fontFamily: {
+      sans: 'Space Grotesk, -apple-system, sans-serif',
+      mono: 'Space Mono, monospace',
+      display: 'Space Grotesk, sans-serif'
+    },
+    fontSize: {
+      xs: '0.75rem',
+      sm: '0.875rem',
+      base: '1rem',
+      lg: '1.125rem',
+      xl: '1.25rem',
+      xxl: '1.5rem',
+      display: '3rem'
+    },
+    fontWeight: {
+      light: 400,
+      normal: 400,
+      medium: 500,
+      semibold: 700,
+      bold: 700
+    },
+    lineHeight: {
+      tight: 1.1,
+      normal: 1.4,
+      relaxed: 1.6
+    }
+  },
+  borderRadius: {
+    none: '0',
+    sm: '0',
+    md: '0',
+    lg: '0',
+    xl: '0',
+    full: '0'
+  },
+  shadows: {
+    sm: '2px 2px 0px #000000',
+    md: '4px 4px 0px #000000',
+    lg: '8px 8px 0px #000000',
+    xl: '12px 12px 0px #000000',
+    inner: 'inset 2px 2px 0px #000000',
+    none: 'none'
+  },
+  effects: {
+    blur: {
+      sm: '0px',
+      md: '0px',
+      lg: '0px'
+    },
+    opacity: {
+      disabled: 0.4,
+      hover: 1,
+      active: 1
+    }
+  },
+  animations: {
+    duration: {
+      fast: '100ms',
+      normal: '200ms',
+      slow: '300ms'
+    },
+    easing: {
+      default: 'linear',
+      in: 'linear',
+      out: 'linear',
+      inOut: 'linear'
+    }
+  }
+};
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+export type DesignSystemType = 'geist' | 'glassmorphism' | 'neumorphism' | 'claymorphism' | 'neo-brutalism';
+
+export function getDesignTokens(system: DesignSystemType): DesignTokens {
+  switch (system) {
+    case 'geist':
+      return geistTokens;
+    case 'glassmorphism':
+      return glassmorphismTokens;
+    case 'neumorphism':
+      return neumorphismTokens;
+    case 'claymorphism':
+      return claymorphismTokens;
+    case 'neo-brutalism':
+      return neoBrutalismTokens;
+    default:
+      return geistTokens;
+  }
+}
+
+export function exportCSSVariables(system: DesignSystemType): string {
+  const tokens = getDesignTokens(system);
+
+  const cssVars: string[] = [':root {'];
+
+  // Colors
+  cssVars.push('  /* Background Colors */');
+  Object.entries(tokens.colors.background).forEach(([key, value]) => {
+    cssVars.push(`  --bg-${key}: ${value};`);
+  });
+
+  cssVars.push('  /* Foreground Colors */');
+  Object.entries(tokens.colors.foreground).forEach(([key, value]) => {
+    cssVars.push(`  --fg-${key}: ${value};`);
+  });
+
+  cssVars.push('  /* Accent Colors */');
+  Object.entries(tokens.colors.accent).forEach(([key, value]) => {
+    cssVars.push(`  --accent-${key}: ${value};`);
+  });
+
+  // Spacing
+  cssVars.push('  /* Spacing */');
+  Object.entries(tokens.spacing).forEach(([key, value]) => {
+    cssVars.push(`  --spacing-${key}: ${value};`);
+  });
+
+  // Typography
+  cssVars.push('  /* Typography */');
+  cssVars.push(`  --font-sans: ${tokens.typography.fontFamily.sans};`);
+  cssVars.push(`  --font-mono: ${tokens.typography.fontFamily.mono};`);
+
+  // Border Radius
+  cssVars.push('  /* Border Radius */');
+  Object.entries(tokens.borderRadius).forEach(([key, value]) => {
+    cssVars.push(`  --radius-${key}: ${value};`);
+  });
+
+  // Shadows
+  cssVars.push('  /* Shadows */');
+  Object.entries(tokens.shadows).forEach(([key, value]) => {
+    cssVars.push(`  --shadow-${key}: ${value};`);
+  });
+
+  cssVars.push('}');
+
+  return cssVars.join('\n');
+}

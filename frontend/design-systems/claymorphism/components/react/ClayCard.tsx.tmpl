@@ -1,0 +1,149 @@
+/**
+ * ClayCard.tsx - Claymorphism Card Component
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+import React, { HTMLAttributes, ReactNode } from 'react'
+
+export interface ClayCardProps extends HTMLAttributes<HTMLDivElement> {
+  children: ReactNode
+  variant?: 'pink' | 'blue' | 'green' | 'yellow' | 'purple' | 'white'
+  withBlob?: boolean
+  blobPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  hoverable?: boolean
+  padding?: 'sm' | 'md' | 'lg'
+}
+
+const variantStyles = {
+  pink: 'bg-clay-pink-100',
+  blue: 'bg-clay-blue-100',
+  green: 'bg-clay-green-100',
+  yellow: 'bg-clay-yellow-100',
+  purple: 'bg-clay-purple-100',
+  white: 'bg-white',
+}
+
+const blobStyles = {
+  'top-left': '-top-10 -left-10',
+  'top-right': '-top-10 -right-10',
+  'bottom-left': '-bottom-10 -left-10',
+  'bottom-right': '-bottom-10 -right-10',
+}
+
+const blobColors = {
+  pink: 'bg-clay-pink-300/40',
+  blue: 'bg-clay-blue-300/40',
+  green: 'bg-clay-green-300/40',
+  yellow: 'bg-clay-yellow-300/40',
+  purple: 'bg-clay-purple-300/40',
+  white: 'bg-gray-200/40',
+}
+
+const paddingStyles = {
+  sm: 'p-4',
+  md: 'p-6',
+  lg: 'p-8',
+}
+
+export const ClayCard: React.FC<ClayCardProps> = ({
+  children,
+  variant = 'white',
+  withBlob = false,
+  blobPosition = 'top-right',
+  hoverable = false,
+  padding = 'md',
+  className = '',
+  ...props
+}) => {
+  return (
+    <div
+      className={`
+        relative overflow-hidden
+        rounded-clay
+        shadow-clay
+        transition-all duration-300
+        ${variantStyles[variant]}
+        ${paddingStyles[padding]}
+        ${hoverable ? 'hover:shadow-clay-hover hover:scale-[1.02] cursor-pointer' : ''}
+        ${className}
+      `}
+      {...props}
+    >
+      {/* Decorative blob */}
+      {withBlob && (
+        <div
+          className={`
+            absolute w-32 h-32 rounded-full blur-2xl
+            animate-blob
+            ${blobStyles[blobPosition]}
+            ${blobColors[variant]}
+          `}
+        />
+      )}
+
+      {/* Content */}
+      <div className="relative z-10">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export interface ClayCardHeaderProps {
+  children: ReactNode
+  className?: string
+}
+
+export const ClayCardHeader: React.FC<ClayCardHeaderProps> = ({ children, className = '' }) => (
+  <div className={`mb-4 ${className}`}>
+    {children}
+  </div>
+)
+
+export interface ClayCardTitleProps {
+  children: ReactNode
+  className?: string
+}
+
+export const ClayCardTitle: React.FC<ClayCardTitleProps> = ({ children, className = '' }) => (
+  <h3 className={`text-2xl font-bold text-gray-800 ${className}`}>
+    {children}
+  </h3>
+)
+
+export interface ClayCardDescriptionProps {
+  children: ReactNode
+  className?: string
+}
+
+export const ClayCardDescription: React.FC<ClayCardDescriptionProps> = ({ children, className = '' }) => (
+  <p className={`text-gray-600 mt-2 ${className}`}>
+    {children}
+  </p>
+)
+
+export interface ClayCardContentProps {
+  children: ReactNode
+  className?: string
+}
+
+export const ClayCardContent: React.FC<ClayCardContentProps> = ({ children, className = '' }) => (
+  <div className={className}>
+    {children}
+  </div>
+)
+
+export interface ClayCardFooterProps {
+  children: ReactNode
+  className?: string
+}
+
+export const ClayCardFooter: React.FC<ClayCardFooterProps> = ({ children, className = '' }) => (
+  <div className={`mt-4 pt-4 border-t border-gray-200/50 ${className}`}>
+    {children}
+  </div>
+)
+
+export default ClayCard

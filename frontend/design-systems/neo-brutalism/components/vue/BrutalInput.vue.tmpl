@@ -1,0 +1,82 @@
+<!--
+BrutalInput.vue - Neo-Brutalism input component for Vue 3
+
+Autor: Homero Thompson del Lago del Terror
+Project: {{PROJECT_NAME}}
+-->
+
+<template>
+  <div class="w-full">
+    <label
+      v-if="label"
+      class="block mb-2 font-bold text-brutal-lg uppercase tracking-wide"
+    >
+      {{ label }}
+    </label>
+    <input
+      :value="modelValue"
+      :class="inputClasses"
+      :disabled="disabled"
+      :placeholder="placeholder"
+      @input="handleInput"
+      @focus="isFocused = true"
+      @blur="isFocused = false"
+      v-bind="$attrs"
+    />
+    <div
+      v-if="error"
+      class="mt-2 px-3 py-2 bg-brutal-red text-white border-brutal font-bold text-brutal-sm"
+    >
+      {{ error }}
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+export interface BrutalInputProps {
+  modelValue?: string | number
+  label?: string
+  error?: string
+  focusColor?: 'yellow' | 'magenta' | 'cyan' | 'lime'
+  disabled?: boolean
+  placeholder?: string
+}
+
+const props = withDefaults(defineProps<BrutalInputProps>(), {
+  focusColor: 'yellow',
+  disabled: false,
+})
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void
+}>()
+
+defineOptions({
+  inheritAttrs: false,
+})
+
+const isFocused = ref(false)
+
+const focusClasses = {
+  yellow: 'focus:border-brutal-yellow focus:shadow-brutal-yellow-sm',
+  magenta: 'focus:border-brutal-magenta focus:shadow-brutal-magenta-sm',
+  cyan: 'focus:border-brutal-cyan focus:shadow-brutal-cyan-sm',
+  lime: 'focus:border-brutal-lime focus:shadow-brutal-lime-sm',
+}
+
+const inputClasses = computed(() => [
+  'w-full px-4 py-3 border-brutal bg-brutal-white',
+  'text-brutal-base font-bold placeholder:font-normal',
+  'transition-all duration-100',
+  'disabled:opacity-50 disabled:cursor-not-allowed',
+  focusClasses[props.focusColor],
+  props.error && 'border-brutal-red animate-shake',
+])
+
+const handleInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  emit('update:modelValue', target.value)
+}
+</script>

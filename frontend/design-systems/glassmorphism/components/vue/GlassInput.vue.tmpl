@@ -1,0 +1,108 @@
+<!--
+  GlassInput.vue - Glass Input Component (Vue 3)
+
+  Autor: {{AUTHOR}}
+  Proyecto: {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+export interface GlassInputProps {
+  modelValue?: string
+  label?: string
+  error?: string
+  helperText?: string
+  type?: string
+  placeholder?: string
+  id?: string
+}
+
+const props = withDefaults(defineProps<GlassInputProps>(), {
+  type: 'text',
+  placeholder: '',
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+}>()
+
+const isFocused = ref(false)
+const inputId = computed(() => props.id || `glass-input-${Math.random().toString(36).substr(2, 9)}`)
+
+const hasValue = computed(() => {
+  return !!props.modelValue && props.modelValue.length > 0
+})
+
+const inputClasses = computed(() => [
+  'glass-input w-full rounded-lg border backdrop-blur-xl px-4 py-3',
+  'bg-glass-white border-glass-white',
+  'text-white placeholder-transparent',
+  'transition-all duration-300',
+  'focus:outline-none focus:bg-glass-white-md focus:border-glass-white-lg',
+  'peer',
+  props.error && 'border-red-400 focus:border-red-400 focus:shadow-[0_0_20px_rgba(239,68,68,0.4)]',
+  !props.error && 'focus:shadow-glow-md',
+])
+
+const labelClasses = computed(() => [
+  'absolute left-4 transition-all duration-300 pointer-events-none',
+  'text-white/70',
+  isFocused.value || hasValue.value
+    ? '-top-2.5 text-xs bg-gradient-to-r from-transparent via-gray-900 to-transparent px-2'
+    : 'top-3 text-base',
+  props.error && 'text-red-400',
+])
+
+const handleInput = (e: Event) => {
+  const target = e.target as HTMLInputElement
+  emit('update:modelValue', target.value)
+}
+</script>
+
+<template>
+  <div class="glass-input-wrapper w-full">
+    <div class="relative">
+      <!-- Input -->
+      <input
+        :id="inputId"
+        :type="type"
+        :value="modelValue"
+        :class="inputClasses"
+        :placeholder="placeholder"
+        @input="handleInput"
+        @focus="isFocused = true"
+        @blur="isFocused = false"
+      />
+
+      <!-- Floating Label -->
+      <label
+        v-if="label"
+        :for="inputId"
+        :class="labelClasses"
+      >
+        {{ label }}
+      </label>
+
+      <!-- Glow effect on focus -->
+      <div
+        :class="[
+          'absolute inset-0 rounded-lg pointer-events-none transition-opacity duration-300',
+          'bg-gradient-to-br from-white/5 via-transparent to-transparent',
+          isFocused ? 'opacity-100' : 'opacity-0',
+        ]"
+      />
+    </div>
+
+    <!-- Helper text or error -->
+    <p
+      v-if="helperText || error"
+      :class="[
+        'mt-2 text-sm px-1',
+        error ? 'text-red-400' : 'text-white/60',
+      ]"
+    >
+      {{ error || helperText }}
+    </p>
+  </div>
+</template>

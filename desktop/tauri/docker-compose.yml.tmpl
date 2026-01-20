@@ -1,0 +1,210 @@
+# Docker Compose para desarrollo de {{PROJECT_NAME}}
+# Autor: {{AUTHOR}}
+#
+# Uso:
+#   docker compose up -d          # Iniciar servicios en background
+#   docker compose logs -f app    # Ver logs de la aplicación
+#   docker compose down -v        # Detener y eliminar volúmenes
+
+version: '3.9'
+
+services:
+  # ==========================================================================
+  # Aplicación Tauri - Servicio principal
+  # ==========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: {{PROJECT_NAME}}-app
+    image: {{PROJECT_NAME}}:dev
+
+    # Restart policy para desarrollo
+    restart: unless-stopped
+
+    # Variables de entorno (override con .env file)
+    environment:
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - RUST_LOG=${RUST_LOG:-debug}
+      - RUST_BACKTRACE=${RUST_BACKTRACE:-1}
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8080}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:password@db:5432/{{PROJECT_NAME}}}
+
+    # Volúmenes para hot reload en desarrollo
+    volumes:
+      # Código fuente (read-only para seguridad)
+      - ./src:/app/src:ro
+      - ./src-tauri/src:/app/src-tauri/src:ro
+
+      # Configuración
+      - ./src-tauri/tauri.conf.json:/app/src-tauri/tauri.conf.json:ro
+
+      # Cache de Cargo para builds más rápidos
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+
+      # Data persistente de la aplicación
+      - app-data:/home/appuser/.local/share/{{PROJECT_NAME}}
+
+      # X11 socket para GUI (Linux)
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+
+      # DRI para aceleración hardware (opcional)
+      # - /dev/dri:/dev/dri
+
+    # Networking
+    ports:
+      - "${APP_PORT:-3000}:3000"  # Puerto para desarrollo frontend
+
+    networks:
+      - {{PROJECT_NAME}}-network
+
+    # Dependencias (descomentar si usas base de datos)
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
+
+    # X11 Display para GUI
+    environment:
+      - DISPLAY=${DISPLAY:-:0}
+
+    # Dispositivos necesarios para GUI
+    # devices:
+    #   - /dev/dri:/dev/dri  # GPU acceleration
+
+    # Security
+    security_opt:
+      - seccomp:unconfined  # Necesario para algunas operaciones de Tauri
+
+    # Resource limits (ajustar según necesidades)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
+
+  # ==========================================================================
+  # PostgreSQL Database (Opcional)
+  # Descomentar si tu app necesita base de datos
+  # ==========================================================================
+  # db:
+  #   image: postgres:16-alpine
+  #   container_name: {{PROJECT_NAME}}-db
+  #   restart: unless-stopped
+  #
+  #   environment:
+  #     POSTGRES_DB: {{PROJECT_NAME}}
+  #     POSTGRES_USER: ${DB_USER:-postgres}
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+  #     PGDATA: /var/lib/postgresql/data/pgdata
+  #
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #     # Scripts de inicialización (opcional)
+  #     # - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+  #
+  #   ports:
+  #     - "${DB_PORT:-5432}:5432"
+  #
+  #   networks:
+  #     - {{PROJECT_NAME}}-network
+  #
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d {{PROJECT_NAME}}"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #     start_period: 10s
+  #
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         cpus: '1.0'
+  #         memory: 512M
+
+  # ==========================================================================
+  # Redis Cache (Opcional)
+  # Descomentar si necesitas cache/session storage
+  # ==========================================================================
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: {{PROJECT_NAME}}-redis
+  #   restart: unless-stopped
+  #
+  #   command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-redispass}
+  #
+  #   volumes:
+  #     - redis-data:/data
+  #
+  #   ports:
+  #     - "${REDIS_PORT:-6379}:6379"
+  #
+  #   networks:
+  #     - {{PROJECT_NAME}}-network
+  #
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+  #     interval: 10s
+  #     timeout: 3s
+  #     retries: 5
+
+# =============================================================================
+# Volumes - Persistencia de datos
+# =============================================================================
+volumes:
+  # Cargo cache para builds más rápidos
+  cargo-cache:
+    driver: local
+
+  cargo-git:
+    driver: local
+
+  # Data de la aplicación
+  app-data:
+    driver: local
+
+  # Database data (descomentar si usas PostgreSQL)
+  # postgres-data:
+  #   driver: local
+
+  # Redis data (descomentar si usas Redis)
+  # redis-data:
+  #   driver: local
+
+# =============================================================================
+# Networks - Aislamiento de servicios
+# =============================================================================
+networks:
+  {{PROJECT_NAME}}-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# =============================================================================
+# Comandos Útiles:
+# =============================================================================
+#
+# Desarrollo:
+#   docker compose up --build              # Build y start
+#   docker compose up -d                   # Start en background
+#   docker compose logs -f app             # Ver logs en tiempo real
+#   docker compose exec app bash           # Shell en el container
+#   docker compose restart app             # Reiniciar app
+#
+# Producción:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# Limpieza:
+#   docker compose down                    # Stop services
+#   docker compose down -v                 # Stop y eliminar volúmenes
+#   docker compose down --rmi all          # Stop y eliminar imágenes
+#
+# Database (si está habilitado):
+#   docker compose exec db psql -U postgres -d {{PROJECT_NAME}}
+#
+# =============================================================================

@@ -1,0 +1,346 @@
+/*!
+ * Security Utilities - CSRF, Rate Limiting, Input Sanitization, Path Validation
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use crate::error::{AppError, AppResult};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
+use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
+
+/// CSRF token size in bytes
+const CSRF_TOKEN_SIZE: usize = 32;
+
+/// CSRF token manager for IPC command protection
+#[derive(Debug, Clone)]
+pub struct CsrfManager {
+    tokens: Arc<Mutex<HashMap<String, CsrfToken>>>,
+}
+
+#[derive(Debug, Clone)]
+struct CsrfToken {
+    token: String,
+    created_at: Instant,
+    ttl: Duration,
+}
+
+impl CsrfManager {
+    /// Create a new CSRF token manager
+    pub fn new() -> Self {
+        Self {
+            tokens: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Generate a new CSRF token for a session
+    pub fn generate_token(&self, session_id: String) -> AppResult<String> {
+        let token = Self::generate_random_token()?;
+        let csrf_token = CsrfToken {
+            token: token.clone(),
+            created_at: Instant::now(),
+            ttl: Duration::from_secs(3600), // 1 hour
+        };
+
+        let mut tokens = self.tokens.lock()
+            .map_err(|e| AppError::Internal(format!("Failed to lock tokens: {}", e)))?;
+        tokens.insert(session_id, csrf_token);
+
+        Ok(token)
+    }
+
+    /// Validate a CSRF token
+    pub fn validate_token(&self, session_id: &str, token: &str) -> AppResult<bool> {
+        let mut tokens = self.tokens.lock()
+            .map_err(|e| AppError::Internal(format!("Failed to lock tokens: {}", e)))?;
+
+        if let Some(csrf_token) = tokens.get(session_id) {
+            // Check if token is expired
+            if csrf_token.created_at.elapsed() > csrf_token.ttl {
+                tokens.remove(session_id);
+                return Ok(false);
+            }
+
+            // Constant-time comparison to prevent timing attacks
+            Ok(constant_time_eq(csrf_token.token.as_bytes(), token.as_bytes()))
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Remove expired tokens
+    pub fn cleanup_expired(&self) -> AppResult<()> {
+        let mut tokens = self.tokens.lock()
+            .map_err(|e| AppError::Internal(format!("Failed to lock tokens: {}", e)))?;
+
+        tokens.retain(|_, token| token.created_at.elapsed() <= token.ttl);
+        Ok(())
+    }
+
+    /// Generate cryptographically secure random token
+    fn generate_random_token() -> AppResult<String> {
+        let mut rng = thread_rng();
+        let bytes: Vec<u8> = (0..CSRF_TOKEN_SIZE).map(|_| rng.gen()).collect();
+        Ok(hex::encode(bytes))
+    }
+}
+
+impl Default for CsrfManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Rate limiter for IPC commands
+#[derive(Debug, Clone)]
+pub struct RateLimiter {
+    requests: Arc<Mutex<HashMap<String, Vec<Instant>>>>,
+    max_requests: usize,
+    window: Duration,
+}
+
+impl RateLimiter {
+    /// Create a new rate limiter
+    ///
+    /// # Arguments
+    /// * `max_requests` - Maximum number of requests allowed in the time window
+    /// * `window` - Time window duration
+    pub fn new(max_requests: usize, window: Duration) -> Self {
+        Self {
+            requests: Arc::new(Mutex::new(HashMap::new())),
+            max_requests,
+            window,
+        }
+    }
+
+    /// Check if a request is allowed
+    pub fn check_rate_limit(&self, key: &str) -> AppResult<bool> {
+        let mut requests = self.requests.lock()
+            .map_err(|e| AppError::Internal(format!("Failed to lock requests: {}", e)))?;
+
+        let now = Instant::now();
+        let entry = requests.entry(key.to_string()).or_insert_with(Vec::new);
+
+        // Remove old requests outside the window
+        entry.retain(|&time| now.duration_since(time) < self.window);
+
+        // Check if limit exceeded
+        if entry.len() >= self.max_requests {
+            return Ok(false);
+        }
+
+        // Add current request
+        entry.push(now);
+        Ok(true)
+    }
+
+    /// Get remaining requests for a key
+    pub fn get_remaining(&self, key: &str) -> AppResult<usize> {
+        let mut requests = self.requests.lock()
+            .map_err(|e| AppError::Internal(format!("Failed to lock requests: {}", e)))?;
+
+        let now = Instant::now();
+        let entry = requests.entry(key.to_string()).or_insert_with(Vec::new);
+
+        // Remove old requests
+        entry.retain(|&time| now.duration_since(time) < self.window);
+
+        Ok(self.max_requests.saturating_sub(entry.len()))
+    }
+
+    /// Clean up old entries
+    pub fn cleanup(&self) -> AppResult<()> {
+        let mut requests = self.requests.lock()
+            .map_err(|e| AppError::Internal(format!("Failed to lock requests: {}", e)))?;
+
+        let now = Instant::now();
+        requests.retain(|_, times| {
+            times.retain(|&time| now.duration_since(time) < self.window);
+            !times.is_empty()
+        });
+
+        Ok(())
+    }
+}
+
+/// Input sanitization utilities
+pub struct InputSanitizer;
+
+impl InputSanitizer {
+    /// Sanitize string input by removing control characters and limiting length
+    pub fn sanitize_string(input: &str, max_length: usize) -> String {
+        input
+            .chars()
+            .filter(|c| !c.is_control() || *c == '\n' || *c == '\t')
+            .take(max_length)
+            .collect()
+    }
+
+    /// Validate email format (basic check)
+    pub fn is_valid_email(email: &str) -> bool {
+        let email_regex = regex::Regex::new(
+            r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+        ).unwrap();
+        email_regex.is_match(email)
+    }
+
+    /// Validate username (alphanumeric, underscore, hyphen)
+    pub fn is_valid_username(username: &str) -> bool {
+        let username_regex = regex::Regex::new(r"^[a-zA-Z0-9_-]{3,32}$").unwrap();
+        username_regex.is_match(username)
+    }
+
+    /// Remove potentially dangerous HTML/script tags
+    pub fn strip_html(input: &str) -> String {
+        let html_regex = regex::Regex::new(r"<[^>]*>").unwrap();
+        html_regex.replace_all(input, "").to_string()
+    }
+
+    /// Validate that a string contains only alphanumeric characters
+    pub fn is_alphanumeric(input: &str) -> bool {
+        input.chars().all(|c| c.is_alphanumeric())
+    }
+}
+
+/// Path validation to prevent directory traversal attacks
+pub struct PathValidator;
+
+impl PathValidator {
+    /// Validate that a path is within an allowed directory
+    ///
+    /// # Arguments
+    /// * `path` - Path to validate
+    /// * `allowed_dir` - Allowed base directory
+    ///
+    /// # Returns
+    /// * `Ok(PathBuf)` - Canonicalized safe path
+    /// * `Err(AppError)` - Path is outside allowed directory
+    pub fn validate_path(path: &Path, allowed_dir: &Path) -> AppResult<PathBuf> {
+        let canonical_path = path.canonicalize()
+            .map_err(|e| AppError::Validation(format!("Invalid path: {}", e)))?;
+
+        let canonical_allowed = allowed_dir.canonicalize()
+            .map_err(|e| AppError::Validation(format!("Invalid allowed directory: {}", e)))?;
+
+        if canonical_path.starts_with(&canonical_allowed) {
+            Ok(canonical_path)
+        } else {
+            Err(AppError::Authorization(
+                "Path is outside allowed directory".to_string()
+            ))
+        }
+    }
+
+    /// Check if a path contains directory traversal patterns
+    pub fn has_traversal_pattern(path: &str) -> bool {
+        path.contains("..") || path.contains("./") || path.contains("\\")
+    }
+
+    /// Sanitize a filename by removing dangerous characters
+    pub fn sanitize_filename(filename: &str) -> String {
+        filename
+            .chars()
+            .filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == '.')
+            .collect()
+    }
+}
+
+/// Secure random generation utilities
+pub struct SecureRandom;
+
+impl SecureRandom {
+    /// Generate a secure random string of specified length
+    pub fn generate_string(length: usize) -> String {
+        let mut rng = thread_rng();
+        let chars: Vec<u8> = (0..length).map(|_| rng.gen()).collect();
+        hex::encode(chars)
+    }
+
+    /// Generate a random numeric code
+    pub fn generate_numeric_code(digits: usize) -> String {
+        let mut rng = thread_rng();
+        (0..digits)
+            .map(|_| rng.gen_range(0..10).to_string())
+            .collect()
+    }
+
+    /// Generate a secure session ID
+    pub fn generate_session_id() -> String {
+        Self::generate_string(32)
+    }
+}
+
+/// Constant-time string comparison to prevent timing attacks
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+
+    let mut result = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        result |= x ^ y;
+    }
+
+    result == 0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_csrf_token_generation() {
+        let manager = CsrfManager::new();
+        let token = manager.generate_token("session1".to_string()).unwrap();
+        assert_eq!(token.len(), CSRF_TOKEN_SIZE * 2); // Hex encoded
+    }
+
+    #[test]
+    fn test_csrf_token_validation() {
+        let manager = CsrfManager::new();
+        let token = manager.generate_token("session1".to_string()).unwrap();
+        assert!(manager.validate_token("session1", &token).unwrap());
+        assert!(!manager.validate_token("session1", "invalid").unwrap());
+    }
+
+    #[test]
+    fn test_rate_limiter() {
+        let limiter = RateLimiter::new(3, Duration::from_secs(60));
+        assert!(limiter.check_rate_limit("user1").unwrap());
+        assert!(limiter.check_rate_limit("user1").unwrap());
+        assert!(limiter.check_rate_limit("user1").unwrap());
+        assert!(!limiter.check_rate_limit("user1").unwrap());
+    }
+
+    #[test]
+    fn test_sanitize_string() {
+        let input = "Hello\x00World\x1F!";
+        let sanitized = InputSanitizer::sanitize_string(input, 100);
+        assert!(!sanitized.contains('\x00'));
+        assert!(!sanitized.contains('\x1F'));
+    }
+
+    #[test]
+    fn test_email_validation() {
+        assert!(InputSanitizer::is_valid_email("user@example.com"));
+        assert!(!InputSanitizer::is_valid_email("invalid"));
+        assert!(!InputSanitizer::is_valid_email("@example.com"));
+    }
+
+    #[test]
+    fn test_path_traversal_detection() {
+        assert!(PathValidator::has_traversal_pattern("../etc/passwd"));
+        assert!(PathValidator::has_traversal_pattern("./config"));
+        assert!(!PathValidator::has_traversal_pattern("documents/file.txt"));
+    }
+
+    #[test]
+    fn test_filename_sanitization() {
+        let filename = "my file<>:\"/\\|?*.txt";
+        let sanitized = PathValidator::sanitize_filename(filename);
+        assert_eq!(sanitized, "myfile.txt");
+    }
+}

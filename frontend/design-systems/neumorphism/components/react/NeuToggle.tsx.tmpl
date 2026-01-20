@@ -1,0 +1,176 @@
+/**
+ * NeuToggle Component - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Toggle switch with inset track and raised knob
+ */
+
+import React, { useState, InputHTMLAttributes, useId } from 'react';
+import { cn } from '@/lib/utils'; // or use clsx/classnames
+
+export interface NeuToggleProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  /** Label text */
+  label?: string;
+  /** Label position */
+  labelPosition?: 'left' | 'right';
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Controlled checked state */
+  checked?: boolean;
+  /** Change handler */
+  onCheckedChange?: (checked: boolean) => void;
+}
+
+const NeuToggle = React.forwardRef<HTMLInputElement, NeuToggleProps>(
+  (
+    {
+      label,
+      labelPosition = 'right',
+      size = 'md',
+      checked: controlledChecked,
+      onCheckedChange,
+      disabled,
+      className,
+      id,
+      onChange,
+      ...props
+    },
+    ref
+  ) => {
+    const generatedId = useId();
+    const toggleId = id || generatedId;
+    const [internalChecked, setInternalChecked] = useState(false);
+
+    // Use controlled or uncontrolled mode
+    const isControlled = controlledChecked !== undefined;
+    const checked = isControlled ? controlledChecked : internalChecked;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newChecked = e.target.checked;
+
+      if (!isControlled) {
+        setInternalChecked(newChecked);
+      }
+
+      if (onCheckedChange) {
+        onCheckedChange(newChecked);
+      }
+
+      if (onChange) {
+        onChange(e);
+      }
+    };
+
+    // Size dimensions
+    const dimensions = {
+      sm: { track: 'w-10 h-5', knob: 'w-4 h-4', translate: 'translate-x-5' },
+      md: { track: 'w-14 h-7', knob: 'w-6 h-6', translate: 'translate-x-7' },
+      lg: { track: 'w-18 h-9', knob: 'w-8 h-8', translate: 'translate-x-9' },
+    }[size];
+
+    const wrapperStyles = cn(
+      'inline-flex items-center gap-3',
+      disabled && 'neu-disabled',
+      className
+    );
+
+    const trackStyles = cn(
+      'relative inline-flex items-center shrink-0',
+      'rounded-soft-full cursor-pointer transition-neu',
+      'neu-pressed', // Inset shadow for track
+      dimensions.track
+    );
+
+    const knobStyles = cn(
+      'absolute left-0.5 top-1/2 -translate-y-1/2',
+      'rounded-full transition-all duration-300',
+      'neu-surface', // Raised shadow for knob
+      dimensions.knob,
+      checked && dimensions.translate
+    );
+
+    const labelStyles = cn(
+      'select-none cursor-pointer neu-text',
+      {
+        'text-sm': size === 'sm',
+        'text-base': size === 'md',
+        'text-lg': size === 'lg',
+      }
+    );
+
+    const renderLabel = label && (
+      <label htmlFor={toggleId} className={labelStyles}>
+        {label}
+      </label>
+    );
+
+    return (
+      <div className={wrapperStyles}>
+        {labelPosition === 'left' && renderLabel}
+
+        <label htmlFor={toggleId} className={trackStyles}>
+          <input
+            ref={ref}
+            id={toggleId}
+            type="checkbox"
+            checked={checked}
+            onChange={handleChange}
+            disabled={disabled}
+            className="sr-only"
+            {...props}
+          />
+          <span className={knobStyles} />
+
+          {/* Optional: inner indicator for on/off state */}
+          {size !== 'sm' && (
+            <span
+              className={cn(
+                'absolute inset-0 flex items-center justify-center text-xs font-medium neu-text-muted transition-opacity',
+                checked ? 'opacity-0' : 'opacity-100'
+              )}
+            >
+              {/* You can add text like "OFF" here if desired */}
+            </span>
+          )}
+        </label>
+
+        {labelPosition === 'right' && renderLabel}
+      </div>
+    );
+  }
+);
+
+NeuToggle.displayName = 'NeuToggle';
+
+export default NeuToggle;
+
+/**
+ * Usage Examples:
+ *
+ * // Basic toggle
+ * <NeuToggle />
+ *
+ * // With label
+ * <NeuToggle label="Enable notifications" />
+ *
+ * // Label on left
+ * <NeuToggle label="Dark mode" labelPosition="left" />
+ *
+ * // Controlled
+ * const [enabled, setEnabled] = useState(false);
+ * <NeuToggle
+ *   checked={enabled}
+ *   onCheckedChange={setEnabled}
+ *   label="Controlled toggle"
+ * />
+ *
+ * // Sizes
+ * <NeuToggle size="sm" label="Small" />
+ * <NeuToggle size="lg" label="Large" />
+ *
+ * // Disabled
+ * <NeuToggle disabled label="Disabled" />
+ * <NeuToggle disabled checked label="Disabled (on)" />
+ */

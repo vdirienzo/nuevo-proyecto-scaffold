@@ -1,0 +1,384 @@
+/**
+ * tauri.ts - Type-safe Tauri API wrapper
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * This module provides a type-safe wrapper around Tauri's invoke API,
+ * with proper error handling and TypeScript types for all commands.
+ */
+
+import { invoke } from '@tauri-apps/api/tauri';
+import { appWindow } from '@tauri-apps/api/window';
+import { message, open } from '@tauri-apps/api/dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/api/fs';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Application information returned by get_app_info command
+ */
+export interface AppInfo {
+  name: string;
+  version: string;
+  authors: string[];
+  description: string;
+}
+
+/**
+ * System information returned by get_system_info command
+ */
+export interface SystemInfo {
+  os: string;
+  os_version: string;
+  arch: string;
+  hostname: string;
+  total_memory: number;
+  available_memory: number;
+  cpu_count: number;
+}
+
+/**
+ * User data structure
+ */
+export interface User {
+  id: string;
+  username: string;
+  email: string;
+  created_at: string;
+}
+
+/**
+ * Authentication response
+ */
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
+/**
+ * Generic API response wrapper
+ */
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+/**
+ * Error types that can be thrown by Tauri commands
+ */
+export class TauriError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+    public details?: unknown
+  ) {
+    super(message);
+    this.name = 'TauriError';
+  }
+}
+
+// ============================================================================
+// Command wrappers
+// ============================================================================
+
+/**
+ * Type-safe wrapper around Tauri's invoke function
+ *
+ * @param command - Command name to invoke
+ * @param args - Arguments to pass to the command
+ * @returns Promise with typed result
+ * @throws {TauriError} If command fails
+ */
+async function invokeCommand<T>(
+  command: string,
+  args?: Record<string, unknown>
+): Promise<T> {
+  try {
+    return await invoke<T>(command, args);
+  } catch (error) {
+    if (typeof error === 'string') {
+      throw new TauriError(error);
+    }
+    if (error instanceof Error) {
+      throw new TauriError(error.message, undefined, error);
+    }
+    throw new TauriError('Unknown error occurred', undefined, error);
+  }
+}
+
+/**
+ * Get application information
+ */
+export async function getAppInfo(): Promise<AppInfo> {
+  return invokeCommand<AppInfo>('get_app_info');
+}
+
+/**
+ * Get system information
+ */
+export async function getSystemInfo(): Promise<SystemInfo> {
+  return invokeCommand<SystemInfo>('get_system_info');
+}
+
+/**
+ * Greet the user (example command)
+ *
+ * @param name - Name to greet
+ * @returns Greeting message
+ */
+export async function greet(name: string): Promise<string> {
+  return invokeCommand<string>('greet', { name });
+}
+
+/**
+ * Authenticate user with credentials
+ *
+ * @param username - User's username
+ * @param password - User's password
+ * @returns Authentication response with token and user data
+ */
+export async function authenticate(
+  username: string,
+  password: string
+): Promise<AuthResponse> {
+  return invokeCommand<AuthResponse>('authenticate', { username, password });
+}
+
+/**
+ * Validate authentication token
+ *
+ * @param token - JWT token to validate
+ * @returns True if token is valid
+ */
+export async function validateToken(token: string): Promise<boolean> {
+  return invokeCommand<boolean>('validate_token', { token });
+}
+
+/**
+ * Get current user from token
+ *
+ * @param token - JWT token
+ * @returns User data
+ */
+export async function getCurrentUser(token: string): Promise<User> {
+  return invokeCommand<User>('get_current_user', { token });
+}
+
+/**
+ * Perform health check on backend
+ *
+ * @returns True if backend is healthy
+ */
+export async function healthCheck(): Promise<boolean> {
+  try {
+    await invokeCommand('health_check');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================================
+// Window management
+// ============================================================================
+
+/**
+ * Minimize the application window
+ */
+export async function minimizeWindow(): Promise<void> {
+  await appWindow.minimize();
+}
+
+/**
+ * Maximize the application window
+ */
+export async function maximizeWindow(): Promise<void> {
+  await appWindow.toggleMaximize();
+}
+
+/**
+ * Close the application window
+ */
+export async function closeWindow(): Promise<void> {
+  await appWindow.close();
+}
+
+/**
+ * Check if window is maximized
+ */
+export async function isWindowMaximized(): Promise<boolean> {
+  return await appWindow.isMaximized();
+}
+
+// ============================================================================
+// Dialogs
+// ============================================================================
+
+/**
+ * Show message dialog
+ *
+ * @param title - Dialog title
+ * @param msg - Dialog message
+ */
+export async function showMessage(title: string, msg: string): Promise<void> {
+  await message(msg, { title, type: 'info' });
+}
+
+/**
+ * Show error dialog
+ *
+ * @param title - Dialog title
+ * @param msg - Error message
+ */
+export async function showError(title: string, msg: string): Promise<void> {
+  await message(msg, { title, type: 'error' });
+}
+
+/**
+ * Show warning dialog
+ *
+ * @param title - Dialog title
+ * @param msg - Warning message
+ */
+export async function showWarning(title: string, msg: string): Promise<void> {
+  await message(msg, { title, type: 'warning' });
+}
+
+/**
+ * Open file picker dialog
+ *
+ * @param options - File picker options
+ * @returns Selected file path or null
+ */
+export async function openFilePicker(options?: {
+  multiple?: boolean;
+  directory?: boolean;
+  filters?: Array<{ name: string; extensions: string[] }>;
+}): Promise<string | string[] | null> {
+  return await open(options);
+}
+
+// ============================================================================
+// File system
+// ============================================================================
+
+/**
+ * Read text file contents
+ *
+ * @param path - File path to read
+ * @returns File contents as string
+ */
+export async function readFile(path: string): Promise<string> {
+  try {
+    return await readTextFile(path);
+  } catch (error) {
+    throw new TauriError(
+      `Failed to read file: ${path}`,
+      'FS_READ_ERROR',
+      error
+    );
+  }
+}
+
+/**
+ * Write text to file
+ *
+ * @param path - File path to write
+ * @param contents - Contents to write
+ */
+export async function writeFile(path: string, contents: string): Promise<void> {
+  try {
+    await writeTextFile(path, contents);
+  } catch (error) {
+    throw new TauriError(
+      `Failed to write file: ${path}`,
+      'FS_WRITE_ERROR',
+      error
+    );
+  }
+}
+
+// ============================================================================
+// Utility functions
+// ============================================================================
+
+/**
+ * Check if running in Tauri environment
+ */
+export function isTauri(): boolean {
+  return '__TAURI__' in window;
+}
+
+/**
+ * Get Tauri version
+ */
+export async function getTauriVersion(): Promise<string> {
+  if (!isTauri()) {
+    return 'not-in-tauri';
+  }
+  const info = await getAppInfo();
+  return info.version;
+}
+
+/**
+ * Handle Tauri error with user-friendly message
+ *
+ * @param error - Error to handle
+ * @param fallbackMessage - Fallback message if error is unknown
+ */
+export function handleTauriError(
+  error: unknown,
+  fallbackMessage = 'An unexpected error occurred'
+): string {
+  if (error instanceof TauriError) {
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return fallbackMessage;
+}
+
+// ============================================================================
+// Exports
+// ============================================================================
+
+export default {
+  // App
+  getAppInfo,
+  getSystemInfo,
+  greet,
+  getTauriVersion,
+  isTauri,
+
+  // Auth
+  authenticate,
+  validateToken,
+  getCurrentUser,
+  healthCheck,
+
+  // Window
+  minimizeWindow,
+  maximizeWindow,
+  closeWindow,
+  isWindowMaximized,
+
+  // Dialogs
+  showMessage,
+  showError,
+  showWarning,
+  openFilePicker,
+
+  // File system
+  readFile,
+  writeFile,
+
+  // Utils
+  handleTauriError,
+};

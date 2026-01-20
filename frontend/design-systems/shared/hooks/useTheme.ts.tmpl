@@ -1,0 +1,181 @@
+/**
+ * useTheme.ts - React hook for theme management
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+
+export type Theme = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
+
+const STORAGE_KEY = '{{PROJECT_NAME}}-theme';
+const THEME_ATTRIBUTE = 'data-theme';
+const DARK_CLASS = 'dark';
+
+/**
+ * Hook for theme management with light/dark mode support
+ *
+ * Features:
+ * - Light/dark mode toggle
+ * - System preference detection
+ * - LocalStorage persistence
+ * - CSS class and attribute application
+ * - SSR-safe
+ *
+ * @returns Theme state and controls
+ *
+ * @example
+ * ```tsx
+ * function ThemeToggle() {
+ *   const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
+ *   return (
+ *     <button onClick={toggleTheme}>
+ *       {resolvedTheme === 'dark' ? '🌙' : '☀️'}
+ *     </button>
+ *   );
+ * }
+ * ```
+ */
+export function useTheme() {
+  // Initialize with system preference or stored value
+  const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === 'undefined') return 'system';
+
+    const stored = localStorage.getItem(STORAGE_KEY) as Theme;
+    if (stored && ['light', 'dark', 'system'].includes(stored)) {
+      return stored;
+    }
+
+    return 'system';
+  });
+
+  const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => {
+    if (typeof window === 'undefined') return 'light';
+
+    if (theme === 'system') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+    }
+
+    return theme as ResolvedTheme;
+  });
+
+  /**
+   * Get system preference
+   */
+  const getSystemTheme = useCallback((): ResolvedTheme => {
+    if (typeof window === 'undefined') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light';
+  }, []);
+
+  /**
+   * Apply theme to DOM
+   */
+  const applyTheme = useCallback((newTheme: ResolvedTheme) => {
+    if (typeof document === 'undefined') return;
+
+    const root = document.documentElement;
+
+    // Apply class
+    if (newTheme === 'dark') {
+      root.classList.add(DARK_CLASS);
+    } else {
+      root.classList.remove(DARK_CLASS);
+    }
+
+    // Apply attribute
+    root.setAttribute(THEME_ATTRIBUTE, newTheme);
+
+    // Apply color-scheme for native elements
+    root.style.colorScheme = newTheme;
+  }, []);
+
+  /**
+   * Set theme and persist to storage
+   */
+  const setTheme = useCallback(
+    (newTheme: Theme) => {
+      setThemeState(newTheme);
+      localStorage.setItem(STORAGE_KEY, newTheme);
+
+      const resolved = newTheme === 'system' ? getSystemTheme() : (newTheme as ResolvedTheme);
+      setResolvedTheme(resolved);
+      applyTheme(resolved);
+    },
+    [getSystemTheme, applyTheme]
+  );
+
+  /**
+   * Toggle between light and dark
+   */
+  const toggleTheme = useCallback(() => {
+    const newTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+  }, [resolvedTheme, setTheme]);
+
+  /**
+   * Apply theme on mount and when it changes
+   */
+  useEffect(() => {
+    const resolved = theme === 'system' ? getSystemTheme() : (theme as ResolvedTheme);
+    setResolvedTheme(resolved);
+    applyTheme(resolved);
+  }, [theme, getSystemTheme, applyTheme]);
+
+  /**
+   * Listen for system preference changes
+   */
+  useEffect(() => {
+    if (theme !== 'system') return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      const newTheme = e.matches ? 'dark' : 'light';
+      setResolvedTheme(newTheme);
+      applyTheme(newTheme);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, [theme, applyTheme]);
+
+  return {
+    /** Current theme setting (light | dark | system) */
+    theme,
+    /** Resolved theme after system preference (light | dark) */
+    resolvedTheme,
+    /** Set theme explicitly */
+    setTheme,
+    /** Toggle between light and dark */
+    toggleTheme,
+    /** Check if dark mode is active */
+    isDark: resolvedTheme === 'dark',
+    /** Check if light mode is active */
+    isLight: resolvedTheme === 'light',
+  };
+}
+
+/**
+ * Prevent flash of unstyled content (FOUC) on SSR
+ * Add this script tag in your HTML <head>
+ */
+export const themeScript = `
+(function() {
+  try {
+    const theme = localStorage.getItem('${STORAGE_KEY}') || 'system';
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+
+    document.documentElement.classList.toggle('${DARK_CLASS}', resolved === 'dark');
+    document.documentElement.setAttribute('${THEME_ATTRIBUTE}', resolved);
+    document.documentElement.style.colorScheme = resolved;
+  } catch (e) {}
+})();
+`;

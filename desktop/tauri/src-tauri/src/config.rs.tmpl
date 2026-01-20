@@ -1,0 +1,86 @@
+/*!
+ * Application Configuration
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+/// Application configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    /// Application name
+    pub app_name: String,
+
+    /// Application version
+    pub app_version: String,
+
+    /// Debug mode enabled
+    pub debug: bool,
+
+    /// Database configuration
+    pub database: DatabaseConfig,
+
+    /// API configuration (if connecting to remote backend)
+    pub api: Option<ApiConfig>,
+}
+
+/// Database configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatabaseConfig {
+    /// Path to SQLite database file
+    pub path: Option<PathBuf>,
+
+    /// Maximum connections in pool
+    pub max_connections: u32,
+}
+
+/// Remote API configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiConfig {
+    /// Base URL for API
+    pub base_url: String,
+
+    /// Request timeout in seconds
+    pub timeout_secs: u64,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            app_name: "{{APP_TITLE}}".to_string(),
+            app_version: env!("CARGO_PKG_VERSION").to_string(),
+            debug: cfg!(debug_assertions),
+            database: DatabaseConfig {
+                path: None, // Will be set at runtime
+                max_connections: 5,
+            },
+            api: None,
+        }
+    }
+}
+
+impl Config {
+    /// Load configuration from environment and defaults
+    pub fn load() -> Result<Self, Box<dyn std::error::Error>> {
+        let mut config = Self::default();
+
+        // Override with environment variables if present
+        if let Ok(debug) = std::env::var("APP_DEBUG") {
+            config.debug = debug.parse().unwrap_or(false);
+        }
+
+        if let Ok(api_url) = std::env::var("API_BASE_URL") {
+            config.api = Some(ApiConfig {
+                base_url: api_url,
+                timeout_secs: std::env::var("API_TIMEOUT")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(30),
+            });
+        }
+
+        Ok(config)
+    }
+}

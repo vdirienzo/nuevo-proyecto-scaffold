@@ -1,0 +1,81 @@
+/**
+ * BrutalButton.tsx - Neo-Brutalism button component
+ *
+ * Autor: Homero Thompson del Lago del Terror
+ * Project: {{PROJECT_NAME}}
+ */
+
+import React from 'react'
+import { cn } from '@/lib/utils'
+
+export interface BrutalButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'yellow' | 'magenta' | 'cyan' | 'lime' | 'orange' | 'red' | 'blue' | 'pink'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
+  uppercase?: boolean
+  shadowColor?: 'black' | 'yellow' | 'magenta' | 'cyan' | 'lime'
+  children: React.ReactNode
+}
+
+const BrutalButton = React.forwardRef<HTMLButtonElement, BrutalButtonProps>(
+  (
+    {
+      className,
+      variant = 'yellow',
+      size = 'md',
+      uppercase = false,
+      shadowColor = 'black',
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const variantClasses = {
+      yellow: 'bg-brutal-yellow hover:bg-brutal-yellow/90',
+      magenta: 'bg-brutal-magenta hover:bg-brutal-magenta/90',
+      cyan: 'bg-brutal-cyan hover:bg-brutal-cyan/90',
+      lime: 'bg-brutal-lime hover:bg-brutal-lime/90',
+      orange: 'bg-brutal-orange hover:bg-brutal-orange/90 text-white',
+      red: 'bg-brutal-red hover:bg-brutal-red/90 text-white',
+      blue: 'bg-brutal-blue hover:bg-brutal-blue/90 text-white',
+      pink: 'bg-brutal-pink hover:bg-brutal-pink/90 text-white',
+    }
+
+    const sizeClasses = {
+      sm: 'px-4 py-2 text-brutal-sm',
+      md: 'px-6 py-3 text-brutal-base',
+      lg: 'px-8 py-4 text-brutal-lg',
+      xl: 'px-10 py-5 text-brutal-xl',
+    }
+
+    const shadowClasses = {
+      black: 'shadow-brutal-sm hover:shadow-brutal-md',
+      yellow: 'shadow-brutal-yellow-sm hover:shadow-brutal-yellow-md',
+      magenta: 'shadow-brutal-magenta-sm hover:shadow-brutal-magenta-md',
+      cyan: 'shadow-brutal-cyan-sm hover:shadow-brutal-cyan-md',
+      lime: 'shadow-brutal-lime-sm hover:shadow-brutal-lime-md',
+    }
+
+    return (
+      <button
+        ref={ref}
+        className={cn(
+          'border-brutal font-bold transition-all duration-100',
+          'active:translate-x-1 active:translate-y-1 active:shadow-none',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          variantClasses[variant],
+          sizeClasses[size],
+          shadowClasses[shadowColor],
+          uppercase && 'uppercase tracking-wider',
+          className
+        )}
+        {...props}
+      >
+        {children}
+      </button>
+    )
+  }
+)
+
+BrutalButton.displayName = 'BrutalButton'
+
+export default BrutalButton

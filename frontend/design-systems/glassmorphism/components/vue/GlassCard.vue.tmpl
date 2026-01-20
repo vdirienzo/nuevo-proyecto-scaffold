@@ -1,0 +1,68 @@
+<!--
+  GlassCard.vue - Glass Card Component (Vue 3)
+
+  Autor: {{AUTHOR}}
+  Proyecto: {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+export interface GlassCardProps {
+  variant?: 'light' | 'dark' | 'purple' | 'blue' | 'cyan' | 'pink'
+  intensity?: 'sm' | 'md' | 'lg'
+  hover?: boolean
+  glow?: boolean
+}
+
+const props = withDefaults(defineProps<GlassCardProps>(), {
+  variant: 'light',
+  intensity: 'lg',
+  hover: true,
+  glow: false,
+})
+
+const variantClasses = {
+  light: 'bg-glass-white border-glass-white',
+  dark: 'bg-glass-dark border-glass-dark',
+  purple: 'bg-glass-purple border-glass-purple',
+  blue: 'bg-glass-blue border-glass-blue',
+  cyan: 'bg-glass-cyan border-glass-cyan',
+  pink: 'bg-glass-pink border-glass-pink',
+}
+
+const intensityClasses = {
+  sm: 'backdrop-blur-sm',
+  md: 'backdrop-blur-md',
+  lg: 'backdrop-blur-xl',
+}
+
+const glowClasses = {
+  light: 'shadow-glow',
+  dark: 'shadow-glow',
+  purple: 'shadow-glow-purple',
+  blue: 'shadow-glow-blue',
+  cyan: 'shadow-glow-cyan',
+  pink: 'shadow-glow-pink',
+}
+
+const cardClasses = computed(() => [
+  'glass-card relative rounded-xl border transition-all duration-300',
+  variantClasses[props.variant],
+  intensityClasses[props.intensity],
+  props.glow && glowClasses[props.variant],
+  props.hover && 'hover:bg-opacity-20 hover:border-opacity-50 hover:shadow-glow-md',
+])
+</script>
+
+<template>
+  <div :class="cardClasses">
+    <!-- Inner glow overlay -->
+    <div class="absolute inset-0 rounded-xl bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+
+    <!-- Content -->
+    <div class="relative z-10 p-6">
+      <slot />
+    </div>
+  </div>
+</template>

@@ -1,0 +1,93 @@
+/*!
+ * {{PROJECT_NAME}} - Main Application Entry Point
+ *
+ * Author: {{AUTHOR}}
+ */
+
+// Prevents additional console window on Windows in release
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use {{PROJECT_NAME}}_lib::{commands, config::Config, db::Database, state::AppState};
+use tauri::Manager;
+use tracing::info;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+
+fn main() {
+    // Initialize logging
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
+        .init();
+
+    info!("Starting {{APP_TITLE}}...");
+
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_focus();
+            }
+        }))
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
+        .setup(|app| {
+            info!("Setting up application...");
+
+            // Load configuration
+            let config = Config::load().expect("Failed to load configuration");
+
+            // Initialize database
+            let db_path = app
+                .path()
+                .app_data_dir()
+                .expect("Failed to get app data dir")
+                .join("data.db");
+
+            let db = tauri::async_runtime::block_on(async {
+                Database::new(&db_path).await.expect("Failed to initialize database")
+            });
+
+            // Create application state
+            let state = AppState::new(config, db);
+            app.manage(state);
+
+            info!("Application setup complete");
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            // App commands
+            commands::app::get_app_info,
+            commands::app::get_app_version,
+            // System commands
+            commands::system::get_system_info,
+            commands::system::open_external_url,
+            // Auth commands
+            commands::auth::login,
+            commands::auth::logout,
+            commands::auth::get_current_user,
+            commands::auth::check_auth,
+            // File commands
+            commands::files::read_file,
+            commands::files::write_file,
+            commands::files::list_directory,
+            commands::files::file_exists,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

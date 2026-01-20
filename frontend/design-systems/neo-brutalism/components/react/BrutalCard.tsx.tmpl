@@ -1,0 +1,104 @@
+/**
+ * BrutalCard.tsx - Neo-Brutalism card component
+ *
+ * Autor: Homero Thompson del Lago del Terror
+ * Project: {{PROJECT_NAME}}
+ */
+
+import React from 'react'
+import { cn } from '@/lib/utils'
+
+export interface BrutalCardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'white' | 'yellow' | 'magenta' | 'cyan' | 'lime' | 'orange'
+  shadow?: 'sm' | 'md' | 'lg' | 'xl'
+  asymmetric?: boolean
+  rotate?: number
+  sticker?: {
+    text: string
+    color: 'yellow' | 'magenta' | 'cyan' | 'lime' | 'red'
+    position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  }
+  children: React.ReactNode
+}
+
+const BrutalCard = React.forwardRef<HTMLDivElement, BrutalCardProps>(
+  (
+    {
+      className,
+      variant = 'white',
+      shadow = 'md',
+      asymmetric = false,
+      rotate = 0,
+      sticker,
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const variantClasses = {
+      white: 'bg-brutal-white',
+      yellow: 'bg-brutal-yellow',
+      magenta: 'bg-brutal-magenta',
+      cyan: 'bg-brutal-cyan',
+      lime: 'bg-brutal-lime',
+      orange: 'bg-brutal-orange text-white',
+    }
+
+    const shadowClasses = {
+      sm: 'shadow-brutal-sm',
+      md: 'shadow-brutal-md',
+      lg: 'shadow-brutal-lg',
+      xl: 'shadow-brutal-xl',
+    }
+
+    const stickerColorClasses = {
+      yellow: 'bg-brutal-yellow',
+      magenta: 'bg-brutal-magenta',
+      cyan: 'bg-brutal-cyan',
+      lime: 'bg-brutal-lime',
+      red: 'bg-brutal-red text-white',
+    }
+
+    const stickerPositionClasses = {
+      'top-left': '-top-3 -left-3',
+      'top-right': '-top-3 -right-3',
+      'bottom-left': '-bottom-3 -left-3',
+      'bottom-right': '-bottom-3 -right-3',
+    }
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'border-brutal p-6 relative',
+          variantClasses[variant],
+          shadowClasses[shadow],
+          asymmetric && 'transform skew-y-1',
+          className
+        )}
+        style={{
+          transform: rotate ? `rotate(${rotate}deg)` : undefined,
+        }}
+        {...props}
+      >
+        {sticker && (
+          <div
+            className={cn(
+              'absolute px-3 py-1 border-brutal rotate-12',
+              'font-bold text-brutal-sm uppercase tracking-wide',
+              stickerColorClasses[sticker.color],
+              stickerPositionClasses[sticker.position]
+            )}
+          >
+            {sticker.text}
+          </div>
+        )}
+        {children}
+      </div>
+    )
+  }
+)
+
+BrutalCard.displayName = 'BrutalCard'
+
+export default BrutalCard

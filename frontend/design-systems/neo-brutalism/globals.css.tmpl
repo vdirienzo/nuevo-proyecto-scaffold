@@ -1,0 +1,217 @@
+/**
+ * globals.css - Neo-Brutalism global styles
+ *
+ * Autor: Homero Thompson del Lago del Terror
+ * Project: {{PROJECT_NAME}}
+ */
+
+/* Import chunky fonts */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=clash-display@200,400,700,600,500,300&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Brutal colors */
+  --brutal-yellow: #FFFF00;
+  --brutal-magenta: #FF00FF;
+  --brutal-cyan: #00FFFF;
+  --brutal-lime: #00FF00;
+  --brutal-orange: #FF6600;
+  --brutal-red: #FF0000;
+  --brutal-blue: #0000FF;
+  --brutal-pink: #FF69B4;
+  --brutal-purple: #9900FF;
+  --brutal-white: #FFFFFF;
+  --brutal-black: #000000;
+  --brutal-gray: #808080;
+
+  /* Shadow values */
+  --shadow-brutal-sm: 4px 4px 0px var(--brutal-black);
+  --shadow-brutal-md: 6px 6px 0px var(--brutal-black);
+  --shadow-brutal-lg: 8px 8px 0px var(--brutal-black);
+  --shadow-brutal-xl: 12px 12px 0px var(--brutal-black);
+
+  /* Border values */
+  --border-brutal: 4px solid var(--brutal-black);
+  --border-brutal-thick: 6px solid var(--brutal-black);
+  --border-brutal-chunky: 8px solid var(--brutal-black);
+}
+
+@layer base {
+  * {
+    @apply border-brutal-black;
+  }
+
+  body {
+    @apply font-brutal bg-brutal-white text-brutal-black;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-clash font-bold;
+  }
+}
+
+@layer components {
+  /* Marker highlight effect */
+  .marker-highlight {
+    background: linear-gradient(
+      104deg,
+      rgba(255, 255, 0, 0) 0.9%,
+      rgba(255, 255, 0, 1.25) 2.4%,
+      rgba(255, 255, 0, 0.5) 5.8%,
+      rgba(255, 255, 0, 0.1) 93%,
+      rgba(255, 255, 0, 0.7) 96%,
+      rgba(255, 255, 0, 0) 98%
+    ),
+    linear-gradient(
+      183deg,
+      rgba(255, 255, 0, 0) 0%,
+      rgba(255, 255, 0, 0.3) 7.9%,
+      rgba(255, 255, 0, 0) 15%
+    );
+    padding: 0.1em 0.2em;
+    border-radius: 0.2em;
+  }
+
+  .marker-highlight-magenta {
+    background: linear-gradient(
+      104deg,
+      rgba(255, 0, 255, 0) 0.9%,
+      rgba(255, 0, 255, 1.25) 2.4%,
+      rgba(255, 0, 255, 0.5) 5.8%,
+      rgba(255, 0, 255, 0.1) 93%,
+      rgba(255, 0, 255, 0.7) 96%,
+      rgba(255, 0, 255, 0) 98%
+    );
+    padding: 0.1em 0.2em;
+    border-radius: 0.2em;
+  }
+
+  .marker-highlight-cyan {
+    background: linear-gradient(
+      104deg,
+      rgba(0, 255, 255, 0) 0.9%,
+      rgba(0, 255, 255, 1.25) 2.4%,
+      rgba(0, 255, 255, 0.5) 5.8%,
+      rgba(0, 255, 255, 0.1) 93%,
+      rgba(0, 255, 255, 0.7) 96%,
+      rgba(0, 255, 255, 0) 98%
+    );
+    padding: 0.1em 0.2em;
+    border-radius: 0.2em;
+  }
+
+  /* Starburst shape */
+  .starburst {
+    position: relative;
+    display: inline-block;
+  }
+
+  .starburst::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: inherit;
+    clip-path: polygon(
+      50% 0%,
+      61% 35%,
+      98% 35%,
+      68% 57%,
+      79% 91%,
+      50% 70%,
+      21% 91%,
+      32% 57%,
+      2% 35%,
+      39% 35%
+    );
+    z-index: -1;
+  }
+
+  /* Wavy underline */
+  .wavy-underline {
+    text-decoration: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 4'%3E%3Cpath fill='none' stroke='%23000' stroke-width='2' d='M0 3.5c5 0 5-3 10-3s5 3 10 3'/%3E%3C/svg%3E");
+    background-repeat: repeat-x;
+    background-position: 0 100%;
+    background-size: 20px 4px;
+    padding-bottom: 4px;
+  }
+
+  /* Chunky button base */
+  .btn-brutal {
+    @apply font-brutal-caps px-6 py-3 border-brutal text-brutal-base;
+    @apply transition-all duration-100 active:translate-x-1 active:translate-y-1;
+    @apply active:shadow-none;
+  }
+
+  /* Brutal card base */
+  .card-brutal {
+    @apply border-brutal p-6 bg-brutal-white;
+    @apply shadow-brutal-md;
+  }
+}
+
+@layer utilities {
+  /* Text utilities */
+  .text-strikethrough-brutal {
+    text-decoration: line-through;
+    text-decoration-thickness: 4px;
+    text-decoration-color: var(--brutal-red);
+  }
+
+  .text-underline-brutal {
+    text-decoration: underline;
+    text-decoration-thickness: 4px;
+    text-decoration-color: var(--brutal-black);
+    text-underline-offset: 4px;
+  }
+
+  /* Rotation utilities */
+  .rotate-chaos-1 { transform: rotate(2deg); }
+  .rotate-chaos-2 { transform: rotate(-3deg); }
+  .rotate-chaos-3 { transform: rotate(1deg); }
+  .rotate-chaos-4 { transform: rotate(-2deg); }
+}
+
+/* Animations */
+@keyframes shake {
+  10%, 90% {
+    transform: translate3d(-1px, 0, 0);
+  }
+  20%, 80% {
+    transform: translate3d(2px, 0, 0);
+  }
+  30%, 50%, 70% {
+    transform: translate3d(-4px, 0, 0);
+  }
+  40%, 60% {
+    transform: translate3d(4px, 0, 0);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

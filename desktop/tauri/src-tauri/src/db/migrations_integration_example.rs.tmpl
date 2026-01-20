@@ -1,0 +1,146 @@
+/*!
+Example integration of migrations and seeds in Tauri app
+
+Author: {{AUTHOR}}
+
+This shows how to integrate the migration system into your Tauri application.
+Copy relevant parts into your main.rs or lib.rs
+*/
+
+use sqlx::SqlitePool;
+use tauri::Manager;
+
+// Import migration and seed modules
+mod migrations;
+mod seeds;
+
+/// Initialize database on app startup
+pub async fn setup_database(app_name: &str) -> Result<SqlitePool, Box<dyn std::error::Error>> {
+    // Initialize database with migrations
+    let db_url = migrations::init_database(app_name).await?;
+
+    // Load seed data (dev only)
+    if cfg!(debug_assertions) {
+        seeds::init_seeds(&db_url).await?;
+    }
+
+    // Create connection pool for app usage
+    let pool = SqlitePool::connect(&db_url).await?;
+
+    Ok(pool)
+}
+
+/// Example Tauri setup with database initialization
+#[cfg(not(test))]
+pub fn run_app() {
+    tauri::Builder::default()
+        .setup(|app| {
+            // Get app name from config
+            let app_name = app.package_info().name.clone();
+
+            // Initialize database
+            tauri::async_runtime::block_on(async move {
+                let pool = setup_database(&app_name)
+                    .await
+                    .expect("Failed to initialize database");
+
+                // Store pool in app state
+                app.manage(pool);
+            });
+
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+/// Command to get database stats (example usage)
+#[tauri::command]
+async fn get_db_stats(
+    pool: tauri::State<'_, SqlitePool>
+) -> Result<DatabaseStats, String> {
+    let user_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+        .fetch_one(pool.inner())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let session_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sessions")
+        .fetch_one(pool.inner())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let audit_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM audit_logs")
+        .fetch_one(pool.inner())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(DatabaseStats {
+        users: user_count.0,
+        sessions: session_count.0,
+        audit_logs: audit_count.0,
+    })
+}
+
+#[derive(serde::Serialize)]
+struct DatabaseStats {
+    users: i64,
+    sessions: i64,
+    audit_logs: i64,
+}
+
+/// Dev-only command to reset database
+#[cfg(debug_assertions)]
+#[tauri::command]
+async fn reset_database_dev(
+    pool: tauri::State<'_, SqlitePool>
+) -> Result<String, String> {
+    seeds::reset_database(pool.inner())
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Re-run migrations
+    let db_url = migrations::get_database_url(
+        &migrations::get_database_path("{{PROJECT_NAME}}")
+            .map_err(|e| e.to_string())?
+    );
+
+    migrations::run_migrations(&db_url)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Re-seed
+    seeds::init_seeds(&db_url)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok("Database reset successfully".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_database_setup() {
+        let pool = setup_database("test_app")
+            .await
+            .expect("Failed to setup database");
+
+        // Verify tables exist
+        let tables: Vec<(String,)> = sqlx::query_as(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+
+        let table_names: Vec<String> = tables.into_iter().map(|(name,)| name).collect();
+
+        assert!(table_names.contains(&"users".to_string()));
+        assert!(table_names.contains(&"settings".to_string()));
+        assert!(table_names.contains(&"sessions".to_string()));
+        assert!(table_names.contains(&"audit_logs".to_string()));
+
+        pool.close().await;
+    }
+}

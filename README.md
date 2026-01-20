@@ -1,6 +1,6 @@
 # Nuevo Proyecto Scaffold
 
-[![Version](https://img.shields.io/badge/version-6.0.0-blue.svg)](https://github.com/vdirienzo/nuevo-proyecto-scaffold)
+[![Version](https://img.shields.io/badge/version-6.2.0-blue.svg)](https://github.com/vdirienzo/nuevo-proyecto-scaffold)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stars](https://img.shields.io/github/stars/vdirienzo/nuevo-proyecto-scaffold?style=social)](https://github.com/vdirienzo/nuevo-proyecto-scaffold/stargazers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
@@ -15,9 +15,11 @@
 
 - **Interactive Wizard** - 11-phase guided setup with intelligent recommendations
 - **Multi-Scale Ready** - From MVP to Netflix-scale with one command
-- **828 Templates** - Battle-tested templates for every component and scenario
+- **972 Templates** - Battle-tested templates for every component and scenario
+- **5 Design Systems** - Geist, Glassmorphism, Neumorphism, Claymorphism, Neo-Brutalism with React + Vue components
 - **Full Stack Support** - FastAPI, NestJS, Go, Rust (Actix/Rocket) backends + Next.js, React SPA, Vue.js 3, Angular 17+, jQuery frontends
 - **Mobile Apps** - React Native and Flutter cross-platform templates
+- **Desktop Apps** - Tauri v2 (Rust backend + web frontend) for Windows, macOS, Linux with 3-10MB bundles
 - **Edge Computing** - Cloudflare Workers and Deno Deploy for global edge deployment
 - **WebAssembly** - Rust-WASM and AssemblyScript modules for high-performance computation
 - **Blockchain/Web3** - Web3.js and Ethers.js integration with smart contracts
@@ -40,6 +42,42 @@
 ---
 
 ## What's New
+
+### v6.2.0 - Design Systems Edition 🎨
+
+**99 New Templates** - Expanding from 873 to **972 templates** with 5 complete design systems.
+
+**🎨 Design Systems (86 templates)**
+- **Geist** (12) - Vercel aesthetic: black background, gradient accents, ultra-clean typography
+- **Glassmorphism** (13) - Frosted glass: backdrop-blur, glowing borders, futuristic dark mode
+- **Neumorphism** (15) - Soft UI: inset/outset shadows, tactile feel, calm aesthetic
+- **Claymorphism** (15) - Clay/plasticine: organic shapes, pastel colors, playful animations
+- **Neo-Brutalism** (16) - Bold & chunky: loud colors, thick borders, asymmetric layouts
+- **Shared utilities** (10) - React hooks, Vue composables, design tokens, animations
+
+Each system includes:
+- Tailwind CSS configuration
+- React components (Button, Card, Input, Modal, Navbar, etc.)
+- Vue 3 components (Composition API)
+- Landing page example
+- Full documentation
+
+---
+
+### v6.1.0 - Tauri Desktop Edition 🖥️
+
+**74 New Templates** - Expanding from 828 to **873 templates** with desktop app support.
+
+**🖥️ Tauri Desktop (74 templates)**
+- **Rust Backend** - Secure IPC commands, SQLite database, auth services
+- **Frontend Integration** - React hooks, Vue composables, TypeScript API wrapper
+- **Plugins** - Auto-updater, persistent store, logging, window state
+- **Security** - Capability-based permissions, CSP, crypto utilities
+- **Database** - SQLite with sqlx, migrations, seeds
+- **Testing** - Rust integration tests, Playwright E2E
+- **CI/CD** - Multi-platform builds (Windows, macOS, Linux)
+
+---
 
 ### v6.0.0 - Next Generation Release 🚀
 
@@ -132,9 +170,9 @@
 
 ### 📊 By the Numbers
 
-| Metric | v3.0.0 | v5.0.0 | Change |
+| Metric | v3.0.0 | v6.2.0 | Change |
 |--------|--------|--------|--------|
-| **Total Templates** | 148 | 534 | +261% |
+| **Total Templates** | 148 | 972 | +557% |
 | **Backend Options** | 3 | 4 | +33% |
 | **Frontend Options** | 2 | 6 | +200% |
 | **Auth Providers** | 2 | 5 | +150% |
@@ -239,6 +277,13 @@ graph LR
 | **Vue.js 3** | Composition API, Pinia, Vite | Progressive apps, component-driven design |
 | **Angular 17+** | Standalone, Signals, NgRx | Enterprise apps, large teams, complex domains |
 | **jQuery** | Bootstrap 5, Parcel, Simple setup | Legacy support, rapid prototyping, small projects |
+
+### Desktop Options
+
+| Technology | Features | Best For |
+|------------|----------|----------|
+| **Tauri** | Rust backend, 3-10MB bundles, secure IPC | Modern desktop apps, cross-platform |
+| **Electron** | Node.js backend, larger bundles (40-200MB) | Legacy support, requires browser APIs |
 
 ### Database Options
 
@@ -1072,6 +1117,36 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ---
 
 ## Changelog
+
+### [6.2.0] - 2026-01-20
+
+#### Added
+- **99 new templates** (873 → 972 total)
+- 5 complete UI Design Systems with React + Vue components:
+  - Geist (Vercel aesthetic) - 12 templates
+  - Glassmorphism (frosted glass) - 13 templates
+  - Neumorphism (soft UI) - 15 templates
+  - Claymorphism (playful clay) - 15 templates
+  - Neo-Brutalism (bold chunky) - 16 templates
+  - Shared utilities (hooks, tokens) - 10 templates
+- Landing page examples for each design system
+- Design tokens and Tailwind configurations
+- New wizard question: design_system
+- Central design system documentation and comparison guide
+
+### [6.1.0] - 2026-01-20
+
+#### Added
+- **74 new desktop templates** (828 → 873 total)
+- Tauri v2 desktop application framework
+- Rust backend with IPC commands (app, auth, files, system)
+- SQLite database with sqlx and migrations
+- Frontend integration (React hooks, Vue composables)
+- Tauri plugins (updater, store, log, window-state)
+- Security templates (capabilities, CSP, crypto)
+- Playwright E2E tests for desktop
+- Multi-platform CI/CD (Windows, macOS, Linux)
+- New wizard question: desktop_platform
 
 ### [5.0.0] - 2026-01-19
 

@@ -1,0 +1,163 @@
+/**
+ * GlassNavbar.tsx - Glass Navbar Component
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+import React, { useState, useEffect } from 'react'
+import { cn } from '@/lib/utils'
+
+export interface NavItem {
+  label: string
+  href: string
+  children?: NavItem[]
+}
+
+export interface GlassNavbarProps {
+  logo?: React.ReactNode
+  items: NavItem[]
+  className?: string
+}
+
+export const GlassNavbar: React.FC<GlassNavbarProps> = ({
+  logo,
+  items,
+  className,
+}) => {
+  const [isScrolled, setIsScrolled] = useState(false)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20)
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  return (
+    <nav
+      className={cn(
+        'glass-navbar sticky top-0 z-40 w-full transition-all duration-300',
+        isScrolled
+          ? 'bg-glass-white-lg backdrop-blur-2xl shadow-glow-md'
+          : 'bg-glass-white backdrop-blur-xl',
+        className
+      )}
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            {logo || (
+              <span className="text-2xl font-bold text-white">Logo</span>
+            )}
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden md:block">
+            <div className="ml-10 flex items-center space-x-4">
+              {items.map((item, index) => (
+                <div
+                  key={index}
+                  className="relative"
+                  onMouseEnter={() => item.children && setOpenDropdown(index)}
+                  onMouseLeave={() => setOpenDropdown(null)}
+                >
+                  <a
+                    href={item.href}
+                    className="px-4 py-2 rounded-lg text-white hover:bg-glass-white-md transition-all duration-300 hover:shadow-glow"
+                  >
+                    {item.label}
+                  </a>
+
+                  {/* Dropdown */}
+                  {item.children && openDropdown === index && (
+                    <div className="absolute left-0 mt-2 w-48 rounded-lg bg-glass-white-md backdrop-blur-xl border border-glass-white-lg shadow-glow-md">
+                      {item.children.map((child, childIndex) => (
+                        <a
+                          key={childIndex}
+                          href={child.href}
+                          className="block px-4 py-2 text-white hover:bg-glass-white-lg transition-colors first:rounded-t-lg last:rounded-b-lg"
+                        >
+                          {child.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden">
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="p-2 rounded-lg border border-glass-white bg-glass-white hover:bg-glass-white-md transition-all duration-300"
+            >
+              <svg
+                className="h-6 w-6 text-white"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                {isMobileMenuOpen ? (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                ) : (
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h16"
+                  />
+                )}
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-glass-white">
+          <div className="space-y-1 px-4 pb-3 pt-2">
+            {items.map((item, index) => (
+              <div key={index}>
+                <a
+                  href={item.href}
+                  className="block px-4 py-2 rounded-lg text-white hover:bg-glass-white-md transition-all duration-300"
+                >
+                  {item.label}
+                </a>
+                {item.children && (
+                  <div className="ml-4 space-y-1">
+                    {item.children.map((child, childIndex) => (
+                      <a
+                        key={childIndex}
+                        href={child.href}
+                        className="block px-4 py-2 rounded-lg text-white/80 text-sm hover:bg-glass-white-md hover:text-white transition-all duration-300"
+                      >
+                        {child.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </nav>
+  )
+}
+
+export default GlassNavbar

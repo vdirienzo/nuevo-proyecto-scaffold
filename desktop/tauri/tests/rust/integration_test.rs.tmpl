@@ -1,0 +1,323 @@
+/*! Integration tests for {{PROJECT_NAME}} Tauri app
+
+Author: {{AUTHOR}}
+*/
+
+#[cfg(test)]
+mod integration_tests {
+    use tauri::test::{mock_builder, mock_context, noop_assets, MockRuntime};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    // Mock database connection for testing
+    struct TestDatabase {
+        data: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl TestDatabase {
+        fn new() -> Self {
+            Self {
+                data: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+
+        async fn insert(&self, value: String) -> Result<(), String> {
+            let mut data = self.data.lock().await;
+            data.push(value);
+            Ok(())
+        }
+
+        async fn get_all(&self) -> Result<Vec<String>, String> {
+            let data = self.data.lock().await;
+            Ok(data.clone())
+        }
+
+        async fn clear(&self) -> Result<(), String> {
+            let mut data = self.data.lock().await;
+            data.clear();
+            Ok(())
+        }
+    }
+
+    // Test fixtures
+    fn setup_test_db() -> TestDatabase {
+        TestDatabase::new()
+    }
+
+    async fn teardown_test_db(db: &TestDatabase) {
+        let _ = db.clear().await;
+    }
+
+    #[tokio::test]
+    async fn test_database_insert_operation() {
+        // Arrange
+        let db = setup_test_db();
+        let test_value = "test_data".to_string();
+
+        // Act
+        let result = db.insert(test_value.clone()).await;
+
+        // Assert
+        assert!(result.is_ok());
+        let data = db.get_all().await.unwrap();
+        assert_eq!(data.len(), 1);
+        assert_eq!(data[0], test_value);
+
+        // Cleanup
+        teardown_test_db(&db).await;
+    }
+
+    #[tokio::test]
+    async fn test_database_get_all_returns_all_records() {
+        // Arrange
+        let db = setup_test_db();
+        let values = vec!["item1".to_string(), "item2".to_string(), "item3".to_string()];
+
+        for value in &values {
+            db.insert(value.clone()).await.unwrap();
+        }
+
+        // Act
+        let result = db.get_all().await;
+
+        // Assert
+        assert!(result.is_ok());
+        let data = result.unwrap();
+        assert_eq!(data.len(), 3);
+        assert_eq!(data, values);
+
+        // Cleanup
+        teardown_test_db(&db).await;
+    }
+
+    #[tokio::test]
+    async fn test_database_clear_removes_all_records() {
+        // Arrange
+        let db = setup_test_db();
+        db.insert("item1".to_string()).await.unwrap();
+        db.insert("item2".to_string()).await.unwrap();
+
+        // Act
+        let result = db.clear().await;
+
+        // Assert
+        assert!(result.is_ok());
+        let data = db.get_all().await.unwrap();
+        assert_eq!(data.len(), 0);
+    }
+
+    // Auth service tests
+    struct TestAuthService {
+        is_authenticated: Arc<Mutex<bool>>,
+    }
+
+    impl TestAuthService {
+        fn new() -> Self {
+            Self {
+                is_authenticated: Arc::new(Mutex::new(false)),
+            }
+        }
+
+        async fn login(&self, username: &str, password: &str) -> Result<bool, String> {
+            if username == "admin" && password == "password" {
+                let mut auth = self.is_authenticated.lock().await;
+                *auth = true;
+                Ok(true)
+            } else {
+                Err("Invalid credentials".to_string())
+            }
+        }
+
+        async fn logout(&self) -> Result<(), String> {
+            let mut auth = self.is_authenticated.lock().await;
+            *auth = false;
+            Ok(())
+        }
+
+        async fn is_authenticated(&self) -> bool {
+            *self.is_authenticated.lock().await
+        }
+    }
+
+    #[tokio::test]
+    async fn test_auth_service_login_with_valid_credentials() {
+        // Arrange
+        let auth_service = TestAuthService::new();
+
+        // Act
+        let result = auth_service.login("admin", "password").await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert!(result.unwrap());
+        assert!(auth_service.is_authenticated().await);
+    }
+
+    #[tokio::test]
+    async fn test_auth_service_login_with_invalid_credentials() {
+        // Arrange
+        let auth_service = TestAuthService::new();
+
+        // Act
+        let result = auth_service.login("wrong", "wrong").await;
+
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Invalid credentials");
+        assert!(!auth_service.is_authenticated().await);
+    }
+
+    #[tokio::test]
+    async fn test_auth_service_logout_clears_authentication() {
+        // Arrange
+        let auth_service = TestAuthService::new();
+        auth_service.login("admin", "password").await.unwrap();
+        assert!(auth_service.is_authenticated().await);
+
+        // Act
+        let result = auth_service.logout().await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert!(!auth_service.is_authenticated().await);
+    }
+
+    // Settings service tests
+    struct TestSettingsService {
+        settings: Arc<Mutex<std::collections::HashMap<String, String>>>,
+    }
+
+    impl TestSettingsService {
+        fn new() -> Self {
+            Self {
+                settings: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            }
+        }
+
+        async fn get(&self, key: &str) -> Option<String> {
+            let settings = self.settings.lock().await;
+            settings.get(key).cloned()
+        }
+
+        async fn set(&self, key: String, value: String) -> Result<(), String> {
+            let mut settings = self.settings.lock().await;
+            settings.insert(key, value);
+            Ok(())
+        }
+
+        async fn delete(&self, key: &str) -> Result<(), String> {
+            let mut settings = self.settings.lock().await;
+            settings.remove(key);
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_settings_service_get_returns_value_when_key_exists() {
+        // Arrange
+        let settings = TestSettingsService::new();
+        settings.set("theme".to_string(), "dark".to_string()).await.unwrap();
+
+        // Act
+        let result = settings.get("theme").await;
+
+        // Assert
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), "dark");
+    }
+
+    #[tokio::test]
+    async fn test_settings_service_get_returns_none_when_key_not_exists() {
+        // Arrange
+        let settings = TestSettingsService::new();
+
+        // Act
+        let result = settings.get("nonexistent").await;
+
+        // Assert
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_settings_service_set_creates_or_updates_value() {
+        // Arrange
+        let settings = TestSettingsService::new();
+
+        // Act - Create
+        settings.set("language".to_string(), "en".to_string()).await.unwrap();
+        let result1 = settings.get("language").await;
+
+        // Act - Update
+        settings.set("language".to_string(), "es".to_string()).await.unwrap();
+        let result2 = settings.get("language").await;
+
+        // Assert
+        assert_eq!(result1.unwrap(), "en");
+        assert_eq!(result2.unwrap(), "es");
+    }
+
+    #[tokio::test]
+    async fn test_settings_service_delete_removes_key() {
+        // Arrange
+        let settings = TestSettingsService::new();
+        settings.set("temp".to_string(), "value".to_string()).await.unwrap();
+        assert!(settings.get("temp").await.is_some());
+
+        // Act
+        let result = settings.delete("temp").await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert!(settings.get("temp").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_database_operations() {
+        // Arrange
+        let db = Arc::new(setup_test_db());
+        let mut handles = vec![];
+
+        // Act - Spawn multiple concurrent insert operations
+        for i in 0..10 {
+            let db_clone = Arc::clone(&db);
+            let handle = tokio::spawn(async move {
+                db_clone.insert(format!("item_{}", i)).await
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all operations to complete
+        for handle in handles {
+            assert!(handle.await.unwrap().is_ok());
+        }
+
+        // Assert
+        let data = db.get_all().await.unwrap();
+        assert_eq!(data.len(), 10);
+
+        // Cleanup
+        teardown_test_db(&db).await;
+    }
+
+    #[tokio::test]
+    async fn test_auth_and_settings_integration() {
+        // Arrange
+        let auth_service = TestAuthService::new();
+        let settings_service = TestSettingsService::new();
+
+        // Act - Login and set user preference
+        auth_service.login("admin", "password").await.unwrap();
+        settings_service.set("user_theme".to_string(), "dark".to_string()).await.unwrap();
+
+        // Assert
+        assert!(auth_service.is_authenticated().await);
+        assert_eq!(settings_service.get("user_theme").await.unwrap(), "dark");
+
+        // Act - Logout
+        auth_service.logout().await.unwrap();
+
+        // Assert - Settings persist after logout
+        assert!(!auth_service.is_authenticated().await);
+        assert_eq!(settings_service.get("user_theme").await.unwrap(), "dark");
+    }
+}

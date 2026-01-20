@@ -1,0 +1,148 @@
+/*!
+Database seed runner for development environments
+
+Author: {{AUTHOR}}
+*/
+
+use sqlx::SqlitePool;
+use std::env;
+
+/// Check if we're running in development mode
+fn is_dev_mode() -> bool {
+    match env::var("APP_ENV") {
+        Ok(val) => val == "development" || val == "dev",
+        Err(_) => {
+            // If APP_ENV is not set, check for debug mode
+            cfg!(debug_assertions)
+        }
+    }
+}
+
+/// Run development seed data
+///
+/// WARNING: This should ONLY be called in development environments!
+/// Never run seed data in production.
+pub async fn run_seeds(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+    if !is_dev_mode() {
+        log::warn!("Skipping seed data - not in development mode");
+        return Ok(());
+    }
+
+    log::info!("Running development seed data...");
+
+    // Read seed file
+    let seed_sql = include_str!("dev_seed.sql.tmpl");
+
+    // Execute each statement
+    let statements: Vec<&str> = seed_sql
+        .split(';')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty() && !s.starts_with("--"))
+        .collect();
+
+    for statement in statements {
+        match sqlx::query(statement).execute(pool).await {
+            Ok(_) => log::debug!("Executed seed statement"),
+            Err(e) => {
+                // Ignore "UNIQUE constraint failed" errors (data already exists)
+                if !e.to_string().contains("UNIQUE constraint failed") {
+                    log::error!("Failed to execute seed statement: {}", e);
+                    return Err(Box::new(e));
+                }
+            }
+        }
+    }
+
+    log::info!("Development seed data loaded successfully");
+
+    Ok(())
+}
+
+/// Initialize database with seed data if needed
+pub async fn init_seeds(database_url: &str) -> Result<(), Box<dyn std::error::Error>> {
+    if !is_dev_mode() {
+        log::info!("Production mode - skipping seed data");
+        return Ok(());
+    }
+
+    let pool = SqlitePool::connect(database_url).await?;
+    run_seeds(&pool).await?;
+    pool.close().await;
+
+    Ok(())
+}
+
+/// Reset database (drop all tables) - DANGEROUS!
+///
+/// This is useful for development when you need a fresh start.
+/// Should NEVER be exposed in production builds.
+#[cfg(debug_assertions)]
+pub async fn reset_database(pool: &SqlitePool) -> Result<(), Box<dyn std::error::Error>> {
+    log::warn!("Resetting database - all data will be lost!");
+
+    // Drop all tables in reverse order of dependencies
+    let drop_statements = vec![
+        "DROP TABLE IF EXISTS audit_logs",
+        "DROP TABLE IF EXISTS sessions",
+        "DROP TABLE IF EXISTS settings",
+        "DROP TABLE IF EXISTS users",
+        "DROP VIEW IF EXISTS recent_audit_logs",
+    ];
+
+    for statement in drop_statements {
+        sqlx::query(statement).execute(pool).await?;
+    }
+
+    log::info!("Database reset complete");
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sqlx::SqlitePool;
+
+    #[tokio::test]
+    async fn test_seed_runner() {
+        // Set development mode
+        env::set_var("APP_ENV", "development");
+
+        let pool = SqlitePool::connect("sqlite::memory:")
+            .await
+            .unwrap();
+
+        // First run migrations (in a real app)
+        // crate::migrations::run_migrations("sqlite::memory:").await.unwrap();
+
+        // Then run seeds
+        run_seeds(&pool).await.expect("Seed runner failed");
+
+        // Verify seeded data
+        let user_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM users")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+
+        assert!(user_count.0 >= 2, "Should have at least 2 users seeded");
+
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_dev_mode_detection() {
+        env::set_var("APP_ENV", "development");
+        assert!(is_dev_mode());
+
+        env::set_var("APP_ENV", "production");
+        assert!(!is_dev_mode());
+
+        env::remove_var("APP_ENV");
+        // Should fall back to debug_assertions
+        #[cfg(debug_assertions)]
+        assert!(is_dev_mode());
+
+        #[cfg(not(debug_assertions))]
+        assert!(!is_dev_mode());
+    }
+}

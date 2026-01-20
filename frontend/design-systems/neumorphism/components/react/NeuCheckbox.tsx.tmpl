@@ -1,0 +1,200 @@
+/**
+ * NeuCheckbox Component - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Checkbox with inset square and raised checkmark
+ */
+
+import React, { useState, InputHTMLAttributes, useId } from 'react';
+import { cn } from '@/lib/utils'; // or use clsx/classnames
+
+export interface NeuCheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  /** Label text */
+  label?: string;
+  /** Label position */
+  labelPosition?: 'left' | 'right';
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Controlled checked state */
+  checked?: boolean;
+  /** Change handler */
+  onCheckedChange?: (checked: boolean) => void;
+  /** Indeterminate state */
+  indeterminate?: boolean;
+}
+
+const NeuCheckbox = React.forwardRef<HTMLInputElement, NeuCheckboxProps>(
+  (
+    {
+      label,
+      labelPosition = 'right',
+      size = 'md',
+      checked: controlledChecked,
+      onCheckedChange,
+      indeterminate = false,
+      disabled,
+      className,
+      id,
+      onChange,
+      ...props
+    },
+    ref
+  ) => {
+    const generatedId = useId();
+    const checkboxId = id || generatedId;
+    const [internalChecked, setInternalChecked] = useState(false);
+
+    // Use controlled or uncontrolled mode
+    const isControlled = controlledChecked !== undefined;
+    const checked = isControlled ? controlledChecked : internalChecked;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newChecked = e.target.checked;
+
+      if (!isControlled) {
+        setInternalChecked(newChecked);
+      }
+
+      if (onCheckedChange) {
+        onCheckedChange(newChecked);
+      }
+
+      if (onChange) {
+        onChange(e);
+      }
+    };
+
+    const wrapperStyles = cn(
+      'inline-flex items-center gap-2.5',
+      disabled && 'neu-disabled',
+      className
+    );
+
+    const boxStyles = cn(
+      'relative inline-flex items-center justify-center shrink-0',
+      'rounded-soft-sm cursor-pointer transition-neu',
+      'neu-pressed', // Inset shadow for box
+      {
+        'w-4 h-4': size === 'sm',
+        'w-5 h-5': size === 'md',
+        'w-6 h-6': size === 'lg',
+      }
+    );
+
+    const checkmarkStyles = cn(
+      'absolute transition-all duration-200',
+      'neu-surface rounded-soft-sm', // Raised checkmark
+      {
+        'w-2.5 h-2.5': size === 'sm',
+        'w-3 h-3': size === 'md',
+        'w-4 h-4': size === 'lg',
+      },
+      // Visibility
+      checked || indeterminate ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
+    );
+
+    const labelStyles = cn(
+      'select-none cursor-pointer neu-text',
+      {
+        'text-sm': size === 'sm',
+        'text-base': size === 'md',
+        'text-lg': size === 'lg',
+      }
+    );
+
+    const renderLabel = label && (
+      <label htmlFor={checkboxId} className={labelStyles}>
+        {label}
+      </label>
+    );
+
+    // Checkmark SVG icon
+    const CheckIcon = () => (
+      <svg
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="absolute w-full h-full neu-accent"
+      >
+        {indeterminate ? (
+          <path
+            d="M4 8h8"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+        ) : (
+          <path
+            d="M3.5 8.5l3 3 6-6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        )}
+      </svg>
+    );
+
+    return (
+      <div className={wrapperStyles}>
+        {labelPosition === 'left' && renderLabel}
+
+        <label htmlFor={checkboxId} className={boxStyles}>
+          <input
+            ref={ref}
+            id={checkboxId}
+            type="checkbox"
+            checked={checked}
+            onChange={handleChange}
+            disabled={disabled}
+            className="sr-only"
+            {...props}
+          />
+          <span className={checkmarkStyles}>
+            {(checked || indeterminate) && <CheckIcon />}
+          </span>
+        </label>
+
+        {labelPosition === 'right' && renderLabel}
+      </div>
+    );
+  }
+);
+
+NeuCheckbox.displayName = 'NeuCheckbox';
+
+export default NeuCheckbox;
+
+/**
+ * Usage Examples:
+ *
+ * // Basic checkbox
+ * <NeuCheckbox />
+ *
+ * // With label
+ * <NeuCheckbox label="Accept terms and conditions" />
+ *
+ * // Label on left
+ * <NeuCheckbox label="Remember me" labelPosition="left" />
+ *
+ * // Controlled
+ * const [accepted, setAccepted] = useState(false);
+ * <NeuCheckbox
+ *   checked={accepted}
+ *   onCheckedChange={setAccepted}
+ *   label="I agree"
+ * />
+ *
+ * // Indeterminate state
+ * <NeuCheckbox indeterminate label="Select all" />
+ *
+ * // Sizes
+ * <NeuCheckbox size="sm" label="Small" />
+ * <NeuCheckbox size="lg" label="Large" />
+ *
+ * // Disabled
+ * <NeuCheckbox disabled label="Disabled" />
+ * <NeuCheckbox disabled checked label="Disabled (checked)" />
+ */

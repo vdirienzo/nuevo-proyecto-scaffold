@@ -1,0 +1,560 @@
+# Security Guide for {{APP_TITLE}}
+
+**Author:** {{AUTHOR}}
+
+## Overview
+
+This Tauri application includes comprehensive security utilities following OWASP best practices. This guide covers all security features and how to use them properly.
+
+## Table of Contents
+
+1. [Security Modules](#security-modules)
+2. [Password Security](#password-security)
+3. [Data Encryption](#data-encryption)
+4. [CSRF Protection](#csrf-protection)
+5. [Rate Limiting](#rate-limiting)
+6. [Input Sanitization](#input-sanitization)
+7. [Path Validation](#path-validation)
+8. [Token Generation](#token-generation)
+9. [Permissions (Capabilities)](#permissions-capabilities)
+10. [Content Security Policy](#content-security-policy)
+11. [Best Practices](#best-practices)
+
+---
+
+## Security Modules
+
+### `src-tauri/src/security.rs`
+
+Provides utilities for:
+- CSRF token management
+- Rate limiting
+- Input sanitization
+- Path validation
+- Secure random generation
+
+### `src-tauri/src/crypto.rs`
+
+Provides utilities for:
+- Password hashing (Argon2id)
+- Data encryption (AES-256-GCM)
+- Token generation
+- Key derivation
+
+---
+
+## Password Security
+
+### Hashing Passwords
+
+**Never store plain text passwords.** Always hash them using Argon2id:
+
+```rust
+use crate::crypto::PasswordHasher;
+
+// Hash a password
+let password = "user_password_123";
+let hash = PasswordHasher::hash_password(password)?;
+
+// Store hash in database (not the password!)
+```
+
+### Verifying Passwords
+
+```rust
+// When user logs in
+let is_valid = PasswordHasher::verify_password(input_password, &stored_hash)?;
+
+if is_valid {
+    // Login successful
+} else {
+    // Invalid credentials
+}
+```
+
+### Password Requirements
+
+Enforced by default:
+- Minimum 8 characters
+- Not empty
+
+Recommended to add:
+- At least one uppercase letter
+- At least one number
+- At least one special character
+
+### Rehashing Passwords
+
+Check if old hashes need updating:
+
+```rust
+if PasswordHasher::needs_rehash(&stored_hash)? {
+    let new_hash = PasswordHasher::hash_password(password)?;
+    // Update database
+}
+```
+
+---
+
+## Data Encryption
+
+### Encrypting Sensitive Data
+
+Use AES-256-GCM for local data encryption:
+
+```rust
+use crate::crypto::Encryptor;
+
+// Create encryptor (generates random key)
+let encryptor = Encryptor::new();
+
+// Encrypt data
+let sensitive_data = "Credit card: 1234-5678-9012-3456";
+let encrypted = encryptor.encrypt_string(sensitive_data)?;
+
+// Store encrypted.ciphertext and encrypted.nonce
+```
+
+### Decrypting Data
+
+```rust
+// Load encrypted data
+let encrypted = EncryptedData {
+    ciphertext: stored_ciphertext,
+    nonce: stored_nonce,
+};
+
+// Decrypt
+let plaintext = encryptor.decrypt_string(&encrypted)?;
+```
+
+### Key Management
+
+```rust
+// Export key for storage (encrypted with master password)
+let key_base64 = encryptor.export_key();
+
+// Import key later
+let encryptor = Encryptor::import_key(&key_base64)?;
+```
+
+### Deriving Keys from Passwords
+
+```rust
+use crate::crypto::KeyDerivation;
+
+// Generate salt (store with user record)
+let salt = KeyDerivation::generate_salt();
+
+// Derive encryption key from user password
+let key_bytes = KeyDerivation::derive_key(user_password, &salt)?;
+
+// Create encryptor from derived key
+let encryptor = Encryptor::from_key(&key_bytes)?;
+```
+
+---
+
+## CSRF Protection
+
+### Why CSRF Protection?
+
+Cross-Site Request Forgery (CSRF) attacks can trick users into executing unwanted actions. Tauri apps are also vulnerable to CSRF from malicious websites.
+
+### Using CSRF Tokens
+
+```rust
+use crate::security::CsrfManager;
+
+let csrf_manager = CsrfManager::new();
+
+// When user logs in, generate CSRF token
+let session_id = generate_session_id();
+let csrf_token = csrf_manager.generate_token(session_id.clone())?;
+
+// Return token to frontend
+```
+
+### Validating CSRF Tokens
+
+```rust
+#[tauri::command]
+async fn protected_action(
+    session_id: String,
+    csrf_token: String,
+    state: State<'_, Arc<SecurityState>>,
+) -> AppResult<()> {
+    // Validate CSRF token before processing
+    if !state.csrf_manager.validate_token(&session_id, &csrf_token)? {
+        return Err(AppError::Authorization("Invalid CSRF token".into()));
+    }
+
+    // Process action...
+    Ok(())
+}
+```
+
+### Frontend Integration
+
+```typescript
+// Store CSRF token after login
+const { session_id, csrf_token } = await invoke('login', { username, password });
+localStorage.setItem('csrf_token', csrf_token);
+
+// Include CSRF token in protected requests
+await invoke('update_profile', {
+  session_id,
+  csrf_token: localStorage.getItem('csrf_token'),
+  new_email: 'user@example.com'
+});
+```
+
+---
+
+## Rate Limiting
+
+### Why Rate Limiting?
+
+Prevents brute force attacks, DoS, and API abuse.
+
+### Configuring Rate Limiter
+
+```rust
+use crate::security::RateLimiter;
+use std::time::Duration;
+
+// Allow 10 requests per 60 seconds
+let limiter = RateLimiter::new(10, Duration::from_secs(60));
+```
+
+### Using Rate Limiter
+
+```rust
+#[tauri::command]
+async fn login(
+    username: String,
+    state: State<'_, Arc<SecurityState>>,
+) -> AppResult<()> {
+    // Check rate limit before processing login
+    if !state.rate_limiter.check_rate_limit(&username)? {
+        return Err(AppError::Authorization(
+            "Too many attempts. Try again later.".into()
+        ));
+    }
+
+    // Process login...
+    Ok(())
+}
+```
+
+### Per-User vs Global Limits
+
+```rust
+// Per-user limit (key = username)
+limiter.check_rate_limit(&username)?;
+
+// Global limit (key = "global")
+limiter.check_rate_limit("global")?;
+
+// Per-IP limit (key = ip_address)
+limiter.check_rate_limit(&ip_address)?;
+```
+
+---
+
+## Input Sanitization
+
+### Why Sanitize Input?
+
+Prevent XSS, SQL injection, and other injection attacks.
+
+### Available Sanitizers
+
+```rust
+use crate::security::InputSanitizer;
+
+// Remove control characters, limit length
+let clean = InputSanitizer::sanitize_string(user_input, 200);
+
+// Validate email
+if !InputSanitizer::is_valid_email(&email) {
+    return Err(AppError::Validation("Invalid email".into()));
+}
+
+// Validate username (alphanumeric, _, -, 3-32 chars)
+if !InputSanitizer::is_valid_username(&username) {
+    return Err(AppError::Validation("Invalid username".into()));
+}
+
+// Remove HTML/script tags
+let safe_text = InputSanitizer::strip_html(user_input);
+
+// Check alphanumeric
+if !InputSanitizer::is_alphanumeric(&code) {
+    return Err(AppError::Validation("Code must be alphanumeric".into()));
+}
+```
+
+### When to Sanitize
+
+✅ **Always sanitize:**
+- User-provided text
+- File paths
+- URLs
+- Search queries
+- Comments/descriptions
+
+❌ **Don't sanitize:**
+- Already validated API responses
+- Internal system values
+- Database results (validate on insert)
+
+---
+
+## Path Validation
+
+### Why Validate Paths?
+
+Prevent directory traversal attacks (accessing files outside allowed directories).
+
+### Validating File Paths
+
+```rust
+use crate::security::PathValidator;
+use std::path::PathBuf;
+
+let user_data_dir = PathBuf::from("/app/data/users/123");
+let requested_file = PathBuf::from(user_input_path);
+
+// Validate path is within allowed directory
+match PathValidator::validate_path(&requested_file, &user_data_dir) {
+    Ok(safe_path) => {
+        // Safe to use safe_path
+        let content = fs::read_to_string(safe_path)?;
+    }
+    Err(e) => {
+        // Path is outside allowed directory
+        return Err(e);
+    }
+}
+```
+
+### Checking for Traversal Patterns
+
+```rust
+if PathValidator::has_traversal_pattern(&user_path) {
+    return Err(AppError::Authorization("Invalid path".into()));
+}
+```
+
+### Sanitizing Filenames
+
+```rust
+// Remove dangerous characters from filenames
+let safe_filename = PathValidator::sanitize_filename("my file<>:\"/\\|?*.txt");
+// Result: "myfile.txt"
+```
+
+---
+
+## Token Generation
+
+### API Keys
+
+```rust
+use crate::crypto::TokenGenerator;
+
+let api_key = TokenGenerator::generate_api_key();
+// Result: "{{PROJECT_NAME}}_abc123..."
+```
+
+### Verification Codes
+
+```rust
+// 6-digit numeric code
+let code = TokenGenerator::generate_verification_code();
+// Result: "123456"
+```
+
+### One-Time Passwords
+
+```rust
+let otp = TokenGenerator::generate_otp();
+```
+
+### Generic Secure Tokens
+
+```rust
+// Generate 32-byte token (URL-safe base64)
+let token = TokenGenerator::generate_token(32);
+```
+
+---
+
+## Permissions (Capabilities)
+
+Tauri v2 uses a capability-based permission system. See `src-tauri/capabilities/README.md` for details.
+
+### Available Capability Files
+
+| File | Security Level | Use Case |
+|------|----------------|----------|
+| `minimal.json.tmpl` | High | Production (restricted) |
+| `default.json.tmpl` | Medium | Production (balanced) |
+| `full.json.tmpl` | Low | Development only |
+| `custom.json.tmpl` | Custom | Tailored permissions |
+
+### Switching Capabilities
+
+Edit `src-tauri/tauri.conf.json`:
+
+```json
+{
+  "bundle": {
+    "capabilities": ["minimal"]
+  }
+}
+```
+
+### Principle of Least Privilege
+
+✅ **DO:**
+- Start with `minimal`
+- Add only required permissions
+- Document why each permission is needed
+- Review regularly
+
+❌ **DON'T:**
+- Use `full` in production
+- Grant permissions "just in case"
+- Copy capabilities from other projects
+
+---
+
+## Content Security Policy
+
+CSP prevents XSS attacks by controlling what resources can be loaded. See `CSP.md` for complete guide.
+
+### Current CSP
+
+Check `src-tauri/tauri.conf.json`:
+
+```json
+{
+  "security": {
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+  }
+}
+```
+
+### Common CSP Issues
+
+| Problem | Solution |
+|---------|----------|
+| External API blocked | Add to `connect-src` |
+| Images not loading | Add to `img-src` |
+| Fonts not loading | Add to `font-src` |
+
+---
+
+## Best Practices
+
+### 1. Defense in Depth
+
+Use multiple security layers:
+- Input sanitization
+- CSRF tokens
+- Rate limiting
+- Path validation
+- Encryption
+
+### 2. Secure Defaults
+
+- Start with `minimal` capability
+- Use strict CSP
+- Enable HTTPS-only
+- Disable unnecessary features
+
+### 3. Regular Security Audits
+
+- Review permissions quarterly
+- Update dependencies
+- Check for CVEs
+- Scan with security tools
+
+### 4. Logging and Monitoring
+
+```rust
+use tracing::{info, warn, error};
+
+// Log security events
+warn!("Failed login attempt for user: {}", username);
+error!("CSRF validation failed for session: {}", session_id);
+info!("Rate limit exceeded for IP: {}", ip);
+```
+
+### 5. Secure Storage
+
+```rust
+// ✅ DO: Encrypt sensitive data
+let encrypted = encryptor.encrypt_string(credit_card)?;
+store.save("payment", &encrypted)?;
+
+// ❌ DON'T: Store sensitive data in plain text
+store.save("payment", credit_card)?; // VULNERABLE
+```
+
+### 6. Update Dependencies
+
+```bash
+# Check for vulnerabilities
+cargo audit
+
+# Update dependencies
+cargo update
+```
+
+---
+
+## Security Checklist
+
+Before deploying:
+
+- [ ] All passwords hashed with Argon2id
+- [ ] Sensitive data encrypted at rest
+- [ ] CSRF protection on state-changing operations
+- [ ] Rate limiting on login/API endpoints
+- [ ] All user input sanitized
+- [ ] File paths validated
+- [ ] Using `minimal` or `custom` capability
+- [ ] CSP configured appropriately
+- [ ] Dependencies up to date
+- [ ] No secrets in source code
+- [ ] Logging enabled for security events
+- [ ] Error messages don't leak sensitive info
+
+---
+
+## Reporting Security Issues
+
+If you discover a security vulnerability, please email security@{{PROJECT_NAME}}.com.
+
+**Do NOT:**
+- Open a public GitHub issue
+- Disclose the vulnerability publicly
+- Test the vulnerability on production systems
+
+---
+
+## Resources
+
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Tauri Security Best Practices](https://tauri.app/security/)
+- [Rust Security Advisory Database](https://rustsec.org/)
+- [Argon2 Specification](https://github.com/P-H-C/phc-winner-argon2)
+- [NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)
+
+---
+
+**Last Updated:** {{CURRENT_DATE}}
+**Version:** 1.0

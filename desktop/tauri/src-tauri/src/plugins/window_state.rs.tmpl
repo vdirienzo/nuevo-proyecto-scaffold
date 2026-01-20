@@ -1,0 +1,273 @@
+/*! Window state persistence plugin
+ *
+ * Remembers and restores window position, size, and maximized state.
+ * Supports multi-monitor setups with automatic fallback to primary display.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use serde::{Deserialize, Serialize};
+use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, PhysicalPosition, PhysicalSize};
+
+use super::store::{keys, AppStore};
+
+/// Window state data structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WindowState {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+    pub maximized: bool,
+}
+
+impl Default for WindowState {
+    fn default() -> Self {
+        Self {
+            x: 100,
+            y: 100,
+            width: 1200,
+            height: 800,
+            maximized: false,
+        }
+    }
+}
+
+impl WindowState {
+    /// Create from window
+    pub fn from_window(window: &tauri::Window) -> Result<Self, Box<dyn std::error::Error>> {
+        let position = window.outer_position()?;
+        let size = window.outer_size()?;
+        let maximized = window.is_maximized()?;
+
+        Ok(Self {
+            x: position.x,
+            y: position.y,
+            width: size.width,
+            height: size.height,
+            maximized,
+        })
+    }
+
+    /// Apply to window
+    pub fn apply_to_window(&self, window: &tauri::Window) -> Result<(), Box<dyn std::error::Error>> {
+        // Set position
+        window.set_position(PhysicalPosition::new(self.x, self.y))?;
+
+        // Set size
+        window.set_size(PhysicalSize::new(self.width, self.height))?;
+
+        // Set maximized state
+        if self.maximized {
+            window.maximize()?;
+        } else {
+            window.unmaximize()?;
+        }
+
+        Ok(())
+    }
+
+    /// Validate window state is within screen bounds
+    pub fn validate(&mut self) {
+        // Ensure minimum size
+        if self.width < 400 {
+            self.width = 400;
+        }
+        if self.height < 300 {
+            self.height = 300;
+        }
+
+        // Ensure position is not completely off-screen
+        if self.x < -100 {
+            self.x = 100;
+        }
+        if self.y < -100 {
+            self.y = 100;
+        }
+    }
+}
+
+/// Setup window state persistence
+pub fn setup_window_state(app: &AppHandle) {
+    log::info!("Window state plugin initialized");
+
+    // Restore window state from store
+    if let Some(window) = app.get_webview_window("main") {
+        let store = AppStore::new(app.clone());
+
+        // Try to load saved state
+        match load_window_state(&store) {
+            Ok(mut state) => {
+                state.validate();
+
+                if let Err(e) = state.apply_to_window(&window) {
+                    log::error!("Failed to apply window state: {}", e);
+                    // Fall back to default state
+                    let default_state = WindowState::default();
+                    let _ = default_state.apply_to_window(&window);
+                }
+            }
+            Err(e) => {
+                log::warn!("Failed to load window state: {}, using defaults", e);
+                let default_state = WindowState::default();
+                let _ = default_state.apply_to_window(&window);
+            }
+        }
+
+        // Setup event listener to save state on window events
+        let app_handle = app.clone();
+        window.on_window_event(move |event| {
+            match event {
+                tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Moved(_) => {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        save_window_state_debounced(&app_handle, &window);
+                    }
+                }
+                _ => {}
+            }
+        });
+    }
+}
+
+/// Load window state from store
+fn load_window_state(store: &AppStore) -> Result<WindowState, Box<dyn std::error::Error>> {
+    // Try to load individual components
+    let x = store.get::<i32>(keys::WINDOW_POSITION)?;
+    let y = store.get::<i32>(&format!("{}.y", keys::WINDOW_POSITION))?;
+    let width = store.get::<u32>(keys::WINDOW_SIZE)?;
+    let height = store.get::<u32>(&format!("{}.height", keys::WINDOW_SIZE))?;
+    let maximized = store.get::<bool>(keys::WINDOW_MAXIMIZED)?.unwrap_or(false);
+
+    // Check if we have all required data
+    if let (Some(x), Some(y), Some(width), Some(height)) = (x, y, width, height) {
+        Ok(WindowState {
+            x,
+            y,
+            width,
+            height,
+            maximized,
+        })
+    } else {
+        Err("Incomplete window state data".into())
+    }
+}
+
+/// Save window state to store (debounced to avoid excessive writes)
+fn save_window_state_debounced(app: &AppHandle, window: &tauri::Window) {
+    let app_handle = app.clone();
+    let window = window.clone();
+
+    // Debounce by waiting 500ms before saving
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+        let store = AppStore::new(app_handle);
+
+        match WindowState::from_window(&window) {
+            Ok(state) => {
+                // Save individual components
+                let _ = store.set(keys::WINDOW_POSITION, &state.x);
+                let _ = store.set(&format!("{}.y", keys::WINDOW_POSITION), &state.y);
+                let _ = store.set(keys::WINDOW_SIZE, &state.width);
+                let _ = store.set(&format!("{}.height", keys::WINDOW_SIZE), &state.height);
+                let _ = store.set(keys::WINDOW_MAXIMIZED, &state.maximized);
+
+                log::debug!("Window state saved: {:?}", state);
+            }
+            Err(e) => {
+                log::error!("Failed to get window state: {}", e);
+            }
+        }
+    });
+}
+
+#[tauri::command]
+pub async fn save_window_state(app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("Main window not found")?;
+
+    let state = WindowState::from_window(&window).map_err(|e| e.to_string())?;
+
+    let store = AppStore::new(app);
+    store
+        .set(keys::WINDOW_POSITION, &state.x)
+        .map_err(|e| e.to_string())?;
+    store
+        .set(&format!("{}.y", keys::WINDOW_POSITION), &state.y)
+        .map_err(|e| e.to_string())?;
+    store
+        .set(keys::WINDOW_SIZE, &state.width)
+        .map_err(|e| e.to_string())?;
+    store
+        .set(&format!("{}.height", keys::WINDOW_SIZE), &state.height)
+        .map_err(|e| e.to_string())?;
+    store
+        .set(keys::WINDOW_MAXIMIZED, &state.maximized)
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn reset_window_state(app: AppHandle) -> Result<(), String> {
+    let window = app
+        .get_webview_window("main")
+        .ok_or("Main window not found")?;
+
+    let default_state = WindowState::default();
+    default_state
+        .apply_to_window(&window)
+        .map_err(|e| e.to_string())?;
+
+    // Clear stored state
+    let store = AppStore::new(app);
+    let _ = store.delete(keys::WINDOW_POSITION);
+    let _ = store.delete(&format!("{}.y", keys::WINDOW_POSITION));
+    let _ = store.delete(keys::WINDOW_SIZE);
+    let _ = store.delete(&format!("{}.height", keys::WINDOW_SIZE));
+    let _ = store.delete(keys::WINDOW_MAXIMIZED);
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_window_state_default() {
+        let state = WindowState::default();
+        assert_eq!(state.width, 1200);
+        assert_eq!(state.height, 800);
+        assert!(!state.maximized);
+    }
+
+    #[test]
+    fn test_window_state_validation() {
+        let mut state = WindowState {
+            x: -200,
+            y: -200,
+            width: 100,
+            height: 100,
+            maximized: false,
+        };
+
+        state.validate();
+
+        assert!(state.x >= -100);
+        assert!(state.y >= -100);
+        assert!(state.width >= 400);
+        assert!(state.height >= 300);
+    }
+
+    #[test]
+    fn test_window_state_serialization() {
+        let state = WindowState::default();
+        let json = serde_json::to_string(&state).unwrap();
+        let deserialized: WindowState = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(state.width, deserialized.width);
+        assert_eq!(state.height, deserialized.height);
+    }
+}

@@ -1,0 +1,129 @@
+/**
+ * tailwind.config.brutal.js - Tailwind configuration for Neo-Brutalism
+ *
+ * Autor: Homero Thompson del Lago del Terror
+ */
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: ['class'],
+  content: [
+    './pages/**/*.{ts,tsx}',
+    './components/**/*.{ts,tsx}',
+    './app/**/*.{ts,tsx}',
+    './src/**/*.{ts,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        brutal: {
+          yellow: '#FFFF00',
+          magenta: '#FF00FF',
+          cyan: '#00FFFF',
+          lime: '#00FF00',
+          orange: '#FF6600',
+          red: '#FF0000',
+          blue: '#0000FF',
+          pink: '#FF69B4',
+          purple: '#9900FF',
+          white: '#FFFFFF',
+          black: '#000000',
+          gray: '#808080',
+        },
+      },
+      fontFamily: {
+        brutal: ['Space Grotesk', 'monospace'],
+        clash: ['Clash Display', 'sans-serif'],
+      },
+      fontSize: {
+        'brutal-xs': ['0.75rem', { lineHeight: '1' }],
+        'brutal-sm': ['0.875rem', { lineHeight: '1.1' }],
+        'brutal-base': ['1rem', { lineHeight: '1.2' }],
+        'brutal-lg': ['1.125rem', { lineHeight: '1.2' }],
+        'brutal-xl': ['1.25rem', { lineHeight: '1.2' }],
+        'brutal-2xl': ['1.5rem', { lineHeight: '1.2' }],
+        'brutal-3xl': ['1.875rem', { lineHeight: '1.1' }],
+        'brutal-4xl': ['2.25rem', { lineHeight: '1.1' }],
+        'brutal-5xl': ['3rem', { lineHeight: '1' }],
+        'brutal-6xl': ['3.75rem', { lineHeight: '1' }],
+        'brutal-7xl': ['4.5rem', { lineHeight: '1' }],
+        'brutal-8xl': ['6rem', { lineHeight: '1' }],
+        'brutal-9xl': ['8rem', { lineHeight: '1' }],
+      },
+      borderWidth: {
+        brutal: '4px',
+        'brutal-thick': '6px',
+        'brutal-chunky': '8px',
+      },
+      boxShadow: {
+        'brutal-xs': '2px 2px 0px #000000',
+        'brutal-sm': '4px 4px 0px #000000',
+        'brutal-md': '6px 6px 0px #000000',
+        'brutal-lg': '8px 8px 0px #000000',
+        'brutal-xl': '12px 12px 0px #000000',
+        'brutal-2xl': '16px 16px 0px #000000',
+        'brutal-yellow-sm': '4px 4px 0px #FFFF00',
+        'brutal-magenta-sm': '4px 4px 0px #FF00FF',
+        'brutal-cyan-sm': '4px 4px 0px #00FFFF',
+        'brutal-lime-sm': '4px 4px 0px #00FF00',
+        'brutal-yellow-md': '8px 8px 0px #FFFF00',
+        'brutal-magenta-md': '8px 8px 0px #FF00FF',
+        'brutal-cyan-md': '8px 8px 0px #00FFFF',
+        'brutal-lime-md': '8px 8px 0px #00FF00',
+      },
+      animation: {
+        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+        'marquee': 'marquee 20s linear infinite',
+        'marquee-fast': 'marquee 10s linear infinite',
+        'marquee-slow': 'marquee 30s linear infinite',
+      },
+      keyframes: {
+        shake: {
+          '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+          '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+          '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+          '40%, 60%': { transform: 'translate3d(4px, 0, 0)' },
+        },
+        marquee: {
+          '0%': { transform: 'translateX(0%)' },
+          '100%': { transform: 'translateX(-50%)' },
+        },
+      },
+      rotate: {
+        '-12': '-12deg',
+        '-6': '-6deg',
+        '-3': '-3deg',
+        '3': '3deg',
+        '6': '6deg',
+        '12': '12deg',
+      },
+    },
+  },
+  plugins: [
+    function ({ addUtilities }) {
+      const newUtilities = {
+        '.text-brutal-caps': {
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          fontWeight: '900',
+        },
+        '.border-brutal': {
+          borderWidth: '4px',
+          borderStyle: 'solid',
+          borderColor: '#000000',
+        },
+        '.border-brutal-thick': {
+          borderWidth: '6px',
+          borderStyle: 'solid',
+          borderColor: '#000000',
+        },
+        '.border-brutal-chunky': {
+          borderWidth: '8px',
+          borderStyle: 'solid',
+          borderColor: '#000000',
+        },
+      }
+      addUtilities(newUtilities)
+    },
+  ],
+}

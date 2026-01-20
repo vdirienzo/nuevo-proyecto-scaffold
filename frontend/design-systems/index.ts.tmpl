@@ -1,0 +1,315 @@
+/**
+ * index.ts - Design System Selector
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+export type DesignSystem =
+  | 'geist'
+  | 'glassmorphism'
+  | 'neumorphism'
+  | 'claymorphism'
+  | 'neo-brutalism';
+
+export interface DesignSystemConfig {
+  name: string;
+  description: string;
+  style: string;
+  bestFor: string[];
+  complexity: 'low' | 'medium' | 'high';
+  accessibility: 1 | 2 | 3 | 4 | 5;
+  browserSupport: string;
+  primaryColors: string[];
+  features: string[];
+  cssVariables: Record<string, string>;
+  tailwindExtend: Record<string, unknown>;
+}
+
+export const designSystems: Record<DesignSystem, DesignSystemConfig> = {
+  geist: {
+    name: 'Vercel/Geist',
+    description: 'Sistema minimalista inspirado en Vercel con enfoque en tipografía y espaciado',
+    style: 'Minimalista, profesional, limpio',
+    bestFor: [
+      'Apps corporativas',
+      'Dashboards',
+      'Plataformas SaaS',
+      'Documentación técnica'
+    ],
+    complexity: 'low',
+    accessibility: 5,
+    browserSupport: 'Todos los navegadores modernos',
+    primaryColors: ['#000000', '#FFFFFF', '#0070F3', '#EAEAEA', '#666666'],
+    features: [
+      'Transiciones fluidas',
+      'Tipografía optimizada',
+      'Componentes funcionales',
+      'Microinteracciones sutiles',
+      'Paleta monocromática'
+    ],
+    cssVariables: {
+      '--geist-background': '#FFFFFF',
+      '--geist-foreground': '#000000',
+      '--geist-primary': '#0070F3',
+      '--geist-secondary': '#EAEAEA',
+      '--geist-border': '#EAEAEA',
+      '--geist-radius': '8px',
+      '--geist-shadow': '0 4px 14px 0 rgba(0, 0, 0, 0.1)'
+    },
+    tailwindExtend: {
+      colors: {
+        geist: {
+          bg: '#FFFFFF',
+          fg: '#000000',
+          primary: '#0070F3',
+          secondary: '#EAEAEA',
+          border: '#EAEAEA'
+        }
+      },
+      borderRadius: {
+        geist: '8px'
+      }
+    }
+  },
+
+  glassmorphism: {
+    name: 'Glassmorphism',
+    description: 'Efecto de vidrio esmerilado con blur y transparencias',
+    style: 'Moderno, translúcido, elegante',
+    bestFor: [
+      'Landing pages',
+      'Portfolios creativos',
+      'Apps con fondos visuales',
+      'Interfaces premium'
+    ],
+    complexity: 'medium',
+    accessibility: 4,
+    browserSupport: 'Chrome 76+, Safari 14+, Firefox 103+',
+    primaryColors: ['#FFFFFF', '#000000', '#A855F7', '#3B82F6', 'rgba(255,255,255,0.1)'],
+    features: [
+      'Backdrop blur',
+      'Transparencias controladas',
+      'Bordes sutiles con blur',
+      'Gradientes de fondo',
+      'Profundidad visual'
+    ],
+    cssVariables: {
+      '--glass-bg': 'rgba(255, 255, 255, 0.1)',
+      '--glass-border': 'rgba(255, 255, 255, 0.2)',
+      '--glass-blur': '10px',
+      '--glass-shadow': '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+      '--glass-radius': '16px'
+    },
+    tailwindExtend: {
+      backdropBlur: {
+        glass: '10px'
+      },
+      backgroundColor: {
+        glass: 'rgba(255, 255, 255, 0.1)',
+        'glass-dark': 'rgba(0, 0, 0, 0.1)'
+      }
+    }
+  },
+
+  neumorphism: {
+    name: 'Neumorphism',
+    description: 'Diseño soft-UI con sombras internas y externas para efecto 3D',
+    style: 'Suave, táctil, 3D sutil',
+    bestFor: [
+      'Apps móviles',
+      'Controles táctiles',
+      'Widgets',
+      'Interfaces minimalistas'
+    ],
+    complexity: 'medium',
+    accessibility: 3,
+    browserSupport: 'Todos los navegadores modernos',
+    primaryColors: ['#E0E5EC', '#A3B1C6', '#FFFFFF', '#D1D9E6', '#9BAACF'],
+    features: [
+      'Sombras duales (light + dark)',
+      'Efecto de elevación',
+      'Inset para elementos presionados',
+      'Paleta monocromática',
+      'Bordes redondeados'
+    ],
+    cssVariables: {
+      '--neumorphic-bg': '#E0E5EC',
+      '--neumorphic-shadow-light': '#FFFFFF',
+      '--neumorphic-shadow-dark': '#A3B1C6',
+      '--neumorphic-radius': '20px',
+      '--neumorphic-shadow-out': '9px 9px 16px #A3B1C6, -9px -9px 16px #FFFFFF',
+      '--neumorphic-shadow-in': 'inset 9px 9px 16px #A3B1C6, inset -9px -9px 16px #FFFFFF'
+    },
+    tailwindExtend: {
+      boxShadow: {
+        neumorphic: '9px 9px 16px #A3B1C6, -9px -9px 16px #FFFFFF',
+        'neumorphic-inset': 'inset 9px 9px 16px #A3B1C6, inset -9px -9px 16px #FFFFFF'
+      }
+    }
+  },
+
+  claymorphism: {
+    name: 'Claymorphism',
+    description: 'Estética de arcilla con sombras internas difusas y colores vibrantes',
+    style: 'Vibrante, táctil, juguetón',
+    bestFor: [
+      'Apps educativas',
+      'Productos infantiles',
+      'Interfaces lúdicas',
+      'Gamificación'
+    ],
+    complexity: 'medium',
+    accessibility: 4,
+    browserSupport: 'Todos los navegadores modernos',
+    primaryColors: ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#FF8B94'],
+    features: [
+      'Colores vibrantes',
+      'Sombras internas difusas',
+      'Bordes muy redondeados',
+      'Apariencia inflada',
+      'Textura mate'
+    ],
+    cssVariables: {
+      '--clay-primary': '#FF6B6B',
+      '--clay-secondary': '#4ECDC4',
+      '--clay-accent': '#FFE66D',
+      '--clay-radius': '24px',
+      '--clay-shadow': 'inset 0 -4px 8px rgba(0, 0, 0, 0.2), 0 4px 8px rgba(0, 0, 0, 0.1)',
+      '--clay-blur': '40px'
+    },
+    tailwindExtend: {
+      colors: {
+        clay: {
+          primary: '#FF6B6B',
+          secondary: '#4ECDC4',
+          accent: '#FFE66D',
+          success: '#A8E6CF',
+          warning: '#FF8B94'
+        }
+      },
+      borderRadius: {
+        clay: '24px'
+      }
+    }
+  },
+
+  'neo-brutalism': {
+    name: 'Neo-Brutalism',
+    description: 'Diseño atrevido con bordes gruesos, sombras duras y colores contrastantes',
+    style: 'Atrevido, retro, contrastante',
+    bestFor: [
+      'Portfolios creativos',
+      'Marcas jóvenes',
+      'Arte digital',
+      'Comunidades creativas'
+    ],
+    complexity: 'low',
+    accessibility: 5,
+    browserSupport: 'Todos los navegadores modernos',
+    primaryColors: ['#000000', '#FFFFFF', '#FFFF00', '#FF00FF', '#00FFFF'],
+    features: [
+      'Bordes negros gruesos',
+      'Sombras duras offset',
+      'Colores saturados',
+      'Tipografía bold',
+      'Alto contraste'
+    ],
+    cssVariables: {
+      '--brutal-border': '3px solid #000000',
+      '--brutal-shadow': '4px 4px 0px #000000',
+      '--brutal-shadow-lg': '8px 8px 0px #000000',
+      '--brutal-yellow': '#FFFF00',
+      '--brutal-magenta': '#FF00FF',
+      '--brutal-cyan': '#00FFFF',
+      '--brutal-radius': '0px'
+    },
+    tailwindExtend: {
+      boxShadow: {
+        brutal: '4px 4px 0px #000000',
+        'brutal-lg': '8px 8px 0px #000000'
+      },
+      borderWidth: {
+        brutal: '3px'
+      }
+    }
+  }
+};
+
+/**
+ * Obtiene la configuración de un sistema de diseño
+ */
+export function getDesignSystemConfig(system: DesignSystem): DesignSystemConfig {
+  return designSystems[system];
+}
+
+/**
+ * Obtiene las variables CSS de un sistema de diseño
+ */
+export function getDesignSystemCSSVariables(system: DesignSystem): string {
+  const config = designSystems[system];
+  return Object.entries(config.cssVariables)
+    .map(([key, value]) => `  ${key}: ${value};`)
+    .join('\n');
+}
+
+/**
+ * Obtiene la extensión de Tailwind de un sistema de diseño
+ */
+export function getDesignSystemTailwindExtend(system: DesignSystem): Record<string, unknown> {
+  return designSystems[system].tailwindExtend;
+}
+
+/**
+ * Lista todos los sistemas de diseño disponibles
+ */
+export function listDesignSystems(): Array<{ id: DesignSystem; name: string; description: string }> {
+  return Object.entries(designSystems).map(([id, config]) => ({
+    id: id as DesignSystem,
+    name: config.name,
+    description: config.description
+  }));
+}
+
+/**
+ * Valida si un sistema de diseño existe
+ */
+export function isValidDesignSystem(system: string): system is DesignSystem {
+  return system in designSystems;
+}
+
+/**
+ * Obtiene recomendaciones basadas en criterios
+ */
+export function recommendDesignSystem(criteria: {
+  projectType?: 'corporate' | 'creative' | 'educational' | 'technical';
+  accessibility?: 'critical' | 'important' | 'normal';
+  complexity?: 'low' | 'medium' | 'high';
+}): DesignSystem[] {
+  const recommendations: DesignSystem[] = [];
+
+  if (criteria.projectType === 'corporate' || criteria.projectType === 'technical') {
+    recommendations.push('geist');
+  }
+
+  if (criteria.projectType === 'creative') {
+    recommendations.push('glassmorphism', 'neo-brutalism');
+  }
+
+  if (criteria.projectType === 'educational') {
+    recommendations.push('claymorphism');
+  }
+
+  if (criteria.accessibility === 'critical') {
+    recommendations.push('geist', 'neo-brutalism');
+  }
+
+  if (criteria.complexity === 'low') {
+    recommendations.push('geist', 'neo-brutalism');
+  }
+
+  // Retornar únicos
+  return Array.from(new Set(recommendations));
+}
+
+export default designSystems;

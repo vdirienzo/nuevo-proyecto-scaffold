@@ -1,0 +1,110 @@
+-- Audit Log Schema
+-- Author: {{AUTHOR}}
+-- Project: {{PROJECT_NAME}}
+
+-- Audit logs table: Track all important system events
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
+    entity_id INTEGER,
+    user_id INTEGER,
+    payload TEXT,
+    ip_address TEXT,
+    user_agent TEXT,
+    severity TEXT NOT NULL DEFAULT 'info',
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
+CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at);
+CREATE INDEX idx_audit_logs_severity ON audit_logs(severity);
+
+-- Trigger to automatically log user creation
+CREATE TRIGGER IF NOT EXISTS log_user_creation
+AFTER INSERT ON users
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_logs (action, entity_type, entity_id, user_id, payload, severity)
+    VALUES (
+        'user.created',
+        'user',
+        NEW.id,
+        NEW.id,
+        json_object('email', NEW.email, 'is_admin', NEW.is_admin),
+        'info'
+    );
+END;
+
+-- Trigger to automatically log user updates
+CREATE TRIGGER IF NOT EXISTS log_user_update
+AFTER UPDATE ON users
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_logs (action, entity_type, entity_id, user_id, payload, severity)
+    VALUES (
+        'user.updated',
+        'user',
+        NEW.id,
+        NEW.id,
+        json_object(
+            'email_changed', OLD.email != NEW.email,
+            'is_active_changed', OLD.is_active != NEW.is_active,
+            'is_admin_changed', OLD.is_admin != NEW.is_admin
+        ),
+        'info'
+    );
+END;
+
+-- Trigger to automatically log user deletion
+CREATE TRIGGER IF NOT EXISTS log_user_deletion
+BEFORE DELETE ON users
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_logs (action, entity_type, entity_id, user_id, payload, severity)
+    VALUES (
+        'user.deleted',
+        'user',
+        OLD.id,
+        OLD.id,
+        json_object('email', OLD.email),
+        'warning'
+    );
+END;
+
+-- Trigger to automatically log session creation
+CREATE TRIGGER IF NOT EXISTS log_session_creation
+AFTER INSERT ON sessions
+FOR EACH ROW
+BEGIN
+    INSERT INTO audit_logs (action, entity_type, entity_id, user_id, ip_address, user_agent, severity)
+    VALUES (
+        'session.created',
+        'session',
+        NEW.id,
+        NEW.user_id,
+        NEW.ip_address,
+        NEW.user_agent,
+        'info'
+    );
+END;
+
+-- View for recent audit events (last 1000)
+CREATE VIEW IF NOT EXISTS recent_audit_logs AS
+SELECT
+    al.id,
+    al.action,
+    al.entity_type,
+    al.entity_id,
+    u.email as user_email,
+    al.payload,
+    al.severity,
+    datetime(al.created_at, 'unixepoch') as created_at_readable,
+    al.created_at
+FROM audit_logs al
+LEFT JOIN users u ON al.user_id = u.id
+ORDER BY al.created_at DESC
+LIMIT 1000;

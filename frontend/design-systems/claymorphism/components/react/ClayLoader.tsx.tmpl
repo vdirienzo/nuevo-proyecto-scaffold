@@ -1,0 +1,173 @@
+/**
+ * ClayLoader.tsx - Claymorphism Loading Spinner Component
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+import React, { HTMLAttributes } from 'react'
+
+export interface ClayLoaderProps extends HTMLAttributes<HTMLDivElement> {
+  variant?: 'dots' | 'blob' | 'pulse' | 'bounce'
+  size?: 'sm' | 'md' | 'lg'
+  color?: 'pink' | 'blue' | 'green' | 'yellow' | 'purple'
+}
+
+const sizeStyles = {
+  sm: 'w-4 h-4',
+  md: 'w-6 h-6',
+  lg: 'w-8 h-8',
+}
+
+const colorStyles = {
+  pink: 'bg-clay-pink-400',
+  blue: 'bg-clay-blue-400',
+  green: 'bg-clay-green-400',
+  yellow: 'bg-clay-yellow-400',
+  purple: 'bg-clay-purple-400',
+}
+
+const DotsLoader: React.FC<{ size: string; color: string }> = ({ size, color }) => (
+  <div className="flex gap-2">
+    {[0, 1, 2].map((i) => (
+      <div
+        key={i}
+        className={`
+          ${size}
+          ${color}
+          rounded-full
+          shadow-clay-sm
+          animate-bounce
+        `}
+        style={{
+          animationDelay: `${i * 0.15}s`,
+        }}
+      />
+    ))}
+  </div>
+)
+
+const BlobLoader: React.FC<{ size: string; color: string }> = ({ size, color }) => (
+  <div className="relative">
+    <div
+      className={`
+        ${size}
+        ${color}
+        rounded-full
+        shadow-clay
+        animate-blob
+      `}
+    />
+  </div>
+)
+
+const PulseLoader: React.FC<{ size: string; color: string }> = ({ size, color }) => (
+  <div className="relative flex items-center justify-center">
+    {/* Outer ring */}
+    <div
+      className={`
+        absolute
+        ${size === 'w-4 h-4' ? 'w-12 h-12' : size === 'w-6 h-6' ? 'w-16 h-16' : 'w-20 h-20'}
+        ${color}
+        rounded-full
+        opacity-30
+        animate-ping
+      `}
+    />
+    {/* Middle ring */}
+    <div
+      className={`
+        absolute
+        ${size === 'w-4 h-4' ? 'w-8 h-8' : size === 'w-6 h-6' ? 'w-12 h-12' : 'w-16 h-16'}
+        ${color}
+        rounded-full
+        opacity-50
+        animate-pulse
+      `}
+    />
+    {/* Inner dot */}
+    <div
+      className={`
+        ${size}
+        ${color}
+        rounded-full
+        shadow-clay
+      `}
+    />
+  </div>
+)
+
+const BounceLoader: React.FC<{ size: string; color: string }> = ({ size, color }) => (
+  <div className="flex gap-2">
+    {[0, 1, 2].map((i) => (
+      <div
+        key={i}
+        className={`
+          ${size}
+          ${color}
+          rounded-full
+          shadow-clay-sm
+        `}
+        style={{
+          animation: `bounce-soft 1s ease-in-out ${i * 0.2}s infinite`,
+        }}
+      />
+    ))}
+  </div>
+)
+
+export const ClayLoader: React.FC<ClayLoaderProps> = ({
+  variant = 'dots',
+  size = 'md',
+  color = 'blue',
+  className = '',
+  ...props
+}) => {
+  const sizeClass = sizeStyles[size]
+  const colorClass = colorStyles[color]
+
+  const loaders = {
+    dots: <DotsLoader size={sizeClass} color={colorClass} />,
+    blob: <BlobLoader size={sizeClass} color={colorClass} />,
+    pulse: <PulseLoader size={sizeClass} color={colorClass} />,
+    bounce: <BounceLoader size={sizeClass} color={colorClass} />,
+  }
+
+  return (
+    <div
+      className={`inline-flex items-center justify-center ${className}`}
+      role="status"
+      aria-label="Loading"
+      {...props}
+    >
+      {loaders[variant]}
+    </div>
+  )
+}
+
+export interface ClayFullscreenLoaderProps {
+  variant?: 'dots' | 'blob' | 'pulse' | 'bounce'
+  color?: 'pink' | 'blue' | 'green' | 'yellow' | 'purple'
+  message?: string
+}
+
+export const ClayFullscreenLoader: React.FC<ClayFullscreenLoaderProps> = ({
+  variant = 'pulse',
+  color = 'blue',
+  message = 'Cargando...',
+}) => {
+  return (
+    <div className="fixed inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="text-center">
+        <ClayLoader variant={variant} size="lg" color={color} />
+        {message && (
+          <p className="mt-4 text-gray-600 font-medium animate-pulse">
+            {message}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default ClayLoader

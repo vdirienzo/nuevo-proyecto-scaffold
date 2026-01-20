@@ -1,0 +1,232 @@
+/**
+ * useTheme.ts - Vue composable for theme management
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { ref, computed, watch, onMounted, Ref } from 'vue';
+
+export type Theme = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
+
+const STORAGE_KEY = '{{PROJECT_NAME}}-theme';
+const THEME_ATTRIBUTE = 'data-theme';
+const DARK_CLASS = 'dark';
+
+// Shared state across all instances
+let themeState: Ref<Theme> | null = null;
+let resolvedThemeState: Ref<ResolvedTheme> | null = null;
+
+/**
+ * Vue composable for theme management with light/dark mode support
+ *
+ * Features:
+ * - Light/dark mode toggle
+ * - System preference detection
+ * - LocalStorage persistence
+ * - CSS class and attribute application
+ * - SSR-safe
+ * - Shared state across components
+ *
+ * @returns Theme state and controls
+ *
+ * @example
+ * ```vue
+ * <script setup lang="ts">
+ * import { useTheme } from '@/composables/useTheme';
+ *
+ * const { theme, resolvedTheme, toggleTheme, isDark } = useTheme();
+ * </script>
+ *
+ * <template>
+ *   <button @click="toggleTheme">
+ *     {{ isDark ? '🌙' : '☀️' }}
+ *   </button>
+ * </template>
+ * ```
+ */
+export function useTheme() {
+  /**
+   * Initialize shared state if not exists
+   */
+  if (!themeState || !resolvedThemeState) {
+    // Get initial theme from storage or default to system
+    const getInitialTheme = (): Theme => {
+      if (typeof window === 'undefined') return 'system';
+
+      const stored = localStorage.getItem(STORAGE_KEY) as Theme;
+      if (stored && ['light', 'dark', 'system'].includes(stored)) {
+        return stored;
+      }
+
+      return 'system';
+    };
+
+    themeState = ref<Theme>(getInitialTheme());
+    resolvedThemeState = ref<ResolvedTheme>('light');
+  }
+
+  const theme = themeState;
+  const resolvedTheme = resolvedThemeState;
+
+  /**
+   * Get system preference
+   */
+  const getSystemTheme = (): ResolvedTheme => {
+    if (typeof window === 'undefined') return 'light';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+
+  /**
+   * Apply theme to DOM
+   */
+  const applyTheme = (newTheme: ResolvedTheme) => {
+    if (typeof document === 'undefined') return;
+
+    const root = document.documentElement;
+
+    // Apply class
+    if (newTheme === 'dark') {
+      root.classList.add(DARK_CLASS);
+    } else {
+      root.classList.remove(DARK_CLASS);
+    }
+
+    // Apply attribute
+    root.setAttribute(THEME_ATTRIBUTE, newTheme);
+
+    // Apply color-scheme for native elements
+    root.style.colorScheme = newTheme;
+  };
+
+  /**
+   * Resolve and apply theme
+   */
+  const resolveAndApplyTheme = () => {
+    const resolved = theme.value === 'system' ? getSystemTheme() : (theme.value as ResolvedTheme);
+    resolvedTheme.value = resolved;
+    applyTheme(resolved);
+  };
+
+  /**
+   * Set theme and persist to storage
+   */
+  const setTheme = (newTheme: Theme) => {
+    theme.value = newTheme;
+    localStorage.setItem(STORAGE_KEY, newTheme);
+    resolveAndApplyTheme();
+  };
+
+  /**
+   * Toggle between light and dark
+   */
+  const toggleTheme = () => {
+    const newTheme = resolvedTheme.value === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+  };
+
+  /**
+   * Watch theme changes
+   */
+  watch(theme, () => {
+    resolveAndApplyTheme();
+  });
+
+  /**
+   * Listen for system preference changes
+   */
+  onMounted(() => {
+    // Apply theme on mount
+    resolveAndApplyTheme();
+
+    // Watch system preference changes
+    if (typeof window === 'undefined') return;
+
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (theme.value === 'system') {
+        resolvedTheme.value = e.matches ? 'dark' : 'light';
+        applyTheme(resolvedTheme.value);
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+
+    // Cleanup
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  });
+
+  // Computed flags
+  const isDark = computed(() => resolvedTheme.value === 'dark');
+  const isLight = computed(() => resolvedTheme.value === 'light');
+
+  return {
+    /** Current theme setting (light | dark | system) */
+    theme,
+    /** Resolved theme after system preference (light | dark) */
+    resolvedTheme,
+    /** Set theme explicitly */
+    setTheme,
+    /** Toggle between light and dark */
+    toggleTheme,
+    /** Check if dark mode is active */
+    isDark,
+    /** Check if light mode is active */
+    isLight,
+  };
+}
+
+/**
+ * Prevent flash of unstyled content (FOUC) on SSR
+ * Add this script tag in your HTML <head> or app.html
+ */
+export const themeScript = `
+(function() {
+  try {
+    const theme = localStorage.getItem('${STORAGE_KEY}') || 'system';
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+
+    document.documentElement.classList.toggle('${DARK_CLASS}', resolved === 'dark');
+    document.documentElement.setAttribute('${THEME_ATTRIBUTE}', resolved);
+    document.documentElement.style.colorScheme = resolved;
+  } catch (e) {}
+})();
+`;
+
+/**
+ * Plugin for Vue 3 app-level integration
+ *
+ * @example
+ * ```ts
+ * // main.ts
+ * import { createApp } from 'vue';
+ * import { themePlugin } from '@/composables/useTheme';
+ * import App from './App.vue';
+ *
+ * const app = createApp(App);
+ * app.use(themePlugin);
+ * app.mount('#app');
+ * ```
+ */
+export const themePlugin = {
+  install() {
+    // Initialize theme on app mount
+    if (typeof document !== 'undefined') {
+      const theme = (localStorage.getItem(STORAGE_KEY) as Theme) || 'system';
+      const resolved = theme === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : (theme as ResolvedTheme);
+
+      const root = document.documentElement;
+      root.classList.toggle(DARK_CLASS, resolved === 'dark');
+      root.setAttribute(THEME_ATTRIBUTE, resolved);
+      root.style.colorScheme = resolved;
+    }
+  },
+};

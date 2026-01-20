@@ -1,0 +1,377 @@
+/*!
+ * Cryptographic Utilities - Password Hashing, Encryption, Key Derivation
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use crate::error::{AppError, AppResult};
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
+use aes_gcm::{
+    aead::{Aead, KeyInit, OsRng as AesOsRng},
+    Aes256Gcm, Key, Nonce,
+};
+use base64::{engine::general_purpose, Engine};
+use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
+
+/// Password hashing and verification using Argon2id
+pub struct PasswordHasher;
+
+impl PasswordHasher {
+    /// Hash a password using Argon2id
+    ///
+    /// # Arguments
+    /// * `password` - Plain text password to hash
+    ///
+    /// # Returns
+    /// * PHC string format hash (safe to store in database)
+    ///
+    /// # Security
+    /// Uses Argon2id with recommended parameters for 2024:
+    /// - Memory: 19 MiB
+    /// - Iterations: 2
+    /// - Parallelism: 1
+    pub fn hash_password(password: &str) -> AppResult<String> {
+        if password.is_empty() {
+            return Err(AppError::Validation("Password cannot be empty".to_string()));
+        }
+
+        if password.len() < 8 {
+            return Err(AppError::Validation(
+                "Password must be at least 8 characters".to_string(),
+            ));
+        }
+
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+
+        let password_hash = argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map_err(|e| AppError::Internal(format!("Password hashing failed: {}", e)))?;
+
+        Ok(password_hash.to_string())
+    }
+
+    /// Verify a password against a hash
+    ///
+    /// # Arguments
+    /// * `password` - Plain text password to verify
+    /// * `hash` - PHC string format hash from storage
+    ///
+    /// # Returns
+    /// * `true` if password matches, `false` otherwise
+    ///
+    /// # Security
+    /// Uses constant-time comparison to prevent timing attacks
+    pub fn verify_password(password: &str, hash: &str) -> AppResult<bool> {
+        let parsed_hash = PasswordHash::new(hash)
+            .map_err(|e| AppError::Internal(format!("Invalid password hash: {}", e)))?;
+
+        let argon2 = Argon2::default();
+
+        match argon2.verify_password(password.as_bytes(), &parsed_hash) {
+            Ok(_) => Ok(true),
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Check if a password hash needs rehashing (updated algorithm parameters)
+    pub fn needs_rehash(hash: &str) -> AppResult<bool> {
+        let parsed_hash = PasswordHash::new(hash)
+            .map_err(|e| AppError::Internal(format!("Invalid password hash: {}", e)))?;
+
+        // Check if using Argon2id
+        Ok(parsed_hash.algorithm != argon2::Algorithm::Argon2id.ident())
+    }
+}
+
+/// Token generation for authentication and verification
+pub struct TokenGenerator;
+
+impl TokenGenerator {
+    /// Generate a secure random token
+    ///
+    /// # Arguments
+    /// * `length` - Token length in bytes (before encoding)
+    pub fn generate_token(length: usize) -> String {
+        let mut rng = thread_rng();
+        let bytes: Vec<u8> = (0..length).map(|_| rng.gen()).collect();
+        general_purpose::URL_SAFE_NO_PAD.encode(bytes)
+    }
+
+    /// Generate an API key
+    pub fn generate_api_key() -> String {
+        format!("{{{{PROJECT_NAME}}}}_{}}", Self::generate_token(32))
+    }
+
+    /// Generate a verification code (6 digits)
+    pub fn generate_verification_code() -> String {
+        let mut rng = thread_rng();
+        format!("{:06}", rng.gen_range(0..1_000_000))
+    }
+
+    /// Generate a one-time password (TOTP-style, 6 digits)
+    pub fn generate_otp() -> String {
+        Self::generate_verification_code()
+    }
+}
+
+/// AES-256-GCM encryption for local data
+#[derive(Debug)]
+pub struct Encryptor {
+    key: Key<Aes256Gcm>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncryptedData {
+    pub ciphertext: String,
+    pub nonce: String,
+}
+
+impl Encryptor {
+    /// Create a new encryptor with a random key
+    pub fn new() -> Self {
+        let key = Aes256Gcm::generate_key(&mut AesOsRng);
+        Self { key }
+    }
+
+    /// Create an encryptor from an existing key
+    ///
+    /// # Arguments
+    /// * `key_bytes` - 32-byte key for AES-256
+    pub fn from_key(key_bytes: &[u8]) -> AppResult<Self> {
+        if key_bytes.len() != 32 {
+            return Err(AppError::Validation(
+                "Key must be exactly 32 bytes for AES-256".to_string(),
+            ));
+        }
+
+        let key = Key::<Aes256Gcm>::from_slice(key_bytes);
+        Ok(Self { key: *key })
+    }
+
+    /// Encrypt data
+    ///
+    /// # Arguments
+    /// * `plaintext` - Data to encrypt
+    ///
+    /// # Returns
+    /// * Encrypted data with nonce
+    pub fn encrypt(&self, plaintext: &[u8]) -> AppResult<EncryptedData> {
+        let cipher = Aes256Gcm::new(&self.key);
+        let nonce = Aes256Gcm::generate_nonce(&mut AesOsRng);
+
+        let ciphertext = cipher
+            .encrypt(&nonce, plaintext)
+            .map_err(|e| AppError::Internal(format!("Encryption failed: {}", e)))?;
+
+        Ok(EncryptedData {
+            ciphertext: general_purpose::STANDARD.encode(&ciphertext),
+            nonce: general_purpose::STANDARD.encode(nonce.as_slice()),
+        })
+    }
+
+    /// Decrypt data
+    ///
+    /// # Arguments
+    /// * `encrypted` - Encrypted data with nonce
+    ///
+    /// # Returns
+    /// * Decrypted plaintext
+    pub fn decrypt(&self, encrypted: &EncryptedData) -> AppResult<Vec<u8>> {
+        let cipher = Aes256Gcm::new(&self.key);
+
+        let ciphertext = general_purpose::STANDARD
+            .decode(&encrypted.ciphertext)
+            .map_err(|e| AppError::Internal(format!("Invalid ciphertext encoding: {}", e)))?;
+
+        let nonce_bytes = general_purpose::STANDARD
+            .decode(&encrypted.nonce)
+            .map_err(|e| AppError::Internal(format!("Invalid nonce encoding: {}", e)))?;
+
+        let nonce = Nonce::from_slice(&nonce_bytes);
+
+        let plaintext = cipher
+            .decrypt(nonce, ciphertext.as_ref())
+            .map_err(|e| AppError::Authentication(format!("Decryption failed: {}", e)))?;
+
+        Ok(plaintext)
+    }
+
+    /// Encrypt a UTF-8 string
+    pub fn encrypt_string(&self, plaintext: &str) -> AppResult<EncryptedData> {
+        self.encrypt(plaintext.as_bytes())
+    }
+
+    /// Decrypt to a UTF-8 string
+    pub fn decrypt_string(&self, encrypted: &EncryptedData) -> AppResult<String> {
+        let plaintext = self.decrypt(encrypted)?;
+        String::from_utf8(plaintext)
+            .map_err(|e| AppError::Internal(format!("Invalid UTF-8: {}", e)))
+    }
+
+    /// Get the encryption key as bytes (for storage)
+    pub fn get_key_bytes(&self) -> &[u8] {
+        self.key.as_slice()
+    }
+
+    /// Export key as base64 string
+    pub fn export_key(&self) -> String {
+        general_purpose::STANDARD.encode(self.get_key_bytes())
+    }
+
+    /// Import key from base64 string
+    pub fn import_key(key_base64: &str) -> AppResult<Self> {
+        let key_bytes = general_purpose::STANDARD
+            .decode(key_base64)
+            .map_err(|e| AppError::Validation(format!("Invalid key encoding: {}", e)))?;
+
+        Self::from_key(&key_bytes)
+    }
+}
+
+impl Default for Encryptor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Key derivation from password using Argon2
+pub struct KeyDerivation;
+
+impl KeyDerivation {
+    /// Derive an encryption key from a password
+    ///
+    /// # Arguments
+    /// * `password` - User password
+    /// * `salt` - Salt for key derivation (should be unique per user)
+    ///
+    /// # Returns
+    /// * 32-byte key suitable for AES-256
+    pub fn derive_key(password: &str, salt: &[u8]) -> AppResult<Vec<u8>> {
+        use argon2::Params;
+
+        if salt.len() < 16 {
+            return Err(AppError::Validation(
+                "Salt must be at least 16 bytes".to_string(),
+            ));
+        }
+
+        let params = Params::new(19456, 2, 1, Some(32))
+            .map_err(|e| AppError::Internal(format!("Invalid Argon2 params: {}", e)))?;
+
+        let argon2 = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
+
+        let mut output = vec![0u8; 32];
+        argon2
+            .hash_password_into(password.as_bytes(), salt, &mut output)
+            .map_err(|e| AppError::Internal(format!("Key derivation failed: {}", e)))?;
+
+        Ok(output)
+    }
+
+    /// Generate a random salt for key derivation
+    pub fn generate_salt() -> Vec<u8> {
+        let mut rng = thread_rng();
+        (0..32).map(|_| rng.gen()).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_password_hashing() {
+        let password = "my_secure_password_123";
+        let hash = PasswordHasher::hash_password(password).unwrap();
+        assert!(PasswordHasher::verify_password(password, &hash).unwrap());
+        assert!(!PasswordHasher::verify_password("wrong_password", &hash).unwrap());
+    }
+
+    #[test]
+    fn test_password_too_short() {
+        let result = PasswordHasher::hash_password("short");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_token_generation() {
+        let token1 = TokenGenerator::generate_token(32);
+        let token2 = TokenGenerator::generate_token(32);
+        assert_ne!(token1, token2);
+        assert!(!token1.is_empty());
+    }
+
+    #[test]
+    fn test_verification_code() {
+        let code = TokenGenerator::generate_verification_code();
+        assert_eq!(code.len(), 6);
+        assert!(code.chars().all(|c| c.is_numeric()));
+    }
+
+    #[test]
+    fn test_encryption_decryption() {
+        let encryptor = Encryptor::new();
+        let plaintext = b"sensitive data";
+
+        let encrypted = encryptor.encrypt(plaintext).unwrap();
+        let decrypted = encryptor.decrypt(&encrypted).unwrap();
+
+        assert_eq!(plaintext, decrypted.as_slice());
+    }
+
+    #[test]
+    fn test_string_encryption() {
+        let encryptor = Encryptor::new();
+        let message = "Hello, World!";
+
+        let encrypted = encryptor.encrypt_string(message).unwrap();
+        let decrypted = encryptor.decrypt_string(&encrypted).unwrap();
+
+        assert_eq!(message, decrypted);
+    }
+
+    #[test]
+    fn test_key_export_import() {
+        let encryptor1 = Encryptor::new();
+        let key_base64 = encryptor1.export_key();
+
+        let encryptor2 = Encryptor::import_key(&key_base64).unwrap();
+
+        let message = "test message";
+        let encrypted = encryptor1.encrypt_string(message).unwrap();
+        let decrypted = encryptor2.decrypt_string(&encrypted).unwrap();
+
+        assert_eq!(message, decrypted);
+    }
+
+    #[test]
+    fn test_key_derivation() {
+        let password = "user_password";
+        let salt = KeyDerivation::generate_salt();
+
+        let key1 = KeyDerivation::derive_key(password, &salt).unwrap();
+        let key2 = KeyDerivation::derive_key(password, &salt).unwrap();
+
+        // Same password and salt should produce same key
+        assert_eq!(key1, key2);
+        assert_eq!(key1.len(), 32);
+    }
+
+    #[test]
+    fn test_different_salts_different_keys() {
+        let password = "user_password";
+        let salt1 = KeyDerivation::generate_salt();
+        let salt2 = KeyDerivation::generate_salt();
+
+        let key1 = KeyDerivation::derive_key(password, &salt1).unwrap();
+        let key2 = KeyDerivation::derive_key(password, &salt2).unwrap();
+
+        // Different salts should produce different keys
+        assert_ne!(key1, key2);
+    }
+}

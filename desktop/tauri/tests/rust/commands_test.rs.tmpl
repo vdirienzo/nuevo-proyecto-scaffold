@@ -1,0 +1,412 @@
+/*! Tauri command tests for {{PROJECT_NAME}}
+
+Author: {{AUTHOR}}
+*/
+
+#[cfg(test)]
+mod command_tests {
+    use tauri::{State, Manager};
+    use std::sync::{Arc, Mutex};
+    use serde::{Serialize, Deserialize};
+
+    // Mock application state
+    #[derive(Default, Clone)]
+    struct AppState {
+        counter: Arc<Mutex<i32>>,
+        data: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl AppState {
+        fn new() -> Self {
+            Self {
+                counter: Arc::new(Mutex::new(0)),
+                data: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+    }
+
+    // Example commands to test
+    #[tauri::command]
+    fn greet(name: &str) -> String {
+        format!("Hello, {}!", name)
+    }
+
+    #[tauri::command]
+    fn increment_counter(state: State<AppState>) -> Result<i32, String> {
+        let mut counter = state.counter.lock().map_err(|e| e.to_string())?;
+        *counter += 1;
+        Ok(*counter)
+    }
+
+    #[tauri::command]
+    fn get_counter(state: State<AppState>) -> Result<i32, String> {
+        let counter = state.counter.lock().map_err(|e| e.to_string())?;
+        Ok(*counter)
+    }
+
+    #[tauri::command]
+    fn reset_counter(state: State<AppState>) -> Result<(), String> {
+        let mut counter = state.counter.lock().map_err(|e| e.to_string())?;
+        *counter = 0;
+        Ok(())
+    }
+
+    #[tauri::command]
+    fn add_item(state: State<AppState>, item: String) -> Result<(), String> {
+        let mut data = state.data.lock().map_err(|e| e.to_string())?;
+        data.push(item);
+        Ok(())
+    }
+
+    #[tauri::command]
+    fn get_items(state: State<AppState>) -> Result<Vec<String>, String> {
+        let data = state.data.lock().map_err(|e| e.to_string())?;
+        Ok(data.clone())
+    }
+
+    #[tauri::command]
+    fn clear_items(state: State<AppState>) -> Result<(), String> {
+        let mut data = state.data.lock().map_err(|e| e.to_string())?;
+        data.clear();
+        Ok(())
+    }
+
+    #[derive(Serialize, Deserialize, Clone, PartialEq, Debug)]
+    struct User {
+        id: u32,
+        name: String,
+        email: String,
+    }
+
+    #[tauri::command]
+    fn create_user(name: String, email: String) -> Result<User, String> {
+        if name.is_empty() {
+            return Err("Name cannot be empty".to_string());
+        }
+        if !email.contains('@') {
+            return Err("Invalid email format".to_string());
+        }
+        Ok(User {
+            id: 1,
+            name,
+            email,
+        })
+    }
+
+    #[tauri::command]
+    async fn async_fetch_data(delay_ms: u64) -> Result<String, String> {
+        tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+        Ok("Data fetched successfully".to_string())
+    }
+
+    #[tauri::command]
+    fn divide(a: i32, b: i32) -> Result<f64, String> {
+        if b == 0 {
+            return Err("Division by zero".to_string());
+        }
+        Ok(a as f64 / b as f64)
+    }
+
+    // Test cases
+    #[test]
+    fn test_greet_command_returns_greeting() {
+        // Arrange
+        let name = "World";
+
+        // Act
+        let result = greet(name);
+
+        // Assert
+        assert_eq!(result, "Hello, World!");
+    }
+
+    #[test]
+    fn test_greet_command_with_empty_string() {
+        // Arrange
+        let name = "";
+
+        // Act
+        let result = greet(name);
+
+        // Assert
+        assert_eq!(result, "Hello, !");
+    }
+
+    #[test]
+    fn test_increment_counter_increases_value() {
+        // Arrange
+        let state = AppState::new();
+
+        // Act
+        let result1 = increment_counter(State::from(&state));
+        let result2 = increment_counter(State::from(&state));
+        let result3 = increment_counter(State::from(&state));
+
+        // Assert
+        assert!(result1.is_ok());
+        assert_eq!(result1.unwrap(), 1);
+        assert_eq!(result2.unwrap(), 2);
+        assert_eq!(result3.unwrap(), 3);
+    }
+
+    #[test]
+    fn test_get_counter_returns_current_value() {
+        // Arrange
+        let state = AppState::new();
+        increment_counter(State::from(&state)).unwrap();
+        increment_counter(State::from(&state)).unwrap();
+
+        // Act
+        let result = get_counter(State::from(&state));
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 2);
+    }
+
+    #[test]
+    fn test_reset_counter_sets_value_to_zero() {
+        // Arrange
+        let state = AppState::new();
+        increment_counter(State::from(&state)).unwrap();
+        increment_counter(State::from(&state)).unwrap();
+        assert_eq!(get_counter(State::from(&state)).unwrap(), 2);
+
+        // Act
+        let result = reset_counter(State::from(&state));
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(get_counter(State::from(&state)).unwrap(), 0);
+    }
+
+    #[test]
+    fn test_add_item_appends_to_list() {
+        // Arrange
+        let state = AppState::new();
+
+        // Act
+        let result = add_item(State::from(&state), "item1".to_string());
+
+        // Assert
+        assert!(result.is_ok());
+        let items = get_items(State::from(&state)).unwrap();
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0], "item1");
+    }
+
+    #[test]
+    fn test_get_items_returns_all_items() {
+        // Arrange
+        let state = AppState::new();
+        add_item(State::from(&state), "item1".to_string()).unwrap();
+        add_item(State::from(&state), "item2".to_string()).unwrap();
+        add_item(State::from(&state), "item3".to_string()).unwrap();
+
+        // Act
+        let result = get_items(State::from(&state));
+
+        // Assert
+        assert!(result.is_ok());
+        let items = result.unwrap();
+        assert_eq!(items.len(), 3);
+        assert_eq!(items, vec!["item1", "item2", "item3"]);
+    }
+
+    #[test]
+    fn test_clear_items_removes_all_items() {
+        // Arrange
+        let state = AppState::new();
+        add_item(State::from(&state), "item1".to_string()).unwrap();
+        add_item(State::from(&state), "item2".to_string()).unwrap();
+
+        // Act
+        let result = clear_items(State::from(&state));
+
+        // Assert
+        assert!(result.is_ok());
+        let items = get_items(State::from(&state)).unwrap();
+        assert_eq!(items.len(), 0);
+    }
+
+    #[test]
+    fn test_create_user_with_valid_data() {
+        // Arrange
+        let name = "John Doe".to_string();
+        let email = "john@example.com".to_string();
+
+        // Act
+        let result = create_user(name.clone(), email.clone());
+
+        // Assert
+        assert!(result.is_ok());
+        let user = result.unwrap();
+        assert_eq!(user.name, name);
+        assert_eq!(user.email, email);
+        assert!(user.id > 0);
+    }
+
+    #[test]
+    fn test_create_user_with_empty_name_returns_error() {
+        // Arrange
+        let name = "".to_string();
+        let email = "john@example.com".to_string();
+
+        // Act
+        let result = create_user(name, email);
+
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Name cannot be empty");
+    }
+
+    #[test]
+    fn test_create_user_with_invalid_email_returns_error() {
+        // Arrange
+        let name = "John Doe".to_string();
+        let email = "invalid-email".to_string();
+
+        // Act
+        let result = create_user(name, email);
+
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Invalid email format");
+    }
+
+    #[tokio::test]
+    async fn test_async_fetch_data_completes_successfully() {
+        // Arrange
+        let delay = 100;
+
+        // Act
+        let result = async_fetch_data(delay).await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Data fetched successfully");
+    }
+
+    #[tokio::test]
+    async fn test_async_fetch_data_with_zero_delay() {
+        // Arrange
+        let delay = 0;
+
+        // Act
+        let result = async_fetch_data(delay).await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "Data fetched successfully");
+    }
+
+    #[test]
+    fn test_divide_command_with_valid_numbers() {
+        // Arrange
+        let a = 10;
+        let b = 2;
+
+        // Act
+        let result = divide(a, b);
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 5.0);
+    }
+
+    #[test]
+    fn test_divide_command_with_negative_numbers() {
+        // Arrange
+        let a = -10;
+        let b = 2;
+
+        // Act
+        let result = divide(a, b);
+
+        // Assert
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), -5.0);
+    }
+
+    #[test]
+    fn test_divide_command_with_zero_divisor_returns_error() {
+        // Arrange
+        let a = 10;
+        let b = 0;
+
+        // Act
+        let result = divide(a, b);
+
+        // Assert
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "Division by zero");
+    }
+
+    #[test]
+    fn test_state_isolation_between_tests() {
+        // Test 1
+        {
+            // Arrange
+            let state = AppState::new();
+
+            // Act
+            add_item(State::from(&state), "test1".to_string()).unwrap();
+
+            // Assert
+            assert_eq!(get_items(State::from(&state)).unwrap().len(), 1);
+        }
+
+        // Test 2 - Should have fresh state
+        {
+            // Arrange
+            let state = AppState::new();
+
+            // Act
+            let items = get_items(State::from(&state));
+
+            // Assert
+            assert_eq!(items.unwrap().len(), 0);
+        }
+    }
+
+    #[test]
+    fn test_concurrent_counter_increments() {
+        // Arrange
+        let state = Arc::new(AppState::new());
+        let mut handles = vec![];
+
+        // Act - Spawn multiple threads incrementing counter
+        for _ in 0..10 {
+            let state_clone = Arc::clone(&state);
+            let handle = std::thread::spawn(move || {
+                increment_counter(State::from(state_clone.as_ref()))
+            });
+            handles.push(handle);
+        }
+
+        // Wait for all threads
+        for handle in handles {
+            assert!(handle.join().unwrap().is_ok());
+        }
+
+        // Assert
+        let final_count = get_counter(State::from(state.as_ref())).unwrap();
+        assert_eq!(final_count, 10);
+    }
+
+    #[test]
+    fn test_error_handling_preserves_state() {
+        // Arrange
+        let state = AppState::new();
+        increment_counter(State::from(&state)).unwrap();
+        increment_counter(State::from(&state)).unwrap();
+        let initial_count = get_counter(State::from(&state)).unwrap();
+
+        // Act - Attempt an operation that might fail (simulate)
+        let _ = divide(10, 0); // This fails but shouldn't affect state
+
+        // Assert
+        let final_count = get_counter(State::from(&state)).unwrap();
+        assert_eq!(initial_count, final_count);
+    }
+}

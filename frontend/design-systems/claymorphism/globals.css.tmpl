@@ -1,0 +1,276 @@
+/**
+ * globals.css - Claymorphism Global Styles
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* CSS Variables para colores clay */
+  :root {
+    --clay-pink: #ff7aad;
+    --clay-blue: #6096fa;
+    --clay-green: #4ade80;
+    --clay-yellow: #facc15;
+    --clay-purple: #c084fc;
+    --clay-orange: #fb923c;
+
+    /* Shadow variables */
+    --shadow-clay: 0 10px 30px rgba(0, 0, 0, 0.15),
+                   inset 0 -5px 10px rgba(0, 0, 0, 0.05),
+                   inset 0 5px 10px rgba(255, 255, 255, 0.5);
+    --shadow-clay-sm: 0 5px 15px rgba(0, 0, 0, 0.12),
+                      inset 0 -3px 6px rgba(0, 0, 0, 0.04),
+                      inset 0 3px 6px rgba(255, 255, 255, 0.6);
+    --shadow-clay-lg: 0 15px 40px rgba(0, 0, 0, 0.18),
+                      inset 0 -7px 14px rgba(0, 0, 0, 0.06),
+                      inset 0 7px 14px rgba(255, 255, 255, 0.5);
+    --shadow-clay-inset: inset 0 5px 15px rgba(0, 0, 0, 0.1),
+                         inset 0 -5px 10px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Body defaults */
+  body {
+    @apply antialiased bg-gradient-to-br from-gray-50 to-gray-100;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Clay shadow utilities */
+  .clay-shadow-base {
+    box-shadow: var(--shadow-clay);
+  }
+
+  .clay-shadow-sm {
+    box-shadow: var(--shadow-clay-sm);
+  }
+
+  .clay-shadow-lg {
+    box-shadow: var(--shadow-clay-lg);
+  }
+
+  .clay-shadow-inset {
+    box-shadow: var(--shadow-clay-inset);
+  }
+
+  /* Clay text gradient */
+  .clay-text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-clay-pink-500 via-clay-purple-500 to-clay-blue-500;
+  }
+
+  /* Clay blob backgrounds */
+  .clay-blob-bg {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .clay-blob-bg::before {
+    content: '';
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    background: linear-gradient(135deg, var(--clay-pink) 0%, var(--clay-purple) 100%);
+    opacity: 0.1;
+    animation: blob 7s infinite;
+    z-index: 0;
+  }
+
+  .clay-blob-bg::after {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 400px;
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    background: linear-gradient(135deg, var(--clay-blue) 0%, var(--clay-green) 100%);
+    opacity: 0.1;
+    animation: blob 7s infinite reverse;
+    animation-delay: 2s;
+    z-index: 0;
+    right: 0;
+    bottom: 0;
+  }
+}
+
+@layer utilities {
+  /* Bounce animation variants */
+  .animate-bounce-soft {
+    animation: bounce-soft 0.6s ease-in-out;
+  }
+
+  .animate-wobble {
+    animation: wobble 0.8s ease-in-out;
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-clay-lg;
+  }
+
+  /* Clay button base */
+  .clay-btn {
+    @apply font-semibold rounded-full shadow-clay transition-all duration-200;
+    @apply hover:scale-105 hover:shadow-clay-hover;
+    @apply active:scale-95 active:shadow-clay-inset;
+  }
+
+  /* Clay card base */
+  .clay-card {
+    @apply rounded-clay shadow-clay transition-all duration-300;
+    @apply hover:shadow-clay-hover;
+  }
+}
+
+/* Keyframe animations */
+@keyframes bounce-soft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes wobble {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(5deg);
+  }
+  75% {
+    transform: rotate(-5deg);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes blob {
+  0% {
+    transform: translate(0px, 0px) scale(1);
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+  }
+  33% {
+    transform: translate(30px, -50px) scale(1.1);
+    border-radius: 70% 30% 50% 50% / 30% 30% 70% 70%;
+  }
+  66% {
+    transform: translate(-20px, 20px) scale(0.9);
+    border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%;
+  }
+  100% {
+    transform: translate(0px, 0px) scale(1);
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+  }
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  @apply outline-none ring-2 ring-clay-blue-400 ring-offset-2 rounded;
+}
+
+/* Selection color */
+::selection {
+  @apply bg-clay-pink-400 text-white;
+}
+
+::-moz-selection {
+  @apply bg-clay-pink-400 text-white;
+}
+
+/* Scrollbar styling (webkit browsers) */
+::-webkit-scrollbar {
+  width: 12px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-100 rounded-full;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-clay-blue-400 rounded-full shadow-clay-sm;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-clay-blue-500;
+}
+
+/* Loading skeleton */
+.clay-skeleton {
+  @apply bg-gray-200 rounded-clay animate-pulse;
+  background: linear-gradient(
+    90deg,
+    rgba(229, 231, 235, 1) 0%,
+    rgba(243, 244, 246, 1) 50%,
+    rgba(229, 231, 235, 1) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Print styles */
+@media print {
+  .clay-blob-bg::before,
+  .clay-blob-bg::after {
+    display: none;
+  }
+
+  .shadow-clay,
+  .shadow-clay-sm,
+  .shadow-clay-lg {
+    box-shadow: none !important;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

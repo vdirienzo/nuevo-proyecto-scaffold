@@ -1,0 +1,163 @@
+/**
+ * Tailwind CSS Configuration - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Features soft, tactile UI with inset/outset shadows
+ */
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  darkMode: 'class',
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/**/*.{js,ts,jsx,tsx,mdx,vue}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // Light mode neumorphism
+        neu: {
+          light: {
+            bg: '#e0e5ec',
+            shadow: {
+              dark: '#a3b1c6',
+              light: '#ffffff',
+            },
+            text: {
+              primary: '#1a1a1a',
+              secondary: '#5a6a7a',
+              muted: '#9aa5b1',
+            },
+          },
+        },
+        // Dark mode neumorphism
+        'neu-dark': {
+          bg: '#2d2d2d',
+          shadow: {
+            dark: '#1a1a1a',
+            light: '#404040',
+          },
+          text: {
+            primary: '#e0e5ec',
+            secondary: '#b0b8c1',
+            muted: '#7a8a9a',
+          },
+        },
+      },
+      boxShadow: {
+        // Light mode shadows
+        'neu-flat': '8px 8px 16px #b8bec7, -8px -8px 16px #ffffff',
+        'neu-pressed': 'inset 8px 8px 16px #b8bec7, inset -8px -8px 16px #ffffff',
+        'neu-concave': 'inset 4px 4px 8px #b8bec7, inset -4px -4px 8px #ffffff',
+        'neu-convex': '4px 4px 8px #b8bec7, -4px -4px 8px #ffffff',
+        'neu-raised': '12px 12px 24px #b8bec7, -12px -12px 24px #ffffff',
+        'neu-hover': '6px 6px 12px #b8bec7, -6px -6px 12px #ffffff',
+        'neu-focus': '0 0 0 3px rgba(184, 190, 199, 0.3)',
+
+        // Dark mode shadows
+        'neu-flat-dark': '8px 8px 16px #1a1a1a, -8px -8px 16px #404040',
+        'neu-pressed-dark': 'inset 8px 8px 16px #1a1a1a, inset -8px -8px 16px #404040',
+        'neu-concave-dark': 'inset 4px 4px 8px #1a1a1a, inset -4px -4px 8px #404040',
+        'neu-convex-dark': '4px 4px 8px #1a1a1a, -4px -4px 8px #404040',
+        'neu-raised-dark': '12px 12px 24px #1a1a1a, -12px -12px 24px #404040',
+        'neu-hover-dark': '6px 6px 12px #1a1a1a, -6px -6px 12px #404040',
+        'neu-focus-dark': '0 0 0 3px rgba(64, 64, 64, 0.5)',
+      },
+      borderRadius: {
+        'soft-sm': '8px',
+        'soft-md': '12px',
+        'soft-lg': '16px',
+        'soft-xl': '20px',
+        'soft-2xl': '24px',
+        'soft-full': '9999px',
+      },
+      spacing: {
+        'neu': '16px',
+        'neu-sm': '12px',
+        'neu-lg': '20px',
+      },
+      transitionProperty: {
+        'neu': 'box-shadow, transform, background-color',
+      },
+      transitionDuration: {
+        'neu': '200ms',
+      },
+      transitionTimingFunction: {
+        'neu': 'cubic-bezier(0.4, 0, 0.2, 1)',
+      },
+      animation: {
+        'neu-press': 'neu-press 0.2s ease-out',
+        'neu-release': 'neu-release 0.2s ease-out',
+      },
+      keyframes: {
+        'neu-press': {
+          '0%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(0.98)' },
+          '100%': { transform: 'scale(1)' },
+        },
+        'neu-release': {
+          '0%': { transform: 'scale(0.98)' },
+          '100%': { transform: 'scale(1)' },
+        },
+      },
+    },
+  },
+  plugins: [
+    function ({ addUtilities, theme }) {
+      const newUtilities = {
+        '.neu-surface': {
+          backgroundColor: theme('colors.neu.light.bg'),
+          boxShadow: theme('boxShadow.neu-flat'),
+          transition: theme('transitionProperty.neu'),
+          transitionDuration: theme('transitionDuration.neu'),
+          transitionTimingFunction: theme('transitionTimingFunction.neu'),
+        },
+        '.dark .neu-surface': {
+          backgroundColor: theme('colors.neu-dark.bg'),
+          boxShadow: theme('boxShadow.neu-flat-dark'),
+        },
+        '.neu-pressed': {
+          boxShadow: theme('boxShadow.neu-pressed'),
+        },
+        '.dark .neu-pressed': {
+          boxShadow: theme('boxShadow.neu-pressed-dark'),
+        },
+        '.neu-convex': {
+          boxShadow: theme('boxShadow.neu-convex'),
+        },
+        '.dark .neu-convex': {
+          boxShadow: theme('boxShadow.neu-convex-dark'),
+        },
+        '.neu-concave': {
+          boxShadow: theme('boxShadow.neu-concave'),
+        },
+        '.dark .neu-concave': {
+          boxShadow: theme('boxShadow.neu-concave-dark'),
+        },
+        '.neu-text': {
+          color: theme('colors.neu.light.text.primary'),
+        },
+        '.dark .neu-text': {
+          color: theme('colors.neu-dark.text.primary'),
+        },
+        '.neu-text-secondary': {
+          color: theme('colors.neu.light.text.secondary'),
+        },
+        '.dark .neu-text-secondary': {
+          color: theme('colors.neu-dark.text.secondary'),
+        },
+        '.neu-text-muted': {
+          color: theme('colors.neu.light.text.muted'),
+        },
+        '.dark .neu-text-muted': {
+          color: theme('colors.neu-dark.text.muted'),
+        },
+      };
+      addUtilities(newUtilities, ['responsive', 'hover', 'dark']);
+    },
+  ],
+};

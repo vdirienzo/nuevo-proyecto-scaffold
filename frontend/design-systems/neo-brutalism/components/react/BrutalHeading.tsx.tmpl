@@ -1,0 +1,120 @@
+/**
+ * BrutalHeading.tsx - Neo-Brutalism heading component
+ *
+ * Autor: Homero Thompson del Lago del Terror
+ * Project: {{PROJECT_NAME}}
+ */
+
+import React from 'react'
+import { cn } from '@/lib/utils'
+
+export interface BrutalHeadingProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl'
+  highlight?: {
+    text: string
+    color: 'yellow' | 'magenta' | 'cyan' | 'lime'
+  }
+  strikethrough?: {
+    text: string
+  }
+  rotate?: number
+  uppercase?: boolean
+  children: React.ReactNode
+}
+
+const BrutalHeading = React.forwardRef<HTMLHeadingElement, BrutalHeadingProps>(
+  (
+    {
+      as: Component = 'h1',
+      size = '2xl',
+      highlight,
+      strikethrough,
+      rotate,
+      uppercase = false,
+      className,
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const sizeClasses = {
+      sm: 'text-brutal-3xl',
+      md: 'text-brutal-4xl',
+      lg: 'text-brutal-5xl',
+      xl: 'text-brutal-6xl',
+      '2xl': 'text-brutal-7xl',
+      '3xl': 'text-brutal-8xl',
+      '4xl': 'text-brutal-9xl',
+      '5xl': 'text-[10rem] leading-none',
+      '6xl': 'text-[12rem] leading-none',
+    }
+
+    const highlightClasses = {
+      yellow: 'marker-highlight',
+      magenta: 'marker-highlight-magenta',
+      cyan: 'marker-highlight-cyan',
+      lime: 'marker-highlight',
+    }
+
+    const processChildren = (children: React.ReactNode): React.ReactNode => {
+      if (typeof children !== 'string') return children
+
+      let processed: React.ReactNode = children
+
+      // Apply highlight
+      if (highlight) {
+        const parts = children.split(highlight.text)
+        processed = parts.map((part, index) => (
+          <React.Fragment key={index}>
+            {part}
+            {index < parts.length - 1 && (
+              <span className={highlightClasses[highlight.color]}>
+                {highlight.text}
+              </span>
+            )}
+          </React.Fragment>
+        ))
+      }
+
+      // Apply strikethrough
+      if (strikethrough && typeof processed === 'string') {
+        const parts = processed.split(strikethrough.text)
+        processed = parts.map((part, index) => (
+          <React.Fragment key={index}>
+            {part}
+            {index < parts.length - 1 && (
+              <span className="text-strikethrough-brutal">
+                {strikethrough.text}
+              </span>
+            )}
+          </React.Fragment>
+        ))
+      }
+
+      return processed
+    }
+
+    return (
+      <Component
+        ref={ref as any}
+        className={cn(
+          'font-clash font-bold leading-none',
+          sizeClasses[size],
+          uppercase && 'uppercase tracking-tight',
+          className
+        )}
+        style={{
+          transform: rotate ? `rotate(${rotate}deg)` : undefined,
+        }}
+        {...props}
+      >
+        {processChildren(children)}
+      </Component>
+    )
+  }
+)
+
+BrutalHeading.displayName = 'BrutalHeading'
+
+export default BrutalHeading

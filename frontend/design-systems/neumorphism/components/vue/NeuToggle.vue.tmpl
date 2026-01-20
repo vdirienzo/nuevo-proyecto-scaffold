@@ -1,0 +1,159 @@
+<template>
+  <div :class="wrapperClasses">
+    <label
+      v-if="label && labelPosition === 'left'"
+      :for="toggleId"
+      :class="labelClasses"
+    >
+      {{ label }}
+    </label>
+
+    <label :for="toggleId" :class="trackClasses">
+      <input
+        :id="toggleId"
+        ref="inputRef"
+        type="checkbox"
+        :checked="modelValue"
+        :disabled="disabled"
+        class="sr-only"
+        @change="handleChange"
+        v-bind="$attrs"
+      />
+      <span :class="knobClasses" />
+    </label>
+
+    <label
+      v-if="label && labelPosition === 'right'"
+      :for="toggleId"
+      :class="labelClasses"
+    >
+      {{ label }}
+    </label>
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * NeuToggle Component - Neumorphism Design System (Vue 3)
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Toggle switch with inset track and raised knob
+ */
+
+import { computed, useId, ref } from 'vue';
+
+export interface NeuToggleProps {
+  /** v-model checked state */
+  modelValue?: boolean;
+  /** Label text */
+  label?: string;
+  /** Label position */
+  labelPosition?: 'left' | 'right';
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Disabled state */
+  disabled?: boolean;
+}
+
+const props = withDefaults(defineProps<NeuToggleProps>(), {
+  modelValue: false,
+  labelPosition: 'right',
+  size: 'md',
+  disabled: false,
+});
+
+const emit = defineEmits<{
+  'update:modelValue': [value: boolean];
+}>();
+
+const inputRef = ref<HTMLInputElement>();
+const toggleId = `neu-toggle-${useId()}`;
+
+const handleChange = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  emit('update:modelValue', target.checked);
+};
+
+// Size dimensions
+const dimensions = computed(() => {
+  if (props.size === 'sm') {
+    return { track: 'w-10 h-5', knob: 'w-4 h-4', translate: 'translate-x-5' };
+  } else if (props.size === 'md') {
+    return { track: 'w-14 h-7', knob: 'w-6 h-6', translate: 'translate-x-7' };
+  } else {
+    return { track: 'w-18 h-9', knob: 'w-8 h-8', translate: 'translate-x-9' };
+  }
+});
+
+const wrapperClasses = computed(() => {
+  const classes = ['inline-flex items-center gap-3'];
+  if (props.disabled) classes.push('neu-disabled');
+  return classes.join(' ');
+});
+
+const trackClasses = computed(() => {
+  return [
+    'relative inline-flex items-center shrink-0',
+    'rounded-soft-full cursor-pointer transition-neu',
+    'neu-pressed',
+    dimensions.value.track,
+  ].join(' ');
+});
+
+const knobClasses = computed(() => {
+  const classes = [
+    'absolute left-0.5 top-1/2 -translate-y-1/2',
+    'rounded-full transition-all duration-300',
+    'neu-surface',
+    dimensions.value.knob,
+  ];
+
+  if (props.modelValue) {
+    classes.push(dimensions.value.translate);
+  }
+
+  return classes.join(' ');
+});
+
+const labelClasses = computed(() => {
+  const classes = ['select-none cursor-pointer neu-text'];
+
+  if (props.size === 'sm') classes.push('text-sm');
+  else if (props.size === 'md') classes.push('text-base');
+  else if (props.size === 'lg') classes.push('text-lg');
+
+  return classes.join(' ');
+});
+
+defineExpose({ inputRef });
+</script>
+
+<!--
+Usage Examples:
+
+// Basic toggle
+<NeuToggle v-model="enabled" />
+
+// With label
+<NeuToggle v-model="notifications" label="Enable notifications" />
+
+// Label on left
+<NeuToggle v-model="darkMode" label="Dark mode" label-position="left" />
+
+// Sizes
+<NeuToggle v-model="enabled" size="sm" label="Small" />
+<NeuToggle v-model="enabled" size="lg" label="Large" />
+
+// Disabled
+<NeuToggle v-model="enabled" :disabled="true" label="Disabled" />
+<NeuToggle :model-value="true" :disabled="true" label="Disabled (on)" />
+
+// With change handler
+<NeuToggle
+  v-model="settings.autoSave"
+  label="Auto-save"
+  @update:model-value="handleAutoSaveChange"
+/>
+-->

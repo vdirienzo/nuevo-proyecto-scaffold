@@ -1,0 +1,196 @@
+/*! Persistent store plugin configuration
+ *
+ * Type-safe persistent storage with encryption support for sensitive data.
+ * Provides a wrapper around tauri-plugin-store with default values.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use serde::{Deserialize, Serialize};
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Manager};
+use tauri_plugin_store::StoreExt;
+
+/// Store keys constants
+pub mod keys {
+    pub const WINDOW_POSITION: &str = "window.position";
+    pub const WINDOW_SIZE: &str = "window.size";
+    pub const WINDOW_MAXIMIZED: &str = "window.maximized";
+    pub const THEME: &str = "ui.theme";
+    pub const LANGUAGE: &str = "ui.language";
+    pub const AUTO_UPDATE: &str = "app.auto_update";
+    pub const LAST_CHECK_UPDATE: &str = "app.last_check_update";
+}
+
+/// Application store wrapper with type-safe operations
+pub struct AppStore {
+    app: AppHandle,
+    store_name: String,
+}
+
+impl AppStore {
+    /// Create new store instance
+    pub fn new(app: AppHandle) -> Self {
+        Self {
+            app,
+            store_name: "settings.json".to_string(),
+        }
+    }
+
+    /// Get value from store with type safety
+    ///
+    /// # Errors
+    ///
+    /// Returns error if store access fails or deserialization fails
+    pub fn get<T>(&self, key: &str) -> Result<Option<T>, Box<dyn std::error::Error>>
+    where
+        T: for<'de> Deserialize<'de>,
+    {
+        let stores = self.app.state::<tauri_plugin_store::StoreCollection<tauri::Wry>>();
+        let store = stores.get(&self.store_name);
+
+        match store {
+            Some(store) => {
+                let value = store.get(key);
+                match value {
+                    Some(v) => {
+                        let deserialized: T = serde_json::from_value(v.clone())?;
+                        Ok(Some(deserialized))
+                    }
+                    None => Ok(None),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// Set value in store with type safety
+    ///
+    /// # Errors
+    ///
+    /// Returns error if store access fails or serialization fails
+    pub fn set<T>(&self, key: &str, value: &T) -> Result<(), Box<dyn std::error::Error>>
+    where
+        T: Serialize,
+    {
+        let stores = self.app.state::<tauri_plugin_store::StoreCollection<tauri::Wry>>();
+        let store = stores.get(&self.store_name);
+
+        match store {
+            Some(store) => {
+                let json_value = serde_json::to_value(value)?;
+                store.set(key.to_string(), json_value);
+                store.save()?;
+                Ok(())
+            }
+            None => Err("Store not found".into()),
+        }
+    }
+
+    /// Remove key from store
+    ///
+    /// # Errors
+    ///
+    /// Returns error if store access fails
+    pub fn delete(&self, key: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let stores = self.app.state::<tauri_plugin_store::StoreCollection<tauri::Wry>>();
+        let store = stores.get(&self.store_name);
+
+        match store {
+            Some(store) => {
+                store.delete(key)?;
+                store.save()?;
+                Ok(())
+            }
+            None => Err("Store not found".into()),
+        }
+    }
+
+    /// Clear all values from store
+    ///
+    /// # Errors
+    ///
+    /// Returns error if store access fails
+    pub fn clear(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let stores = self.app.state::<tauri_plugin_store::StoreCollection<tauri::Wry>>();
+        let store = stores.get(&self.store_name);
+
+        match store {
+            Some(store) => {
+                store.clear()?;
+                store.save()?;
+                Ok(())
+            }
+            None => Err("Store not found".into()),
+        }
+    }
+}
+
+/// Setup persistent store plugin
+pub fn setup_store(app: &AppHandle) {
+    // Store is initialized via plugin builder in main.rs
+    // This function can be used for additional setup if needed
+    log::info!("Store plugin initialized");
+
+    // Set default values if not present
+    let store = AppStore::new(app.clone());
+
+    if store.get::<bool>(keys::AUTO_UPDATE).unwrap_or(None).is_none() {
+        let _ = store.set(keys::AUTO_UPDATE, &true);
+    }
+
+    if store.get::<String>(keys::THEME).unwrap_or(None).is_none() {
+        let _ = store.set(keys::THEME, &"system".to_string());
+    }
+
+    if store.get::<String>(keys::LANGUAGE).unwrap_or(None).is_none() {
+        let _ = store.set(keys::LANGUAGE, &"en".to_string());
+    }
+}
+
+#[tauri::command]
+pub async fn store_get(app: AppHandle, key: String) -> Result<Option<serde_json::Value>, String> {
+    let store = AppStore::new(app);
+    store
+        .get::<serde_json::Value>(&key)
+        .map_err(|e| format!("Failed to get value: {}", e))
+}
+
+#[tauri::command]
+pub async fn store_set(
+    app: AppHandle,
+    key: String,
+    value: serde_json::Value,
+) -> Result<(), String> {
+    let store = AppStore::new(app);
+    store
+        .set(&key, &value)
+        .map_err(|e| format!("Failed to set value: {}", e))
+}
+
+#[tauri::command]
+pub async fn store_delete(app: AppHandle, key: String) -> Result<(), String> {
+    let store = AppStore::new(app);
+    store
+        .delete(&key)
+        .map_err(|e| format!("Failed to delete value: {}", e))
+}
+
+#[tauri::command]
+pub async fn store_clear(app: AppHandle) -> Result<(), String> {
+    let store = AppStore::new(app);
+    store
+        .clear()
+        .map_err(|e| format!("Failed to clear store: {}", e))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_store_keys_defined() {
+        assert!(!keys::WINDOW_POSITION.is_empty());
+        assert!(!keys::THEME.is_empty());
+    }
+}

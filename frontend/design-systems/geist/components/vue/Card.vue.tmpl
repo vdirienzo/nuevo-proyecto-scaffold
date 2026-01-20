@@ -1,0 +1,114 @@
+<template>
+  <div :class="cardClasses">
+    <!-- Header -->
+    <div
+      v-if="$slots.header"
+      class="border-b border-geist-gray-800 -mx-6 -mt-6 px-6 py-4 mb-6"
+    >
+      <slot name="header" />
+    </div>
+
+    <!-- Content -->
+    <div>
+      <slot />
+    </div>
+
+    <!-- Footer -->
+    <div
+      v-if="$slots.footer"
+      class="border-t border-geist-gray-800 -mx-6 -mb-6 px-6 py-4 mt-6"
+    >
+      <slot name="footer" />
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * Card.vue - Geist design system Card component (Vue 3)
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Dark card with subtle border, hover effects, and gradient glow.
+ */
+
+import { computed } from 'vue';
+
+interface Props {
+  variant?: 'default' | 'elevated' | 'glass' | 'gradient';
+  hover?: 'none' | 'lift' | 'glow' | 'scale';
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'default',
+  hover: 'glow',
+  padding: 'md',
+});
+
+const cardClasses = computed(() => {
+  const baseClasses = ['rounded-geist-lg', 'transition-all', 'duration-300'];
+
+  // Variant styles
+  const variantClasses = {
+    default: [
+      'bg-geist-black-card',
+      'border',
+      'border-geist-gray-800',
+      'shadow-geist',
+    ],
+    elevated: [
+      'bg-geist-black-card',
+      'border',
+      'border-geist-gray-800',
+      'shadow-geist-md',
+    ],
+    glass: [
+      'bg-geist-black-card/50',
+      'backdrop-blur-geist',
+      'border',
+      'border-geist-gray-800',
+      'shadow-geist',
+    ],
+    gradient: [
+      'bg-geist-black-card',
+      'relative',
+      'overflow-hidden',
+      'before:absolute',
+      'before:inset-0',
+      'before:rounded-[inherit]',
+      'before:p-[1px]',
+      'before:bg-gradient-to-br',
+      'before:from-geist-blue',
+      'before:via-geist-violet',
+      'before:to-geist-magenta',
+      'before:-z-10',
+      'shadow-geist',
+    ],
+  };
+
+  // Hover styles
+  const hoverClasses = {
+    none: [],
+    lift: ['hover:shadow-geist-md', 'hover:-translate-y-1'],
+    glow: ['hover:shadow-geist-glow-blue', 'hover:border-geist-gray-700'],
+    scale: ['hover:scale-[1.02]'],
+  };
+
+  // Padding styles
+  const paddingClasses = {
+    none: ['p-0'],
+    sm: ['p-4'],
+    md: ['p-6'],
+    lg: ['p-8'],
+  };
+
+  return [
+    ...baseClasses,
+    ...variantClasses[props.variant],
+    ...hoverClasses[props.hover],
+    ...paddingClasses[props.padding],
+  ].join(' ');
+});
+</script>

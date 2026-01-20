@@ -1,0 +1,193 @@
+<script setup lang="ts">
+/**
+ * UpdateNotification.vue - Update notification component
+ *
+ * Autor: {{AUTHOR}}
+ */
+
+import { ref, onMounted } from 'vue';
+import { check, type Update } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+
+interface Props {
+  onDismiss?: () => void;
+}
+
+const props = defineProps<Props>();
+
+const updateAvailable = ref(false);
+const updateVersion = ref('');
+const downloading = ref(false);
+const downloadProgress = ref(0);
+const error = ref<string | null>(null);
+const installing = ref(false);
+
+onMounted(() => {
+  checkForUpdates();
+});
+
+async function checkForUpdates() {
+  try {
+    const update = await check();
+    if (update?.available) {
+      updateAvailable.value = true;
+      updateVersion.value = update.version;
+    }
+  } catch (err) {
+    console.error('Failed to check for updates:', err);
+    error.value = 'Failed to check for updates';
+  }
+}
+
+async function handleUpdate() {
+  downloading.value = true;
+  error.value = null;
+
+  try {
+    const update = await check();
+    if (!update?.available) {
+      error.value = 'No update available';
+      return;
+    }
+
+    // Download update with progress tracking
+    await update.downloadAndInstall((event) => {
+      switch (event.event) {
+        case 'Started':
+          downloadProgress.value = 0;
+          break;
+        case 'Progress':
+          downloadProgress.value = (event.data.chunkLength / event.data.contentLength) * 100;
+          break;
+        case 'Finished':
+          downloadProgress.value = 100;
+          downloading.value = false;
+          installing.value = true;
+          break;
+      }
+    });
+
+    // Relaunch after installation
+    await relaunch();
+  } catch (err) {
+    console.error('Failed to install update:', err);
+    error.value = 'Failed to install update';
+    downloading.value = false;
+    installing.value = false;
+  }
+}
+
+function handleDismiss() {
+  updateAvailable.value = false;
+  props.onDismiss?.();
+}
+</script>
+
+<template>
+  <div
+    v-if="updateAvailable"
+    class="fixed bottom-4 right-4 max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50"
+    role="alert"
+    aria-live="polite"
+  >
+    <div class="flex items-start gap-3">
+      <div class="flex-shrink-0">
+        <svg
+          class="w-6 h-6 text-blue-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+          />
+        </svg>
+      </div>
+
+      <div class="flex-1">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+          Update Available
+        </h3>
+        <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+          Version {{ updateVersion }} is ready to install
+        </p>
+
+        <p
+          v-if="error"
+          class="mt-2 text-sm text-red-600 dark:text-red-400"
+          role="alert"
+        >
+          {{ error }}
+        </p>
+
+        <div v-if="downloading" class="mt-3">
+          <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+            <span>Downloading...</span>
+            <span>{{ Math.round(downloadProgress) }}%</span>
+          </div>
+          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+            <div
+              class="bg-blue-500 h-2 rounded-full transition-all duration-300"
+              :style="{ width: `${downloadProgress}%` }"
+              role="progressbar"
+              :aria-valuenow="downloadProgress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            />
+          </div>
+        </div>
+
+        <p
+          v-if="installing"
+          class="mt-2 text-sm text-blue-600 dark:text-blue-400"
+        >
+          Installing update... Application will restart shortly.
+        </p>
+
+        <div
+          v-if="!downloading && !installing"
+          class="mt-3 flex gap-2"
+        >
+          <button
+            @click="handleUpdate"
+            class="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+            aria-label="Install update and restart"
+          >
+            Install & Restart
+          </button>
+          <button
+            @click="handleDismiss"
+            class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+            aria-label="Dismiss update notification"
+          >
+            Later
+          </button>
+        </div>
+      </div>
+
+      <button
+        v-if="!downloading && !installing"
+        @click="handleDismiss"
+        class="flex-shrink-0 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors"
+        aria-label="Close notification"
+      >
+        <svg
+          class="w-5 h-5"
+          fill="currentColor"
+          viewBox="0 0 20 20"
+          aria-hidden="true"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </button>
+    </div>
+  </div>
+</template>

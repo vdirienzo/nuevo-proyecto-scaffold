@@ -1,0 +1,256 @@
+/*! Authentication Commands - User authentication and session management
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use serde::{Deserialize, Serialize};
+use tauri::State;
+
+use crate::error::AppError;
+use crate::state::AppState;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoginCredentials {
+    pub username: String,
+    pub password: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub id: String,
+    pub username: String,
+    pub email: Option<String>,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthResponse {
+    pub user: User,
+    pub token: String,
+    pub expires_at: i64,
+}
+
+/// Authenticate user with credentials
+///
+/// Validates credentials and establishes an authenticated session.
+///
+/// # Arguments
+/// * `credentials` - Username and password
+/// * `state` - Application state for session storage
+///
+/// # Returns
+/// Authentication response with user info and session token.
+#[tauri::command]
+pub async fn login(
+    credentials: LoginCredentials,
+    state: State<'_, AppState>,
+) -> Result<AuthResponse, AppError> {
+    // Validate input
+    if credentials.username.is_empty() {
+        return Err(AppError::Validation("Username is required".to_string()));
+    }
+    if credentials.password.is_empty() {
+        return Err(AppError::Validation("Password is required".to_string()));
+    }
+
+    // TODO: Replace with actual authentication logic
+    // This is a placeholder that should integrate with your auth backend
+
+    // Simulate API call delay
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // For demonstration - replace with real authentication
+    if credentials.username == "demo" && credentials.password == "demo" {
+        let user = User {
+            id: "user-123".to_string(),
+            username: credentials.username.clone(),
+            email: Some(format!("{}@example.com", credentials.username)),
+            display_name: Some(credentials.username.clone()),
+        };
+
+        let token = format!("token-{}", uuid::Uuid::new_v4());
+        let expires_at = chrono::Utc::now().timestamp() + 3600; // 1 hour
+
+        // Store auth state
+        let mut auth = state.auth.lock().await;
+        auth.user = Some(user.clone());
+        auth.token = Some(token.clone());
+        auth.expires_at = Some(expires_at);
+
+        Ok(AuthResponse {
+            user,
+            token,
+            expires_at,
+        })
+    } else {
+        Err(AppError::Unauthorized("Invalid credentials".to_string()))
+    }
+}
+
+/// Log out the current user
+///
+/// Clears all authentication state and invalidates the session.
+#[tauri::command]
+pub async fn logout(state: State<'_, AppState>) -> Result<(), AppError> {
+    let mut auth = state.auth.lock().await;
+    auth.user = None;
+    auth.token = None;
+    auth.expires_at = None;
+
+    Ok(())
+}
+
+/// Get the currently authenticated user
+///
+/// Returns user information if a valid session exists, otherwise returns an error.
+#[tauri::command]
+pub async fn get_current_user(state: State<'_, AppState>) -> Result<User, AppError> {
+    let auth = state.auth.lock().await;
+
+    // Check if token is expired
+    if let Some(expires_at) = auth.expires_at {
+        let now = chrono::Utc::now().timestamp();
+        if now > expires_at {
+            return Err(AppError::Unauthorized("Session expired".to_string()));
+        }
+    }
+
+    auth.user
+        .clone()
+        .ok_or_else(|| AppError::Unauthorized("Not authenticated".to_string()))
+}
+
+/// Check if user is authenticated
+///
+/// Returns true if a valid session exists, false otherwise.
+#[tauri::command]
+pub async fn check_auth(state: State<'_, AppState>) -> Result<bool, AppError> {
+    let auth = state.auth.lock().await;
+
+    if auth.user.is_none() || auth.token.is_none() {
+        return Ok(false);
+    }
+
+    // Check if token is expired
+    if let Some(expires_at) = auth.expires_at {
+        let now = chrono::Utc::now().timestamp();
+        if now > expires_at {
+            return Ok(false);
+        }
+    }
+
+    Ok(true)
+}
+
+/// Refresh authentication token
+///
+/// Extends the current session by issuing a new token.
+#[tauri::command]
+pub async fn refresh_token(state: State<'_, AppState>) -> Result<AuthResponse, AppError> {
+    let mut auth = state.auth.lock().await;
+
+    let user = auth
+        .user
+        .clone()
+        .ok_or_else(|| AppError::Unauthorized("Not authenticated".to_string()))?;
+
+    // Check if current token is expired
+    if let Some(expires_at) = auth.expires_at {
+        let now = chrono::Utc::now().timestamp();
+        if now > expires_at {
+            return Err(AppError::Unauthorized("Session expired".to_string()));
+        }
+    }
+
+    // Issue new token
+    let token = format!("token-{}", uuid::Uuid::new_v4());
+    let expires_at = chrono::Utc::now().timestamp() + 3600;
+
+    auth.token = Some(token.clone());
+    auth.expires_at = Some(expires_at);
+
+    Ok(AuthResponse {
+        user,
+        token,
+        expires_at,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::state::AuthState;
+    use tokio::sync::Mutex;
+
+    fn create_test_state() -> AppState {
+        AppState {
+            auth: Mutex::new(AuthState {
+                user: None,
+                token: None,
+                expires_at: None,
+            }),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_login_validation() {
+        let state = State::from(&create_test_state());
+
+        let result = login(
+            LoginCredentials {
+                username: "".to_string(),
+                password: "pass".to_string(),
+            },
+            state.clone(),
+        )
+        .await;
+
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_logout() {
+        let state = State::from(&create_test_state());
+
+        // Login first
+        let _ = login(
+            LoginCredentials {
+                username: "demo".to_string(),
+                password: "demo".to_string(),
+            },
+            state.clone(),
+        )
+        .await;
+
+        // Then logout
+        let result = logout(state.clone()).await;
+        assert!(result.is_ok());
+
+        // Verify user is logged out
+        let is_auth = check_auth(state).await.unwrap();
+        assert!(!is_auth);
+    }
+
+    #[tokio::test]
+    async fn test_check_auth() {
+        let state = State::from(&create_test_state());
+
+        // Not authenticated initially
+        let is_auth = check_auth(state.clone()).await.unwrap();
+        assert!(!is_auth);
+
+        // Login
+        let _ = login(
+            LoginCredentials {
+                username: "demo".to_string(),
+                password: "demo".to_string(),
+            },
+            state.clone(),
+        )
+        .await;
+
+        // Now authenticated
+        let is_auth = check_auth(state).await.unwrap();
+        assert!(is_auth);
+    }
+}

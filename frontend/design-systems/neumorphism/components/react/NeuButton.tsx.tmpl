@@ -1,0 +1,161 @@
+/**
+ * NeuButton Component - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Tactile button with raised/flat/pressed variants
+ */
+
+import React, { useState, ButtonHTMLAttributes } from 'react';
+import { cn } from '@/lib/utils'; // or use clsx/classnames
+
+export interface NeuButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Visual variant */
+  variant?: 'raised' | 'flat' | 'pressed';
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Full width */
+  fullWidth?: boolean;
+  /** Loading state */
+  loading?: boolean;
+  /** Icon only mode */
+  iconOnly?: boolean;
+  children: React.ReactNode;
+}
+
+const NeuButton = React.forwardRef<HTMLButtonElement, NeuButtonProps>(
+  (
+    {
+      variant = 'raised',
+      size = 'md',
+      fullWidth = false,
+      loading = false,
+      iconOnly = false,
+      disabled,
+      className,
+      children,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
+    const [isPressed, setIsPressed] = useState(false);
+
+    const handleMouseDown = () => {
+      if (!disabled && !loading) {
+        setIsPressed(true);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsPressed(false);
+    };
+
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (!disabled && !loading && onClick) {
+        onClick(e);
+      }
+    };
+
+    const baseStyles = cn(
+      'inline-flex items-center justify-center',
+      'font-medium tracking-wide',
+      'transition-neu focus:outline-none',
+      'rounded-soft-md',
+      'neu-text',
+      'select-none',
+      // Size variants
+      {
+        'px-3 py-1.5 text-sm gap-1.5': size === 'sm',
+        'px-5 py-2.5 text-base gap-2': size === 'md',
+        'px-7 py-3.5 text-lg gap-2.5': size === 'lg',
+      },
+      // Icon only
+      {
+        'aspect-square p-2': iconOnly && size === 'sm',
+        'aspect-square p-3': iconOnly && size === 'md',
+        'aspect-square p-4': iconOnly && size === 'lg',
+      },
+      // Full width
+      fullWidth && 'w-full',
+      // Disabled
+      (disabled || loading) && 'neu-disabled',
+      className
+    );
+
+    const variantStyles = cn({
+      // Raised (default) - convex shadow
+      'neu-surface': variant === 'raised' && !isPressed,
+      'neu-pressed': variant === 'raised' && isPressed,
+      'hover:shadow-neu-hover dark:hover:shadow-neu-hover-dark':
+        variant === 'raised' && !disabled && !loading,
+      'active:shadow-neu-pressed dark:active:shadow-neu-pressed-dark':
+        variant === 'raised' && !disabled && !loading,
+
+      // Flat - minimal shadow
+      'neu-convex': variant === 'flat' && !isPressed,
+      'neu-concave': variant === 'flat' && isPressed,
+      'hover:shadow-neu-convex dark:hover:shadow-neu-convex-dark':
+        variant === 'flat' && !disabled && !loading,
+
+      // Pressed - always inset
+      'neu-pressed': variant === 'pressed',
+      'hover:opacity-80': variant === 'pressed' && !disabled && !loading,
+    });
+
+    return (
+      <button
+        ref={ref}
+        type="button"
+        className={cn(baseStyles, variantStyles)}
+        disabled={disabled || loading}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onClick={handleClick}
+        {...props}
+      >
+        {loading ? (
+          <span className="inline-block w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        ) : null}
+        {children}
+      </button>
+    );
+  }
+);
+
+NeuButton.displayName = 'NeuButton';
+
+export default NeuButton;
+
+/**
+ * Usage Examples:
+ *
+ * // Raised button (default)
+ * <NeuButton>Click me</NeuButton>
+ *
+ * // Flat button
+ * <NeuButton variant="flat">Flat</NeuButton>
+ *
+ * // Pressed/inset button
+ * <NeuButton variant="pressed">Pressed</NeuButton>
+ *
+ * // Sizes
+ * <NeuButton size="sm">Small</NeuButton>
+ * <NeuButton size="lg">Large</NeuButton>
+ *
+ * // Loading state
+ * <NeuButton loading>Loading...</NeuButton>
+ *
+ * // Disabled
+ * <NeuButton disabled>Disabled</NeuButton>
+ *
+ * // Icon only
+ * <NeuButton iconOnly>
+ *   <IconComponent />
+ * </NeuButton>
+ *
+ * // Full width
+ * <NeuButton fullWidth>Full Width</NeuButton>
+ */

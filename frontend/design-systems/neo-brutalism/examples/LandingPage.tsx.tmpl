@@ -1,0 +1,370 @@
+/**
+ * LandingPage.tsx - Neo-Brutalism Design System Landing Page Example
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * Bold, unapologetic neo-brutalist landing page with thick borders and high contrast.
+ * Design principles: Raw, bold, functional, anti-design.
+ */
+
+import React from 'react';
+import { BrutalButton } from '../components/react/BrutalButton';
+import { BrutalCard } from '../components/react/BrutalCard';
+import { BrutalInput } from '../components/react/BrutalInput';
+import { BrutalHeading } from '../components/react/BrutalHeading';
+import { BrutalLink } from '../components/react/BrutalLink';
+import { BrutalMarquee } from '../components/react/BrutalMarquee';
+import { BrutalSticker } from '../components/react/BrutalSticker';
+import { BrutalGrid } from '../components/react/BrutalGrid';
+
+const LandingPage: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Navbar - Thick borders and bold */}
+      <nav className="border-b-8 border-black bg-yellow-300">
+        <div className="container mx-auto px-6 py-6 flex items-center justify-between">
+          <div className="font-black text-3xl">{{PROJECT_NAME}}</div>
+          <div className="flex gap-4">
+            <BrutalLink href="#">FEATURES</BrutalLink>
+            <BrutalLink href="#">PRICING</BrutalLink>
+            <BrutalButton variant="primary" size="sm">
+              SIGN UP
+            </BrutalButton>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section - MASSIVE heading with stickers */}
+      <section className="container mx-auto px-6 py-24 relative">
+        <div className="max-w-6xl mx-auto">
+          {/* Floating stickers */}
+          <div className="absolute -top-10 left-10 rotate-12">
+            <BrutalSticker color="pink">NEW!</BrutalSticker>
+          </div>
+          <div className="absolute top-20 right-20 -rotate-12">
+            <BrutalSticker color="cyan">HOT!</BrutalSticker>
+          </div>
+
+          <BrutalHeading level={1} className="mb-8">
+            DESIGN WITHOUT
+            <span className="block text-red-500">APOLOGIES.</span>
+          </BrutalHeading>
+
+          <p className="text-3xl font-bold mb-12 max-w-3xl leading-tight">
+            {{APP_TITLE}} is the BOLDEST, RAWTEST, most UNAPOLOGETICALLY BRUTAL design system you'll ever use.
+            No subtle shadows. No gentle curves. Just PURE, UNFILTERED DESIGN.
+          </p>
+
+          <div className="flex gap-6 flex-wrap">
+            <BrutalButton variant="primary" size="xl">
+              GET STARTED NOW →
+            </BrutalButton>
+            <BrutalButton variant="secondary" size="xl">
+              VIEW EXAMPLES
+            </BrutalButton>
+          </div>
+        </div>
+      </section>
+
+      {/* Marquee - Scrolling text */}
+      <section className="py-12 border-y-8 border-black bg-black">
+        <BrutalMarquee>
+          <span className="text-yellow-300 font-black text-4xl">
+            ★ BOLD ★ RAW ★ BRUTAL ★ UNAPOLOGETIC ★ FUNCTIONAL ★ HONEST ★
+            BOLD ★ RAW ★ BRUTAL ★ UNAPOLOGETIC ★
+          </span>
+        </BrutalMarquee>
+      </section>
+
+      {/* Features - Asymmetric grid */}
+      <section className="container mx-auto px-6 py-24">
+        <BrutalHeading level={2} className="mb-16 text-center">
+          WHY GO BRUTAL?
+        </BrutalHeading>
+
+        <BrutalGrid columns={3} gap="lg">
+          <BrutalCard className="md:col-span-2 md:row-span-2 bg-yellow-300">
+            <BrutalSticker color="pink" className="mb-4">
+              #1
+            </BrutalSticker>
+            <h3 className="text-5xl font-black mb-6">
+              NO BULLSH*T DESIGN
+            </h3>
+            <p className="text-2xl font-bold leading-tight">
+              We don't hide behind subtle gradients and gentle shadows.
+              Every element SCREAMS its purpose. Users know EXACTLY what to click.
+            </p>
+          </BrutalCard>
+
+          <BrutalCard className="bg-cyan-300">
+            <div className="text-6xl mb-4">⚡</div>
+            <h3 className="text-3xl font-black mb-3">
+              FAST AF
+            </h3>
+            <p className="text-lg font-bold">
+              No GPU-melting animations. Just instant, snappy interactions.
+            </p>
+          </BrutalCard>
+
+          <BrutalCard className="bg-pink-300">
+            <div className="text-6xl mb-4">🎯</div>
+            <h3 className="text-3xl font-black mb-3">
+              ACCESSIBLE
+            </h3>
+            <p className="text-lg font-bold">
+              High contrast = readable. Thick borders = clickable. Simple.
+            </p>
+          </BrutalCard>
+
+          <BrutalCard className="md:col-span-2 bg-lime-300">
+            <div className="text-6xl mb-4">💪</div>
+            <h3 className="text-4xl font-black mb-4">
+              BULLETPROOF CODE
+            </h3>
+            <p className="text-xl font-bold">
+              TypeScript. Zero dependencies. Works everywhere. No framework lock-in.
+            </p>
+          </BrutalCard>
+
+          <BrutalCard className="bg-orange-300">
+            <div className="text-6xl mb-4">🚀</div>
+            <h3 className="text-3xl font-black mb-3">
+              TINY SIZE
+            </h3>
+            <p className="text-lg font-bold">
+              &lt;5KB. Seriously. Check your devtools.
+            </p>
+          </BrutalCard>
+        </BrutalGrid>
+      </section>
+
+      {/* Stats - High contrast blocks */}
+      <section className="border-y-8 border-black bg-black py-16">
+        <div className="container mx-auto px-6">
+          <div className="grid md:grid-cols-4 gap-6">
+            <div className="bg-yellow-300 border-4 border-black p-8 text-center transform hover:translate-x-1 hover:translate-y-1 transition-transform">
+              <div className="text-6xl font-black mb-2">50K+</div>
+              <div className="text-xl font-bold">DOWNLOADS</div>
+            </div>
+            <div className="bg-pink-300 border-4 border-black p-8 text-center transform hover:translate-x-1 hover:translate-y-1 transition-transform">
+              <div className="text-6xl font-black mb-2">100%</div>
+              <div className="text-xl font-bold">BRUTAL</div>
+            </div>
+            <div className="bg-cyan-300 border-4 border-black p-8 text-center transform hover:translate-x-1 hover:translate-y-1 transition-transform">
+              <div className="text-6xl font-black mb-2">0</div>
+              <div className="text-xl font-bold">COMPROMISES</div>
+            </div>
+            <div className="bg-lime-300 border-4 border-black p-8 text-center transform hover:translate-x-1 hover:translate-y-1 transition-transform">
+              <div className="text-6xl font-black mb-2">∞</div>
+              <div className="text-xl font-bold">ATTITUDE</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials - Sticker style */}
+      <section className="container mx-auto px-6 py-24">
+        <BrutalHeading level={2} className="mb-16 text-center">
+          WHAT PEOPLE SAY
+        </BrutalHeading>
+
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <BrutalCard className="bg-yellow-300">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-16 h-16 bg-black text-white flex items-center justify-center text-2xl font-black border-4 border-black">
+                MK
+              </div>
+              <div>
+                <div className="font-black text-xl">MAYA KUMAR</div>
+                <div className="font-bold">Lead Designer @ TechCo</div>
+              </div>
+            </div>
+            <p className="text-xl font-bold leading-tight">
+              "Finally, a design system that doesn't try to be 'elegant' or 'minimal'.
+              It just WORKS and looks SICK."
+            </p>
+          </BrutalCard>
+
+          <BrutalCard className="bg-pink-300">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-16 h-16 bg-black text-white flex items-center justify-center text-2xl font-black border-4 border-black">
+                JL
+              </div>
+              <div>
+                <div className="font-black text-xl">JAKE LEE</div>
+                <div className="font-bold">Frontend Dev @ StartupXYZ</div>
+              </div>
+            </div>
+            <p className="text-xl font-bold leading-tight">
+              "Our CEO saw the new design and said 'THAT'S WHAT I'M TALKING ABOUT'.
+              Shipped in 2 days."
+            </p>
+          </BrutalCard>
+
+          <BrutalCard className="bg-cyan-300">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="w-16 h-16 bg-black text-white flex items-center justify-center text-2xl font-black border-4 border-black">
+                SR
+              </div>
+              <div>
+                <div className="font-black text-xl">SOFIA RUSSO</div>
+                <div className="font-bold">Product Manager</div>
+              </div>
+            </div>
+            <p className="text-xl font-bold leading-tight">
+              "Click rates went UP. Conversion went UP. Users actually NOTICE our CTAs now.
+              10/10."
+            </p>
+          </BrutalCard>
+        </div>
+      </section>
+
+      {/* Pricing - Chunky cards */}
+      <section className="container mx-auto px-6 py-24 bg-gray-100">
+        <BrutalHeading level={2} className="mb-8 text-center">
+          PRICING THAT DOESN'T SUCK
+        </BrutalHeading>
+        <p className="text-2xl font-bold text-center mb-16">
+          NO HIDDEN FEES. NO WEIRD TIERS. JUST PICK ONE.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <BrutalCard className="bg-white p-10">
+            <BrutalSticker color="cyan" className="mb-6">
+              FREE
+            </BrutalSticker>
+            <div className="text-6xl font-black mb-2">$0</div>
+            <div className="text-2xl font-bold mb-8">FOREVER</div>
+            <ul className="space-y-4 mb-10 text-xl font-bold">
+              <li>✓ ALL COMPONENTS</li>
+              <li>✓ MIT LICENSE</li>
+              <li>✓ DOCS ACCESS</li>
+            </ul>
+            <BrutalButton variant="secondary" fullWidth>
+              START NOW
+            </BrutalButton>
+          </BrutalCard>
+
+          <BrutalCard className="bg-yellow-300 p-10 transform scale-105">
+            <BrutalSticker color="pink" className="mb-6">
+              PRO
+            </BrutalSticker>
+            <div className="text-6xl font-black mb-2">$29</div>
+            <div className="text-2xl font-bold mb-8">PER MONTH</div>
+            <ul className="space-y-4 mb-10 text-xl font-bold">
+              <li>✓ EVERYTHING IN FREE</li>
+              <li>✓ PREMIUM COMPONENTS</li>
+              <li>✓ FIGMA FILES</li>
+              <li>✓ PRIORITY SUPPORT</li>
+            </ul>
+            <BrutalButton variant="primary" fullWidth>
+              GO PRO NOW →
+            </BrutalButton>
+          </BrutalCard>
+
+          <BrutalCard className="bg-white p-10">
+            <BrutalSticker color="lime" className="mb-6">
+              TEAM
+            </BrutalSticker>
+            <div className="text-6xl font-black mb-2">$99</div>
+            <div className="text-2xl font-bold mb-8">PER MONTH</div>
+            <ul className="space-y-4 mb-10 text-xl font-bold">
+              <li>✓ EVERYTHING IN PRO</li>
+              <li>✓ UNLIMITED SEATS</li>
+              <li>✓ CUSTOM COMPONENTS</li>
+              <li>✓ SLACK SUPPORT</li>
+            </ul>
+            <BrutalButton variant="secondary" fullWidth>
+              CONTACT US
+            </BrutalButton>
+          </BrutalCard>
+        </div>
+      </section>
+
+      {/* CTA - Big bold section */}
+      <section className="border-y-8 border-black bg-black py-24">
+        <div className="container mx-auto px-6 text-center">
+          <BrutalHeading level={2} className="mb-8 text-yellow-300">
+            READY TO GO BRUTAL?
+          </BrutalHeading>
+          <p className="text-3xl font-bold text-white mb-12 max-w-3xl mx-auto">
+            Stop designing like everyone else. Stand out. Be BOLD. Be BRUTAL.
+          </p>
+          <BrutalButton variant="primary" size="xl">
+            START BUILDING NOW →
+          </BrutalButton>
+        </div>
+      </section>
+
+      {/* Newsletter - High contrast form */}
+      <section className="container mx-auto px-6 py-24">
+        <BrutalCard className="max-w-3xl mx-auto bg-pink-300 p-12">
+          <h3 className="text-5xl font-black mb-4 text-center">
+            GET THE NEWSLETTER
+          </h3>
+          <p className="text-2xl font-bold text-center mb-8">
+            Weekly brutal design tips. No fluff. Pure value.
+          </p>
+          <div className="flex gap-4">
+            <BrutalInput
+              type="email"
+              placeholder="your@email.com"
+              className="flex-1"
+            />
+            <BrutalButton variant="primary" size="lg">
+              SUBSCRIBE
+            </BrutalButton>
+          </div>
+          <p className="text-center mt-4 font-bold">
+            We respect your inbox. Unsubscribe anytime.
+          </p>
+        </BrutalCard>
+      </section>
+
+      {/* Footer - Chunky and functional */}
+      <footer className="border-t-8 border-black bg-yellow-300 py-16">
+        <div className="container mx-auto px-6">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            <div>
+              <div className="text-4xl font-black mb-4">{{PROJECT_NAME}}</div>
+              <p className="text-lg font-bold">
+                Brutal design. No compromises. 100% attitude.
+              </p>
+            </div>
+            <div>
+              <div className="text-2xl font-black mb-4">PRODUCT</div>
+              <ul className="space-y-2 text-lg font-bold">
+                <li><BrutalLink href="#">FEATURES</BrutalLink></li>
+                <li><BrutalLink href="#">PRICING</BrutalLink></li>
+                <li><BrutalLink href="#">DOCS</BrutalLink></li>
+              </ul>
+            </div>
+            <div>
+              <div className="text-2xl font-black mb-4">COMPANY</div>
+              <ul className="space-y-2 text-lg font-bold">
+                <li><BrutalLink href="#">ABOUT</BrutalLink></li>
+                <li><BrutalLink href="#">BLOG</BrutalLink></li>
+                <li><BrutalLink href="#">CAREERS</BrutalLink></li>
+              </ul>
+            </div>
+            <div>
+              <div className="text-2xl font-black mb-4">LEGAL</div>
+              <ul className="space-y-2 text-lg font-bold">
+                <li><BrutalLink href="#">PRIVACY</BrutalLink></li>
+                <li><BrutalLink href="#">TERMS</BrutalLink></li>
+                <li><BrutalLink href="#">LICENSE</BrutalLink></li>
+              </ul>
+            </div>
+          </div>
+          <div className="border-t-4 border-black pt-8 text-center">
+            <p className="text-xl font-black">
+              © {new Date().getFullYear()} {{PROJECT_NAME}}. BUILT WITH PURE ATTITUDE.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default LandingPage;

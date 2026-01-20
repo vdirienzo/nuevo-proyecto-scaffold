@@ -1,0 +1,98 @@
+<!--
+BrutalCard.vue - Neo-Brutalism card component for Vue 3
+
+Autor: Homero Thompson del Lago del Terror
+Project: {{PROJECT_NAME}}
+-->
+
+<template>
+  <div
+    :class="cardClasses"
+    :style="cardStyle"
+  >
+    <div
+      v-if="sticker"
+      :class="stickerClasses"
+    >
+      {{ sticker.text }}
+    </div>
+    <slot />
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+export interface BrutalCardSticker {
+  text: string
+  color: 'yellow' | 'magenta' | 'cyan' | 'lime' | 'red'
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+}
+
+export interface BrutalCardProps {
+  variant?: 'white' | 'yellow' | 'magenta' | 'cyan' | 'lime' | 'orange'
+  shadow?: 'sm' | 'md' | 'lg' | 'xl'
+  asymmetric?: boolean
+  rotate?: number
+  sticker?: BrutalCardSticker
+}
+
+const props = withDefaults(defineProps<BrutalCardProps>(), {
+  variant: 'white',
+  shadow: 'md',
+  asymmetric: false,
+  rotate: 0,
+})
+
+const variantClasses = {
+  white: 'bg-brutal-white',
+  yellow: 'bg-brutal-yellow',
+  magenta: 'bg-brutal-magenta',
+  cyan: 'bg-brutal-cyan',
+  lime: 'bg-brutal-lime',
+  orange: 'bg-brutal-orange text-white',
+}
+
+const shadowClasses = {
+  sm: 'shadow-brutal-sm',
+  md: 'shadow-brutal-md',
+  lg: 'shadow-brutal-lg',
+  xl: 'shadow-brutal-xl',
+}
+
+const stickerColorClasses = {
+  yellow: 'bg-brutal-yellow',
+  magenta: 'bg-brutal-magenta',
+  cyan: 'bg-brutal-cyan',
+  lime: 'bg-brutal-lime',
+  red: 'bg-brutal-red text-white',
+}
+
+const stickerPositionClasses = {
+  'top-left': '-top-3 -left-3',
+  'top-right': '-top-3 -right-3',
+  'bottom-left': '-bottom-3 -left-3',
+  'bottom-right': '-bottom-3 -right-3',
+}
+
+const cardClasses = computed(() => [
+  'border-brutal p-6 relative',
+  variantClasses[props.variant],
+  shadowClasses[props.shadow],
+  props.asymmetric && 'transform skew-y-1',
+])
+
+const cardStyle = computed(() => ({
+  transform: props.rotate ? `rotate(${props.rotate}deg)` : undefined,
+}))
+
+const stickerClasses = computed(() => {
+  if (!props.sticker) return []
+  return [
+    'absolute px-3 py-1 border-brutal rotate-12',
+    'font-bold text-brutal-sm uppercase tracking-wide',
+    stickerColorClasses[props.sticker.color],
+    stickerPositionClasses[props.sticker.position],
+  ]
+})
+</script>

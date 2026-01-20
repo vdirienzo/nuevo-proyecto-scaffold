@@ -1,0 +1,376 @@
+/**
+ * globals.css - Global styles for Geist design system
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Vercel/Geist aesthetic with pure black backgrounds and high contrast.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS Variables */
+:root {
+  /* Colors */
+  --geist-black: #000000;
+  --geist-black-lighter: #0a0a0a;
+  --geist-black-card: #111111;
+  --geist-white: #ffffff;
+
+  /* Gray scale */
+  --geist-gray-50: #fafafa;
+  --geist-gray-100: #f4f4f5;
+  --geist-gray-200: #e4e4e7;
+  --geist-gray-300: #d4d4d8;
+  --geist-gray-400: #a1a1aa;
+  --geist-gray-500: #71717a;
+  --geist-gray-600: #52525b;
+  --geist-gray-700: #3f3f46;
+  --geist-gray-800: #27272a;
+  --geist-gray-900: #18181b;
+  --geist-gray-950: #0a0a0a;
+
+  /* Accent colors */
+  --geist-blue: #0070f3;
+  --geist-violet: #7928ca;
+  --geist-magenta: #ff0080;
+  --geist-cyan: #50e3c2;
+
+  /* Status colors */
+  --geist-success: #0070f3;
+  --geist-error: #ee0000;
+  --geist-warning: #f5a623;
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Font families */
+  --font-geist-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-geist-mono: 'Menlo', Monaco, 'Courier New', monospace;
+
+  /* Z-index scale */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
+
+/* Base styles */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-geist-black text-geist-white font-geist;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+
+  h1 {
+    @apply text-5xl md:text-6xl;
+  }
+
+  h2 {
+    @apply text-4xl md:text-5xl;
+  }
+
+  h3 {
+    @apply text-3xl md:text-4xl;
+  }
+
+  h4 {
+    @apply text-2xl md:text-3xl;
+  }
+
+  h5 {
+    @apply text-xl md:text-2xl;
+  }
+
+  h6 {
+    @apply text-lg md:text-xl;
+  }
+
+  p {
+    @apply text-geist-gray-300 leading-relaxed;
+  }
+
+  a {
+    @apply text-geist-blue hover:text-geist-blue-light transition-colors;
+  }
+
+  code {
+    @apply font-geist-mono text-sm bg-geist-black-card px-1.5 py-0.5 rounded;
+  }
+
+  pre {
+    @apply font-geist-mono text-sm bg-geist-black-card p-4 rounded-lg overflow-x-auto;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  /* Gradient text */
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-geist-blue via-geist-violet to-geist-magenta;
+  }
+
+  .text-gradient-blue {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-geist-blue to-geist-cyan;
+  }
+
+  .text-gradient-violet {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-geist-violet to-geist-magenta;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    @apply bg-gradient-to-r from-geist-blue via-geist-violet to-geist-magenta;
+  }
+
+  .bg-gradient-subtle {
+    @apply bg-gradient-to-br from-geist-blue/10 via-geist-violet/10 to-geist-magenta/10;
+  }
+
+  /* Border gradients (using pseudo-element trick) */
+  .border-gradient {
+    @apply relative;
+    background: var(--geist-black-card);
+  }
+
+  .border-gradient::before {
+    content: '';
+    @apply absolute inset-0 rounded-[inherit] p-[1px];
+    background: linear-gradient(135deg, var(--geist-blue), var(--geist-violet), var(--geist-magenta));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Glassmorphism */
+  .glass {
+    @apply bg-geist-black-card/50 backdrop-blur-geist border border-geist-gray-800;
+  }
+
+  .glass-strong {
+    @apply bg-geist-black-card/80 backdrop-blur-geist border border-geist-gray-700;
+  }
+
+  /* Shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Glow effects */
+  .glow-blue {
+    @apply shadow-geist-glow-blue;
+  }
+
+  .glow-violet {
+    @apply shadow-geist-glow-violet;
+  }
+
+  .glow-magenta {
+    @apply shadow-geist-glow-magenta;
+  }
+
+  /* Scrollbar styles */
+  .scrollbar-geist::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-geist::-webkit-scrollbar-track {
+    @apply bg-geist-black-lighter;
+  }
+
+  .scrollbar-geist::-webkit-scrollbar-thumb {
+    @apply bg-geist-gray-700 rounded-full;
+  }
+
+  .scrollbar-geist::-webkit-scrollbar-thumb:hover {
+    @apply bg-geist-gray-600;
+  }
+
+  /* Hide scrollbar */
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Component patterns */
+@layer components {
+  /* Focus ring */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-geist-blue focus:ring-offset-2 focus:ring-offset-geist-black;
+  }
+
+  /* Interactive elements */
+  .interactive {
+    @apply transition-all duration-200 ease-out;
+    @apply hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  /* Card base */
+  .card-base {
+    @apply bg-geist-black-card rounded-geist-lg border border-geist-gray-800;
+    @apply shadow-geist transition-all duration-300;
+  }
+
+  .card-hover {
+    @apply hover:shadow-geist-md hover:border-geist-gray-700;
+  }
+
+  /* Button reset */
+  .btn-reset {
+    @apply border-none bg-transparent p-0 m-0 cursor-pointer;
+    @apply focus:outline-none;
+  }
+
+  /* Input base */
+  .input-base {
+    @apply w-full px-4 py-2.5 rounded-geist;
+    @apply bg-geist-black-lighter border border-geist-gray-800;
+    @apply text-geist-white placeholder:text-geist-gray-500;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:border-geist-blue focus:ring-1 focus:ring-geist-blue;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    @apply inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full;
+    animation: spin 0.6s linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: -1000px 0;
+  }
+  to {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Selection styles */
+::selection {
+  @apply bg-geist-blue/30 text-geist-white;
+}
+
+::-moz-selection {
+  @apply bg-geist-blue/30 text-geist-white;
+}

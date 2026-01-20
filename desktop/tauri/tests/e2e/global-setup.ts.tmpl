@@ -1,0 +1,46 @@
+/**
+ * Global setup for Tauri E2E tests
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { FullConfig } from '@playwright/test';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
+
+/**
+ * Global setup runs before all tests
+ * Use this to prepare the test environment
+ */
+async function globalSetup(config: FullConfig): Promise<void> {
+  console.log('🚀 Starting global setup for Tauri E2E tests...');
+
+  try {
+    // Check if Tauri CLI is available
+    await execAsync('cargo tauri --version');
+    console.log('✅ Tauri CLI found');
+  } catch (error) {
+    console.error('❌ Tauri CLI not found. Please install it first.');
+    throw error;
+  }
+
+  // Build the app if in CI mode
+  if (process.env.CI) {
+    console.log('📦 Building Tauri app for CI...');
+    try {
+      await execAsync('npm run tauri build', {
+        timeout: 300_000, // 5 minutes
+      });
+      console.log('✅ Tauri app built successfully');
+    } catch (error) {
+      console.error('❌ Failed to build Tauri app:', error);
+      throw error;
+    }
+  }
+
+  console.log('✅ Global setup completed');
+}
+
+export default globalSetup;

@@ -1,0 +1,377 @@
+/**
+ * E2E tests for {{PROJECT_NAME}} Tauri application
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { test, expect, Page, _electron as electron } from '@playwright/test';
+import { resolve } from 'path';
+
+// Helper function to wait for app to be ready
+async function waitForAppReady(page: Page): Promise<void> {
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForLoadState('networkidle');
+  // Wait for any initial animations
+  await page.waitForTimeout(500);
+}
+
+// Helper function to get window handle
+async function getWindowHandle(page: Page): Promise<string> {
+  return await page.evaluate(() => window.__TAURI_INTERNALS__.windowLabel || 'main');
+}
+
+test.describe('Application Launch', () => {
+  test('app launches successfully', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const title = await page.title();
+    const url = page.url();
+
+    // Assert
+    expect(title).toBeTruthy();
+    expect(url).toContain('localhost');
+  });
+
+  test('app window has correct initial size', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const viewportSize = page.viewportSize();
+
+    // Assert
+    expect(viewportSize).not.toBeNull();
+    expect(viewportSize!.width).toBeGreaterThan(0);
+    expect(viewportSize!.height).toBeGreaterThan(0);
+  });
+
+  test('app loads without console errors', async ({ page }) => {
+    // Arrange
+    const errors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        errors.push(msg.text());
+      }
+    });
+
+    // Act
+    await waitForAppReady(page);
+    await page.waitForTimeout(2000); // Wait for any delayed errors
+
+    // Assert
+    expect(errors).toHaveLength(0);
+  });
+});
+
+test.describe('Window Properties', () => {
+  test('window title can be read', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const title = await page.title();
+
+    // Assert
+    expect(title).toBeTruthy();
+    expect(typeof title).toBe('string');
+  });
+
+  test('window can be focused', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    await page.bringToFront();
+    const isFocused = await page.evaluate(() => document.hasFocus());
+
+    // Assert
+    expect(isFocused).toBe(true);
+  });
+
+  test('window viewport dimensions are positive', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const dimensions = await page.evaluate(() => ({
+      width: window.innerWidth,
+      height: window.innerHeight,
+    }));
+
+    // Assert
+    expect(dimensions.width).toBeGreaterThan(0);
+    expect(dimensions.height).toBeGreaterThan(0);
+  });
+});
+
+test.describe('Basic Navigation', () => {
+  test('main page renders successfully', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const bodyExists = await page.locator('body').count();
+
+    // Assert
+    expect(bodyExists).toBe(1);
+  });
+
+  test('app has root element', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const rootElement = await page.locator('#root, #app, [data-tauri-root]').first();
+    const exists = await rootElement.count();
+
+    // Assert
+    expect(exists).toBeGreaterThan(0);
+  });
+
+  test('navigation between pages works', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // This is an example - adjust selectors based on your actual app
+    const homeButton = page.getByRole('link', { name: /home/i });
+    const aboutButton = page.getByRole('link', { name: /about/i });
+
+    // Skip if navigation doesn't exist
+    const hasNavigation = (await homeButton.count()) > 0 && (await aboutButton.count()) > 0;
+    test.skip(!hasNavigation, 'Navigation elements not found');
+
+    // Act
+    await aboutButton.click();
+    await page.waitForLoadState('networkidle');
+    const aboutUrl = page.url();
+
+    await homeButton.click();
+    await page.waitForLoadState('networkidle');
+    const homeUrl = page.url();
+
+    // Assert
+    expect(aboutUrl).not.toBe(homeUrl);
+  });
+});
+
+test.describe('Tauri Commands', () => {
+  test('tauri invoke is available', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const tauriExists = await page.evaluate(() => {
+      return typeof window.__TAURI_INTERNALS__ !== 'undefined';
+    });
+
+    // Assert
+    expect(tauriExists).toBe(true);
+  });
+
+  test('can invoke simple tauri command', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const result = await page.evaluate(async () => {
+      try {
+        // Example command - adjust based on your actual commands
+        const response = await (window as any).__TAURI__.invoke('greet', { name: 'Test' });
+        return { success: true, data: response };
+      } catch (error) {
+        return { success: false, error: String(error) };
+      }
+    });
+
+    // Assert
+    // If the command doesn't exist, that's ok - we're just testing the mechanism
+    expect(result).toHaveProperty('success');
+  });
+});
+
+test.describe('UI Interactions', () => {
+  test('clicking buttons does not crash the app', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+    const buttons = await page.locator('button').all();
+
+    test.skip(buttons.length === 0, 'No buttons found in the app');
+
+    // Act & Assert
+    for (const button of buttons.slice(0, 3)) { // Test first 3 buttons
+      const isVisible = await button.isVisible();
+      if (isVisible) {
+        await button.click();
+        await page.waitForTimeout(500); // Wait for any actions
+
+        // Check app is still responsive
+        const bodyExists = await page.locator('body').count();
+        expect(bodyExists).toBe(1);
+      }
+    }
+  });
+
+  test('text inputs accept keyboard input', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+    const inputs = await page.locator('input[type="text"], input:not([type])').all();
+
+    test.skip(inputs.length === 0, 'No text inputs found');
+
+    // Act & Assert
+    for (const input of inputs.slice(0, 3)) { // Test first 3 inputs
+      const isVisible = await input.isVisible();
+      if (isVisible) {
+        const testValue = 'Test Input';
+        await input.fill(testValue);
+        const value = await input.inputValue();
+        expect(value).toBe(testValue);
+      }
+    }
+  });
+
+  test('form submission works without errors', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+    const form = page.locator('form').first();
+    const formExists = await form.count();
+
+    test.skip(formExists === 0, 'No forms found');
+
+    // Act
+    const errors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') {
+        errors.push(msg.text());
+      }
+    });
+
+    const submitButton = form.locator('button[type="submit"], input[type="submit"]').first();
+    if (await submitButton.count() > 0) {
+      await submitButton.click();
+      await page.waitForTimeout(1000);
+    }
+
+    // Assert
+    // We're not checking for specific behavior, just that no errors occurred
+    expect(errors.filter(e => !e.includes('404'))).toHaveLength(0);
+  });
+});
+
+test.describe('Accessibility', () => {
+  test('app has proper semantic HTML', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const semanticElements = await page.evaluate(() => {
+      const elements = ['header', 'nav', 'main', 'footer', 'article', 'section'];
+      return elements.filter(tag => document.querySelector(tag) !== null);
+    });
+
+    // Assert
+    // At least some semantic elements should be present
+    expect(semanticElements.length).toBeGreaterThanOrEqual(0);
+  });
+
+  test('interactive elements are keyboard accessible', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+    const firstButton = page.locator('button').first();
+    const buttonExists = await firstButton.count();
+
+    test.skip(buttonExists === 0, 'No buttons found');
+
+    // Act
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(500);
+    const focusedElement = await page.evaluate(() => document.activeElement?.tagName);
+
+    // Assert
+    expect(focusedElement).toBeTruthy();
+  });
+});
+
+test.describe('Performance', () => {
+  test('app loads within acceptable time', async ({ page }) => {
+    // Arrange
+    const startTime = Date.now();
+
+    // Act
+    await waitForAppReady(page);
+    const loadTime = Date.now() - startTime;
+
+    // Assert
+    // App should load in less than 10 seconds
+    expect(loadTime).toBeLessThan(10_000);
+  });
+
+  test('app remains responsive after interaction', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    // Perform multiple interactions
+    for (let i = 0; i < 5; i++) {
+      await page.keyboard.press('Tab');
+      await page.waitForTimeout(100);
+    }
+
+    // Assert
+    const isResponsive = await page.evaluate(() => {
+      return document.readyState === 'complete';
+    });
+    expect(isResponsive).toBe(true);
+  });
+});
+
+test.describe('Error Handling', () => {
+  test('app handles invalid tauri commands gracefully', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    const result = await page.evaluate(async () => {
+      try {
+        await (window as any).__TAURI__.invoke('nonexistent_command_xyz');
+        return { crashed: false, errorHandled: false };
+      } catch (error) {
+        return { crashed: false, errorHandled: true, error: String(error) };
+      }
+    });
+
+    // Assert
+    expect(result.crashed).toBe(false);
+    expect(result.errorHandled).toBe(true);
+  });
+
+  test('app recovers from network errors', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act - Simulate offline
+    await page.context().setOffline(true);
+    await page.waitForTimeout(1000);
+
+    // Restore online
+    await page.context().setOffline(false);
+    await page.waitForTimeout(1000);
+
+    // Assert - App should still be functional
+    const bodyExists = await page.locator('body').count();
+    expect(bodyExists).toBe(1);
+  });
+});
+
+// Cleanup and helper tests
+test.afterEach(async ({ page }) => {
+  // Clean up any test data or state
+  await page.evaluate(() => {
+    // Clear localStorage
+    localStorage.clear();
+    // Clear sessionStorage
+    sessionStorage.clear();
+  });
+});

@@ -1,0 +1,56 @@
+<!--
+BrutalHeading.vue - Neo-Brutalism heading component for Vue 3
+
+Autor: Homero Thompson del Lago del Terror
+Project: {{PROJECT_NAME}}
+-->
+
+<template>
+  <component
+    :is="as"
+    :class="headingClasses"
+    :style="headingStyle"
+  >
+    <slot />
+  </component>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+export interface BrutalHeadingProps {
+  as?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl' | '6xl'
+  rotate?: number
+  uppercase?: boolean
+}
+
+const props = withDefaults(defineProps<BrutalHeadingProps>(), {
+  as: 'h1',
+  size: '2xl',
+  rotate: 0,
+  uppercase: false,
+})
+
+const sizeClasses = {
+  sm: 'text-brutal-3xl',
+  md: 'text-brutal-4xl',
+  lg: 'text-brutal-5xl',
+  xl: 'text-brutal-6xl',
+  '2xl': 'text-brutal-7xl',
+  '3xl': 'text-brutal-8xl',
+  '4xl': 'text-brutal-9xl',
+  '5xl': 'text-[10rem] leading-none',
+  '6xl': 'text-[12rem] leading-none',
+}
+
+const headingClasses = computed(() => [
+  'font-clash font-bold leading-none',
+  sizeClasses[props.size],
+  props.uppercase && 'uppercase tracking-tight',
+])
+
+const headingStyle = computed(() => ({
+  transform: props.rotate ? `rotate(${props.rotate}deg)` : undefined,
+}))
+</script>

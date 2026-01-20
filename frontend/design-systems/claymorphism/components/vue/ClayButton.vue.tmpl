@@ -1,0 +1,117 @@
+<!--
+  ClayButton.vue - Claymorphism Button Component (Vue 3)
+
+  Autor: {{AUTHOR}}
+  Proyecto: {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+interface Props {
+  variant?: 'pink' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange'
+  size?: 'sm' | 'md' | 'lg'
+  isLoading?: boolean
+  disabled?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  variant: 'pink',
+  size: 'md',
+  isLoading: false,
+  disabled: false,
+})
+
+const isPressed = ref(false)
+
+const variantClasses = computed(() => {
+  const variants = {
+    pink: 'bg-clay-pink-400 hover:bg-clay-pink-500 active:bg-clay-pink-600 text-white',
+    blue: 'bg-clay-blue-400 hover:bg-clay-blue-500 active:bg-clay-blue-600 text-white',
+    green: 'bg-clay-green-400 hover:bg-clay-green-500 active:bg-clay-green-600 text-white',
+    yellow: 'bg-clay-yellow-400 hover:bg-clay-yellow-500 active:bg-clay-yellow-600 text-gray-800',
+    purple: 'bg-clay-purple-400 hover:bg-clay-purple-500 active:bg-clay-purple-600 text-white',
+    orange: 'bg-clay-orange-400 hover:bg-clay-orange-500 active:bg-clay-orange-600 text-white',
+  }
+  return variants[props.variant]
+})
+
+const sizeClasses = computed(() => {
+  const sizes = {
+    sm: 'px-4 py-2 text-sm',
+    md: 'px-6 py-3 text-base',
+    lg: 'px-8 py-4 text-lg',
+  }
+  return sizes[props.size]
+})
+
+const buttonClasses = computed(() => {
+  return [
+    'relative overflow-hidden',
+    'font-semibold rounded-full',
+    'shadow-clay',
+    'transition-all duration-200',
+    variantClasses.value,
+    sizeClasses.value,
+    isPressed.value ? 'scale-95 shadow-clay-inset' : 'hover:scale-105 hover:shadow-clay-hover hover:-rotate-1',
+    props.disabled || props.isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+  ]
+})
+
+const handleMouseDown = () => {
+  if (!props.disabled && !props.isLoading) {
+    isPressed.value = true
+  }
+}
+
+const handleMouseUp = () => {
+  isPressed.value = false
+}
+
+const handleMouseLeave = () => {
+  isPressed.value = false
+}
+</script>
+
+<template>
+  <button
+    :class="buttonClasses"
+    :disabled="disabled || isLoading"
+    @mousedown="handleMouseDown"
+    @mouseup="handleMouseUp"
+    @mouseleave="handleMouseLeave"
+  >
+    <!-- Shimmer effect -->
+    <span
+      class="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full hover:translate-x-full transition-transform duration-1000"
+    />
+
+    <!-- Content -->
+    <span class="relative flex items-center justify-center gap-2">
+      <!-- Loading spinner -->
+      <svg
+        v-if="isLoading"
+        class="animate-spin h-5 w-5"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        />
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        />
+      </svg>
+
+      <slot />
+    </span>
+  </button>
+</template>

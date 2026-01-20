@@ -1,0 +1,208 @@
+/**
+ * DesignSystemProvider.tsx - React context for design system configuration
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import type { DesignSystemConfig, DesignTokens, ComponentStyles } from '../types';
+import { DEFAULT_TOKENS } from '../constants';
+
+export interface DesignSystemContextValue {
+  config: DesignSystemConfig;
+  tokens: DesignTokens;
+  components: ComponentStyles;
+  setSystem: (systemName: string) => void;
+}
+
+export const DesignSystemContext = createContext<DesignSystemContextValue | null>(null);
+
+interface DesignSystemProviderProps {
+  /** Initial design system configuration */
+  config: DesignSystemConfig;
+  /** Child components */
+  children: ReactNode;
+  /** Optional custom tokens */
+  customTokens?: Partial<DesignTokens>;
+  /** Optional custom component styles */
+  customComponents?: Partial<ComponentStyles>;
+  /** Enable system switching at runtime */
+  allowSwitching?: boolean;
+}
+
+/**
+ * Provider component that wraps the app with design system context
+ *
+ * @example
+ * ```tsx
+ * import { DesignSystemProvider } from './context/DesignSystemProvider';
+ * import glassmorphismConfig from './glassmorphism/config';
+ *
+ * function App() {
+ *   return (
+ *     <DesignSystemProvider config={glassmorphismConfig}>
+ *       <YourApp />
+ *     </DesignSystemProvider>
+ *   );
+ * }
+ * ```
+ */
+export function DesignSystemProvider({
+  config: initialConfig,
+  children,
+  customTokens = {},
+  customComponents = {},
+  allowSwitching = false,
+}: DesignSystemProviderProps) {
+  const [config, setConfig] = useState<DesignSystemConfig>(initialConfig);
+  const [tokens, setTokens] = useState<DesignTokens>({
+    ...DEFAULT_TOKENS,
+    ...initialConfig.tokens,
+    ...customTokens,
+  });
+  const [components, setComponents] = useState<ComponentStyles>({
+    ...initialConfig.components,
+    ...customComponents,
+  } as ComponentStyles);
+
+  /**
+   * Load different design system at runtime
+   * Only works if allowSwitching is enabled
+   */
+  const setSystem = async (systemName: string) => {
+    if (!allowSwitching) {
+      console.warn('Design system switching is disabled');
+      return;
+    }
+
+    try {
+      // Dynamic import of new system config
+      const newConfig = await import(`../${systemName}/config`).then(
+        (mod) => mod.default || mod
+      );
+
+      setConfig(newConfig);
+      setTokens({
+        ...DEFAULT_TOKENS,
+        ...newConfig.tokens,
+        ...customTokens,
+      });
+      setComponents({
+        ...newConfig.components,
+        ...customComponents,
+      });
+
+      // Update CSS variables
+      applyTokensToCSS(newConfig.tokens);
+    } catch (error) {
+      console.error(`Failed to load design system: ${systemName}`, error);
+    }
+  };
+
+  /**
+   * Apply design tokens as CSS custom properties
+   */
+  const applyTokensToCSS = (systemTokens: DesignTokens) => {
+    if (typeof document === 'undefined') return;
+
+    const root = document.documentElement;
+
+    // Colors
+    Object.entries(systemTokens.colors || {}).forEach(([key, value]) => {
+      if (typeof value === 'object') {
+        Object.entries(value).forEach(([shade, color]) => {
+          root.style.setProperty(`--color-${key}-${shade}`, color);
+        });
+      } else {
+        root.style.setProperty(`--color-${key}`, value);
+      }
+    });
+
+    // Spacing
+    Object.entries(systemTokens.spacing || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--spacing-${key}`, value);
+    });
+
+    // Typography
+    Object.entries(systemTokens.typography?.fontSizes || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--font-size-${key}`, value);
+    });
+
+    Object.entries(systemTokens.typography?.fontWeights || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--font-weight-${key}`, String(value));
+    });
+
+    // Borders
+    Object.entries(systemTokens.borders?.radius || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--radius-${key}`, value);
+    });
+
+    Object.entries(systemTokens.borders?.width || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--border-width-${key}`, value);
+    });
+
+    // Shadows
+    Object.entries(systemTokens.shadows || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--shadow-${key}`, value);
+    });
+
+    // Animation
+    Object.entries(systemTokens.animation?.duration || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--duration-${key}`, value);
+    });
+
+    Object.entries(systemTokens.animation?.easing || {}).forEach(([key, value]) => {
+      root.style.setProperty(`--easing-${key}`, value);
+    });
+  };
+
+  /**
+   * Apply tokens on mount and when they change
+   */
+  useEffect(() => {
+    applyTokensToCSS(tokens);
+  }, [tokens]);
+
+  /**
+   * Set design system attribute on document
+   */
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    document.documentElement.setAttribute('data-design-system', config.name);
+  }, [config.name]);
+
+  const value: DesignSystemContextValue = {
+    config,
+    tokens,
+    components,
+    setSystem,
+  };
+
+  return (
+    <DesignSystemContext.Provider value={value}>
+      {children}
+    </DesignSystemContext.Provider>
+  );
+}
+
+/**
+ * HOC to wrap component with design system provider
+ *
+ * @example
+ * ```tsx
+ * export default withDesignSystem(MyComponent, glassmorphismConfig);
+ * ```
+ */
+export function withDesignSystem<P extends object>(
+  Component: React.ComponentType<P>,
+  config: DesignSystemConfig
+) {
+  return function WrappedComponent(props: P) {
+    return (
+      <DesignSystemProvider config={config}>
+        <Component {...props} />
+      </DesignSystemProvider>
+    );
+  };
+}

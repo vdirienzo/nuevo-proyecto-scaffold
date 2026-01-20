@@ -1,0 +1,123 @@
+/*! System Commands - OS and system-level operations
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use serde::{Deserialize, Serialize};
+use tauri::api::shell;
+
+use crate::error::AppError;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemInfo {
+    pub os: String,
+    pub os_version: String,
+    pub arch: String,
+    pub hostname: String,
+    pub locale: String,
+}
+
+/// Get comprehensive system information
+///
+/// Returns information about the operating system, version, architecture,
+/// hostname, and locale settings.
+#[tauri::command]
+pub async fn get_system_info() -> Result<SystemInfo, AppError> {
+    let os = std::env::consts::OS.to_string();
+    let os_version = os_info::get()
+        .version()
+        .to_string();
+
+    let arch = std::env::consts::ARCH.to_string();
+
+    let hostname = hostname::get()
+        .map(|h| h.to_string_lossy().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+
+    let locale = sys_locale::get_locale()
+        .unwrap_or_else(|| "en-US".to_string());
+
+    Ok(SystemInfo {
+        os,
+        os_version,
+        arch,
+        hostname,
+        locale,
+    })
+}
+
+/// Open an external URL in the default browser
+///
+/// Safely opens a URL in the system's default web browser with security checks.
+///
+/// # Arguments
+/// * `url` - The URL to open (must be http:// or https://)
+///
+/// # Security
+/// Only allows http:// and https:// protocols for security.
+#[tauri::command]
+pub async fn open_external_url(url: String) -> Result<(), AppError> {
+    // Security: only allow http/https URLs
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err(AppError::Validation(
+            "URL must start with http:// or https://".to_string(),
+        ));
+    }
+
+    shell::open(&url, None)
+        .map_err(|e| AppError::System(format!("Failed to open URL: {}", e)))?;
+
+    Ok(())
+}
+
+/// Get the current working directory
+///
+/// Returns the absolute path of the current working directory.
+#[tauri::command]
+pub async fn get_current_directory() -> Result<String, AppError> {
+    let cwd = std::env::current_dir()
+        .map_err(|e| AppError::System(format!("Failed to get current directory: {}", e)))?;
+
+    Ok(cwd.to_string_lossy().to_string())
+}
+
+/// Get environment variable value
+///
+/// Retrieves the value of an environment variable.
+///
+/// # Arguments
+/// * `key` - The name of the environment variable
+///
+/// # Security
+/// Consider which environment variables should be accessible to the frontend.
+#[tauri::command]
+pub async fn get_env_var(key: String) -> Result<Option<String>, AppError> {
+    Ok(std::env::var(&key).ok())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_get_system_info() {
+        let info = get_system_info().await.unwrap();
+        assert!(!info.os.is_empty());
+        assert!(!info.arch.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_open_external_url_validation() {
+        let result = open_external_url("javascript:alert(1)".to_string()).await;
+        assert!(result.is_err());
+
+        let result = open_external_url("file:///etc/passwd".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_get_current_directory() {
+        let cwd = get_current_directory().await.unwrap();
+        assert!(!cwd.is_empty());
+    }
+}

@@ -1,0 +1,134 @@
+/**
+ * ClayBadge.tsx - Claymorphism Badge/Tag Component
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+import React, { HTMLAttributes, ReactNode } from 'react'
+
+export interface ClayBadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  children: ReactNode
+  variant?: 'pink' | 'blue' | 'green' | 'yellow' | 'purple' | 'orange' | 'gray'
+  size?: 'sm' | 'md' | 'lg'
+  removable?: boolean
+  onRemove?: () => void
+  dot?: boolean
+}
+
+const variantStyles = {
+  pink: 'bg-clay-pink-400 text-white',
+  blue: 'bg-clay-blue-400 text-white',
+  green: 'bg-clay-green-400 text-white',
+  yellow: 'bg-clay-yellow-400 text-gray-800',
+  purple: 'bg-clay-purple-400 text-white',
+  orange: 'bg-clay-orange-400 text-white',
+  gray: 'bg-gray-400 text-white',
+}
+
+const sizeStyles = {
+  sm: 'px-2 py-1 text-xs',
+  md: 'px-3 py-1.5 text-sm',
+  lg: 'px-4 py-2 text-base',
+}
+
+export const ClayBadge: React.FC<ClayBadgeProps> = ({
+  children,
+  variant = 'blue',
+  size = 'md',
+  removable = false,
+  onRemove,
+  dot = false,
+  className = '',
+  ...props
+}) => {
+  return (
+    <span
+      className={`
+        inline-flex items-center gap-2
+        font-medium rounded-full
+        shadow-clay-sm
+        transition-all duration-200
+        hover:shadow-clay hover:scale-105
+        ${variantStyles[variant]}
+        ${sizeStyles[size]}
+        ${className}
+      `}
+      {...props}
+    >
+      {/* Dot indicator */}
+      {dot && (
+        <span
+          className={`
+            w-2 h-2 rounded-full
+            animate-pulse
+            ${variant === 'yellow' ? 'bg-gray-800' : 'bg-white'}
+          `}
+        />
+      )}
+
+      {/* Content */}
+      {children}
+
+      {/* Remove button */}
+      {removable && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove?.()
+          }}
+          className={`
+            ml-1 rounded-full
+            transition-all duration-200
+            hover:scale-110 hover:rotate-90
+            focus:outline-none
+            ${variant === 'yellow' ? 'text-gray-800 hover:bg-gray-800/10' : 'text-white hover:bg-white/20'}
+          `}
+          aria-label="Remove"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      )}
+    </span>
+  )
+}
+
+export interface ClayBadgeGroupProps {
+  children: ReactNode
+  max?: number
+  className?: string
+}
+
+export const ClayBadgeGroup: React.FC<ClayBadgeGroupProps> = ({
+  children,
+  max,
+  className = '',
+}) => {
+  const childrenArray = React.Children.toArray(children)
+  const displayedChildren = max ? childrenArray.slice(0, max) : childrenArray
+  const remainingCount = childrenArray.length - displayedChildren.length
+
+  return (
+    <div className={`flex flex-wrap gap-2 items-center ${className}`}>
+      {displayedChildren}
+      {remainingCount > 0 && (
+        <ClayBadge variant="gray" size="sm">
+          +{remainingCount} más
+        </ClayBadge>
+      )}
+    </div>
+  )
+}
+
+export default ClayBadge

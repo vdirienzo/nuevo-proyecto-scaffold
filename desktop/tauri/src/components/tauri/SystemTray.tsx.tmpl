@@ -1,0 +1,190 @@
+/**
+ * SystemTray.tsx - System tray menu configuration helper
+ *
+ * Autor: {{AUTHOR}}
+ */
+
+import { useEffect } from 'react';
+import { TrayIcon } from '@tauri-apps/api/tray';
+import { Menu, MenuItem } from '@tauri-apps/api/menu';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { exit } from '@tauri-apps/plugin-process';
+
+interface SystemTrayProps {
+  /** Custom menu items to add to the tray */
+  menuItems?: Array<{
+    label: string;
+    action: () => void | Promise<void>;
+    enabled?: boolean;
+  }>;
+  /** Whether to show the default menu items */
+  showDefaultItems?: boolean;
+}
+
+export function SystemTray({ menuItems = [], showDefaultItems = true }: SystemTrayProps) {
+  useEffect(() => {
+    setupSystemTray();
+  }, [menuItems, showDefaultItems]);
+
+  async function setupSystemTray() {
+    try {
+      const appWindow = getCurrentWindow();
+
+      // Create menu items
+      const items: MenuItem[] = [];
+
+      // Add custom menu items
+      for (const item of menuItems) {
+        const menuItem = await MenuItem.new({
+          text: item.label,
+          enabled: item.enabled ?? true,
+          action: item.action,
+        });
+        items.push(menuItem);
+      }
+
+      // Add separator if there are custom items and default items
+      if (menuItems.length > 0 && showDefaultItems) {
+        items.push(await MenuItem.new({
+          text: '',
+          enabled: false,
+        }));
+      }
+
+      // Add default menu items
+      if (showDefaultItems) {
+        // Show/Hide window
+        items.push(
+          await MenuItem.new({
+            text: 'Show Window',
+            action: async () => {
+              const isVisible = await appWindow.isVisible();
+              if (isVisible) {
+                await appWindow.hide();
+              } else {
+                await appWindow.show();
+                await appWindow.setFocus();
+              }
+            },
+          })
+        );
+
+        // Separator
+        items.push(await MenuItem.new({
+          text: '',
+          enabled: false,
+        }));
+
+        // Quit application
+        items.push(
+          await MenuItem.new({
+            text: 'Quit {{APP_TITLE}}',
+            action: async () => {
+              await exit(0);
+            },
+          })
+        );
+      }
+
+      // Create menu
+      const menu = await Menu.new({
+        items,
+      });
+
+      // Create or update tray icon
+      const tray = await TrayIcon.new({
+        menu,
+        tooltip: '{{APP_TITLE}}',
+        menuOnLeftClick: true,
+      });
+
+      // Handle tray icon click (show/hide window)
+      tray.on('click', async () => {
+        const isVisible = await appWindow.isVisible();
+        if (isVisible) {
+          await appWindow.hide();
+        } else {
+          await appWindow.show();
+          await appWindow.setFocus();
+        }
+      });
+    } catch (error) {
+      console.error('Failed to setup system tray:', error);
+    }
+  }
+
+  // This component doesn't render anything
+  return null;
+}
+
+/**
+ * Hook to control system tray programmatically
+ */
+export function useSystemTray() {
+  async function updateTrayMenu(items: Array<{
+    label: string;
+    action: () => void | Promise<void>;
+    enabled?: boolean;
+  }>) {
+    try {
+      const menuItems: MenuItem[] = [];
+
+      for (const item of items) {
+        const menuItem = await MenuItem.new({
+          text: item.label,
+          enabled: item.enabled ?? true,
+          action: item.action,
+        });
+        menuItems.push(menuItem);
+      }
+
+      const menu = await Menu.new({
+        items: menuItems,
+      });
+
+      const tray = await TrayIcon.new({
+        menu,
+        tooltip: '{{APP_TITLE}}',
+      });
+
+      return tray;
+    } catch (error) {
+      console.error('Failed to update tray menu:', error);
+      return null;
+    }
+  }
+
+  async function showWindow() {
+    const appWindow = getCurrentWindow();
+    await appWindow.show();
+    await appWindow.setFocus();
+  }
+
+  async function hideWindow() {
+    const appWindow = getCurrentWindow();
+    await appWindow.hide();
+  }
+
+  async function toggleWindow() {
+    const appWindow = getCurrentWindow();
+    const isVisible = await appWindow.isVisible();
+    if (isVisible) {
+      await appWindow.hide();
+    } else {
+      await appWindow.show();
+      await appWindow.setFocus();
+    }
+  }
+
+  async function quitApp() {
+    await exit(0);
+  }
+
+  return {
+    updateTrayMenu,
+    showWindow,
+    hideWindow,
+    toggleWindow,
+    quitApp,
+  };
+}

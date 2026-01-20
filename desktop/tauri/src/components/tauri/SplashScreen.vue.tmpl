@@ -1,0 +1,181 @@
+<script setup lang="ts">
+/**
+ * SplashScreen.vue - Splash screen component
+ *
+ * Autor: {{AUTHOR}}
+ */
+
+import { ref, onMounted, computed } from 'vue';
+import { getVersion } from '@tauri-apps/api/app';
+
+interface LoadingTask {
+  name: string;
+  action: () => Promise<void>;
+}
+
+interface Props {
+  /** Duration in milliseconds to show the splash screen */
+  duration?: number;
+  /** Loading tasks to display progress */
+  loadingTasks?: LoadingTask[];
+  /** Callback when splash screen is done */
+  onComplete?: () => void;
+  /** Custom logo URL */
+  logo?: string;
+  /** Show version number */
+  showVersion?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  duration: 2000,
+  loadingTasks: () => [],
+  showVersion: true,
+});
+
+const visible = ref(true);
+const progress = ref(0);
+const currentTask = ref('Initializing...');
+const version = ref('');
+const fadeOut = ref(false);
+
+const progressRounded = computed(() => Math.round(progress.value));
+
+onMounted(async () => {
+  if (props.showVersion) {
+    version.value = await getVersion();
+  }
+
+  if (props.loadingTasks.length > 0) {
+    await runLoadingTasks();
+  } else {
+    await runSimpleProgress();
+  }
+});
+
+async function runLoadingTasks() {
+  const totalTasks = props.loadingTasks.length;
+
+  for (let i = 0; i < totalTasks; i++) {
+    const task = props.loadingTasks[i];
+    currentTask.value = task.name;
+
+    try {
+      await task.action();
+    } catch (error) {
+      console.error(`Task ${task.name} failed:`, error);
+    }
+
+    progress.value = ((i + 1) / totalTasks) * 100;
+  }
+
+  await finishSplash();
+}
+
+async function runSimpleProgress() {
+  const steps = 100;
+  const interval = props.duration / steps;
+
+  for (let i = 0; i <= steps; i++) {
+    progress.value = i;
+    await new Promise(resolve => setTimeout(resolve, interval));
+  }
+
+  await finishSplash();
+}
+
+async function finishSplash() {
+  fadeOut.value = true;
+  await new Promise(resolve => setTimeout(resolve, 300));
+  visible.value = false;
+  props.onComplete?.();
+}
+</script>
+
+<template>
+  <div
+    v-if="visible"
+    :class="[
+      'fixed inset-0 z-50 flex items-center justify-center',
+      'bg-gradient-to-br from-blue-500 to-purple-600 dark:from-blue-900 dark:to-purple-900',
+      'transition-opacity duration-300',
+      fadeOut ? 'opacity-0' : 'opacity-100'
+    ]"
+    role="dialog"
+    aria-label="Loading application"
+    aria-live="polite"
+  >
+    <div class="text-center">
+      <!-- Logo -->
+      <img
+        v-if="logo"
+        :src="logo"
+        alt="{{APP_TITLE}} logo"
+        class="w-24 h-24 mx-auto mb-6 animate-pulse"
+        draggable="false"
+      />
+      <div
+        v-else
+        class="w-24 h-24 mx-auto mb-6 bg-white dark:bg-gray-800 rounded-2xl flex items-center justify-center shadow-2xl animate-pulse"
+      >
+        <svg
+          class="w-12 h-12 text-blue-600 dark:text-blue-400"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M13 10V3L4 14h7v7l9-11h-7z"
+          />
+        </svg>
+      </div>
+
+      <!-- App Title -->
+      <h1 class="text-3xl font-bold text-white mb-2">
+        {{APP_TITLE}}
+      </h1>
+
+      <!-- Version -->
+      <p
+        v-if="showVersion && version"
+        class="text-sm text-white/80 mb-6"
+      >
+        Version {{ version }}
+      </p>
+
+      <!-- Loading Task -->
+      <p class="text-white/90 mb-4 min-h-[1.5rem]" aria-live="polite">
+        {{ currentTask }}
+      </p>
+
+      <!-- Progress Bar -->
+      <div class="w-64 mx-auto">
+        <div class="w-full bg-white/20 rounded-full h-2 overflow-hidden">
+          <div
+            class="bg-white h-2 rounded-full transition-all duration-300 ease-out"
+            :style="{ width: `${progress}%` }"
+            role="progressbar"
+            :aria-valuenow="progressRounded"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-label="Loading progress"
+          />
+        </div>
+        <p class="text-white/70 text-sm mt-2" aria-live="polite">
+          {{ progressRounded }}%
+        </p>
+      </div>
+
+      <!-- Loading Spinner -->
+      <div class="mt-6">
+        <div
+          class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-white/20 border-t-white"
+          aria-hidden="true"
+        />
+      </div>
+    </div>
+  </div>
+</template>

@@ -1,0 +1,297 @@
+# Testing Guide for {{PROJECT_NAME}} Tauri Application
+
+> Author: {{AUTHOR}}
+
+This directory contains comprehensive test suites for the Tauri desktop application.
+
+---
+
+## Test Structure
+
+```
+tests/
+├── rust/                      # Rust unit and integration tests
+│   ├── integration_test.rs    # Integration tests for services
+│   └── commands_test.rs       # Tauri command tests
+├── e2e/                       # End-to-end tests
+│   ├── app.spec.ts            # Main E2E test suite
+│   ├── playwright.config.ts   # Playwright configuration
+│   ├── global-setup.ts        # Test environment setup
+│   └── global-teardown.ts     # Test environment cleanup
+└── README.md                  # This file
+```
+
+---
+
+## Rust Tests
+
+### Running Rust Tests
+
+```bash
+# Run all Rust tests
+cargo test
+
+# Run specific test file
+cargo test --test integration_test
+cargo test --test commands_test
+
+# Run with output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_database_insert_operation
+
+# Run tests in parallel (default)
+cargo test
+
+# Run tests sequentially
+cargo test -- --test-threads=1
+```
+
+### Test Coverage
+
+```bash
+# Install tarpaulin for coverage
+cargo install cargo-tarpaulin
+
+# Generate coverage report
+cargo tarpaulin --out Html --output-dir coverage
+```
+
+### Writing New Rust Tests
+
+1. **Unit Tests**: Place in the same file as the code being tested
+2. **Integration Tests**: Add to `tests/rust/integration_test.rs`
+3. **Command Tests**: Add to `tests/rust/commands_test.rs`
+
+Example test structure:
+
+```rust
+#[tokio::test]
+async fn test_feature_name_scenario_expected_result() {
+    // Arrange - Setup test data
+    let state = setup_test_state();
+
+    // Act - Execute the code
+    let result = function_under_test(state).await;
+
+    // Assert - Verify results
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), expected_value);
+}
+```
+
+---
+
+## E2E Tests (Playwright)
+
+### Prerequisites
+
+```bash
+# Install dependencies
+npm install
+
+# Install Playwright browsers
+npx playwright install
+```
+
+### Running E2E Tests
+
+```bash
+# Run all E2E tests
+npm run test:e2e
+
+# Run with UI mode (interactive)
+npx playwright test --ui
+
+# Run specific test file
+npx playwright test app.spec.ts
+
+# Run with headed browser (see what's happening)
+npx playwright test --headed
+
+# Run in debug mode
+npx playwright test --debug
+
+# Generate test report
+npx playwright show-report
+```
+
+### Test Configuration
+
+Edit `playwright.config.ts` to customize:
+- Timeouts
+- Retries
+- Browser settings
+- Screenshot/video recording
+- WebServer configuration
+
+### Writing New E2E Tests
+
+Add tests to `app.spec.ts` or create new spec files:
+
+```typescript
+test.describe('Feature Name', () => {
+  test('should do something', async ({ page }) => {
+    // Arrange
+    await waitForAppReady(page);
+
+    // Act
+    await page.click('button#submit');
+
+    // Assert
+    const result = await page.locator('.result').textContent();
+    expect(result).toBe('Expected Value');
+  });
+});
+```
+
+---
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml
+# .github/workflows/test.yml
+name: Tests
+
+on: [push, pull_request]
+
+jobs:
+  rust-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --all-features
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: test-results/
+```
+
+---
+
+## Test Best Practices
+
+### General
+
+- ✅ Follow AAA pattern (Arrange-Act-Assert)
+- ✅ Use descriptive test names
+- ✅ Test one thing per test
+- ✅ Keep tests independent
+- ✅ Clean up test data
+- ✅ Mock external dependencies
+- ❌ Don't test implementation details
+- ❌ Don't share state between tests
+
+### Rust Tests
+
+- Use `#[tokio::test]` for async tests
+- Mock external APIs and services
+- Use `Arc<Mutex<T>>` for shared state
+- Test both success and error cases
+- Verify error messages
+
+### E2E Tests
+
+- Wait for app to be ready before testing
+- Use semantic selectors (role, label)
+- Test user workflows, not implementation
+- Keep tests fast (< 30 seconds each)
+- Use screenshots/videos for debugging
+
+---
+
+## Debugging Tests
+
+### Rust Tests
+
+```bash
+# Run with backtrace
+RUST_BACKTRACE=1 cargo test
+
+# Run with logs
+RUST_LOG=debug cargo test -- --nocapture
+
+# Run single test in release mode
+cargo test test_name --release
+```
+
+### E2E Tests
+
+```bash
+# Debug mode (step through)
+npx playwright test --debug
+
+# Headed mode (see browser)
+npx playwright test --headed
+
+# Trace viewer (after failure)
+npx playwright show-trace trace.zip
+
+# Generate screenshots
+npx playwright test --screenshot=on
+```
+
+---
+
+## Troubleshooting
+
+### Rust Tests Fail
+
+- **Check dependencies**: `cargo update`
+- **Clear cache**: `cargo clean && cargo build`
+- **Verify Rust version**: `rustc --version` (should be 1.70+)
+
+### E2E Tests Fail
+
+- **App not starting**: Increase timeout in `playwright.config.ts`
+- **Element not found**: Check selectors, wait for app ready
+- **Timeout errors**: Increase `actionTimeout` in config
+- **CI failures**: Check browser installation, permissions
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| "Command not found" | Install missing dependencies |
+| "Port already in use" | Kill existing processes |
+| "Permission denied" | Check file permissions |
+| "Flaky tests" | Add proper wait conditions |
+
+---
+
+## Resources
+
+- [Rust Testing Book](https://doc.rust-lang.org/book/ch11-00-testing.html)
+- [Tauri Testing Guide](https://tauri.app/v1/guides/testing/)
+- [Playwright Documentation](https://playwright.dev/)
+- [tokio Testing](https://tokio.rs/tokio/topics/testing)
+
+---
+
+## Checklist Before PR
+
+- [ ] All Rust tests pass: `cargo test`
+- [ ] All E2E tests pass: `npm run test:e2e`
+- [ ] New features have tests
+- [ ] Tests follow AAA pattern
+- [ ] Test names are descriptive
+- [ ] No tests are skipped without reason
+- [ ] Coverage is maintained (>80%)
+
+---
+
+**Last Updated**: 2026-01-20

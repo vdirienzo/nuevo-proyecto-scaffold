@@ -1,0 +1,102 @@
+{
+  "$schema": "https://schema.tauri.app/config/2/capability",
+  "identifier": "custom",
+  "description": "Customizable permissions for {{APP_TITLE}} - Enable/disable sections as needed",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+
+    // ===== WINDOW MANAGEMENT (Essential) =====
+    "core:window:allow-close",
+    "core:window:allow-minimize",
+    "core:window:allow-maximize",
+    "core:window:allow-set-title",
+    "core:window:allow-show",
+    "core:window:allow-hide",
+
+    // ===== WINDOW CONTROLS (Optional - Uncomment if needed) =====
+    // "core:window:allow-set-size",
+    // "core:window:allow-set-position",
+    // "core:window:allow-set-fullscreen",
+    // "core:window:allow-set-always-on-top",
+    // "core:window:allow-set-decorations",
+    // "core:window:allow-center",
+
+    // ===== DIALOGS (Recommended) =====
+    "dialog:allow-message",
+    "dialog:allow-confirm",
+    // "dialog:allow-open",      // Uncomment for file open dialog
+    // "dialog:allow-save",      // Uncomment for file save dialog
+    // "dialog:allow-ask",       // Uncomment for input dialogs
+
+    // ===== FILE SYSTEM (Security Risk - Enable carefully) =====
+    // "fs:allow-read",          // Read files
+    // "fs:allow-write",         // Write files
+    // "fs:allow-exists",        // Check file existence
+    // "fs:allow-mkdir",         // Create directories
+    // "fs:allow-remove",        // Delete files/folders
+    // "fs:allow-rename",        // Rename files
+    // "fs:allow-copy-file",     // Copy files
+    // "fs:allow-read-dir",      // List directory contents
+    // "fs:allow-stat",          // Get file metadata
+
+    // ===== SHELL EXECUTION (High Security Risk - Use with caution) =====
+    // "shell:allow-open",       // Open URLs/files with default app
+    // "shell:allow-execute",    // Execute shell commands (DANGEROUS)
+
+    // ===== SYSTEM INFO (Low Risk) =====
+    "os:allow-platform",
+    "os:allow-version",
+    "os:allow-arch",
+    // "os:allow-locale",
+    // "os:allow-hostname",
+
+    // ===== PROCESS CONTROL (Optional) =====
+    // "process:allow-exit",     // Allow app to exit programmatically
+    // "process:allow-restart",  // Allow app to restart
+
+    // ===== NOTIFICATIONS (Optional) =====
+    // "notification:allow-show",
+    // "notification:allow-request-permission",
+    // "notification:allow-is-permission-granted",
+
+    // ===== CLIPBOARD (Optional) =====
+    // "clipboard-manager:allow-read",
+    // "clipboard-manager:allow-write",
+
+    // ===== HTTP REQUESTS (Enable if app needs external APIs) =====
+    // "http:default",
+
+    // ===== PERSISTENT STORAGE (Recommended for settings) =====
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-delete",
+    "store:allow-load",
+    "store:allow-save",
+    // "store:allow-clear",
+    // "store:allow-keys",
+    // "store:allow-values",
+
+    // ===== LOGGING (Recommended) =====
+    "log:allow-log",
+
+    // ===== AUTO-UPDATER (Optional) =====
+    // "updater:default",
+    // "updater:allow-check",
+    // "updater:allow-download",
+    // "updater:allow-install",
+
+    // ===== GLOBAL SHORTCUTS (Optional) =====
+    // "global-shortcut:allow-register",
+    // "global-shortcut:allow-unregister",
+    // "global-shortcut:allow-is-registered"
+
+  ],
+  "remote": {
+    // Allow loading external resources (security consideration)
+    "urls": [
+      // "https://yourdomain.com/*",    // Your API domain
+      // "https://cdn.yourdomain.com/*" // Your CDN
+    ]
+  }
+}

@@ -1,0 +1,155 @@
+/*! Central plugin configuration
+ *
+ * Initializes and configures all Tauri plugins in a centralized location.
+ * Returns a configured Builder that can be used in main.rs.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use tauri::{Builder, Manager};
+use tauri_plugin_log::{Target, TargetKind};
+
+/// Initialize all plugins and return configured builder
+///
+/// Sets up:
+/// - Logging with file rotation
+/// - Persistent store
+/// - Auto-updater
+/// - Window state persistence
+///
+/// # Example
+///
+/// ```rust
+/// use crate::plugin_config::initialize_plugins;
+///
+/// fn main() {
+///     let builder = initialize_plugins();
+///     builder.run(tauri::generate_context!())
+///         .expect("error while running application");
+/// }
+/// ```
+pub fn initialize_plugins() -> Builder<tauri::Wry> {
+    let builder = tauri::Builder::default();
+
+    // Setup logging plugin
+    let builder = builder.plugin(
+        tauri_plugin_log::Builder::new()
+            .targets([
+                Target::new(TargetKind::Stdout),
+                Target::new(TargetKind::LogDir { file_name: None }),
+                Target::new(TargetKind::Webview),
+            ])
+            .level(log::LevelFilter::Info)
+            .level_for("{{PROJECT_NAME}}", log::LevelFilter::Debug)
+            .rotation_strategy(tauri_plugin_log::RotationStrategy::KeepAll)
+            .max_file_size(10_000_000) // 10 MB
+            .build(),
+    );
+
+    // Setup persistent store plugin
+    let builder = builder.plugin(
+        tauri_plugin_store::Builder::new()
+            .build(),
+    );
+
+    // Setup updater plugin (configured via tauri.conf.json)
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
+
+    // Setup dialog plugin for native dialogs
+    let builder = builder.plugin(tauri_plugin_dialog::init());
+
+    // Setup shell plugin for opening URLs and executing commands
+    let builder = builder.plugin(tauri_plugin_shell::init());
+
+    // Setup clipboard plugin
+    let builder = builder.plugin(tauri_plugin_clipboard_manager::init());
+
+    // Setup notification plugin
+    let builder = builder.plugin(tauri_plugin_notification::init());
+
+    // Setup window state plugin (custom)
+    let builder = builder.setup(|app| {
+        // Initialize custom plugins after app is ready
+        let handle = app.handle();
+
+        crate::plugins::setup_logging(&handle);
+        crate::plugins::setup_store(&handle);
+        crate::plugins::setup_updater(&handle);
+        crate::plugins::setup_window_state(&handle);
+
+        Ok(())
+    });
+
+    // Register commands
+    let builder = builder.invoke_handler(tauri::generate_handler![
+        // Log commands
+        crate::plugins::log::log_debug,
+        crate::plugins::log::log_info,
+        crate::plugins::log::log_warn,
+        crate::plugins::log::log_error,
+        crate::plugins::log::get_log_path,
+        crate::plugins::log::open_log_folder,
+        // Store commands
+        crate::plugins::store::store_get,
+        crate::plugins::store::store_set,
+        crate::plugins::store::store_delete,
+        crate::plugins::store::store_clear,
+        // Updater commands
+        crate::plugins::updater::check_updates_manually,
+        crate::plugins::updater::install_update_now,
+        // Window state commands
+        crate::plugins::window_state::save_window_state,
+        crate::plugins::window_state::reset_window_state,
+        // App commands (from commands module)
+        crate::commands::app::get_app_info,
+        crate::commands::app::get_system_info,
+        // Auth commands
+        crate::commands::auth::login,
+        crate::commands::auth::logout,
+        crate::commands::auth::get_current_user,
+        // File commands
+        crate::commands::files::read_file_content,
+        crate::commands::files::write_file_content,
+        crate::commands::files::list_directory,
+        // System commands
+        crate::commands::system::get_cpu_usage,
+        crate::commands::system::get_memory_info,
+    ]);
+
+    builder
+}
+
+/// Plugin health check - verifies all plugins are properly initialized
+pub fn verify_plugins(app: &tauri::AppHandle) -> Result<(), String> {
+    // Verify store is accessible
+    let stores = app.try_state::<tauri_plugin_store::StoreCollection<tauri::Wry>>();
+    if stores.is_none() {
+        return Err("Store plugin not initialized".to_string());
+    }
+
+    // Verify updater is accessible
+    let updater_result = app.updater_builder().build();
+    if updater_result.is_err() {
+        log::warn!("Updater plugin verification failed (may be expected in dev mode)");
+    }
+
+    // Verify window exists
+    let window = app.get_webview_window("main");
+    if window.is_none() {
+        return Err("Main window not found".to_string());
+    }
+
+    log::info!("All plugins verified successfully");
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_plugin_builder_creates() {
+        // Smoke test to ensure builder creation doesn't panic
+        let _ = initialize_plugins();
+    }
+}

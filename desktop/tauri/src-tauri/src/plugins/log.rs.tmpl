@@ -1,0 +1,207 @@
+/*! Logging plugin configuration
+ *
+ * Structured logging with file rotation, multiple log levels, and JSON support.
+ * Logs are written to app-specific directories with automatic rotation.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use tauri::{AppHandle, Manager};
+use tauri_plugin_log::{Target, TargetKind};
+
+/// Setup logging plugin with file rotation and structured output
+pub fn setup_logging(app: &AppHandle) {
+    log::info!("Logging plugin initialized for {{PROJECT_NAME}}");
+    log::info!("Log directory: {:?}", get_log_dir(app));
+}
+
+/// Get the log directory path
+fn get_log_dir(app: &AppHandle) -> Option<std::path::PathBuf> {
+    app.path()
+        .app_log_dir()
+        .ok()
+}
+
+/// Log levels configuration
+pub mod levels {
+    pub const DEBUG: &str = "debug";
+    pub const INFO: &str = "info";
+    pub const WARN: &str = "warn";
+    pub const ERROR: &str = "error";
+}
+
+/// Structured log entry for JSON output
+#[derive(serde::Serialize)]
+pub struct LogEntry {
+    pub timestamp: String,
+    pub level: String,
+    pub target: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<serde_json::Value>,
+}
+
+impl LogEntry {
+    /// Create new log entry
+    pub fn new(level: &str, target: &str, message: String) -> Self {
+        Self {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            level: level.to_string(),
+            target: target.to_string(),
+            message,
+            error: None,
+            context: None,
+        }
+    }
+
+    /// Add error information
+    pub fn with_error(mut self, error: String) -> Self {
+        self.error = Some(error);
+        self
+    }
+
+    /// Add context data
+    pub fn with_context(mut self, context: serde_json::Value) -> Self {
+        self.context = Some(context);
+        self
+    }
+}
+
+/// Custom log formatter for structured output
+pub fn format_log_entry(entry: &LogEntry) -> String {
+    match serde_json::to_string(entry) {
+        Ok(json) => json,
+        Err(e) => format!(
+            "Failed to serialize log entry: {} - Original message: {}",
+            e, entry.message
+        ),
+    }
+}
+
+#[tauri::command]
+pub async fn log_debug(message: String, context: Option<serde_json::Value>) -> Result<(), String> {
+    let entry = LogEntry::new(levels::DEBUG, "frontend", message);
+    let entry = if let Some(ctx) = context {
+        entry.with_context(ctx)
+    } else {
+        entry
+    };
+
+    log::debug!("{}", format_log_entry(&entry));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn log_info(message: String, context: Option<serde_json::Value>) -> Result<(), String> {
+    let entry = LogEntry::new(levels::INFO, "frontend", message);
+    let entry = if let Some(ctx) = context {
+        entry.with_context(ctx)
+    } else {
+        entry
+    };
+
+    log::info!("{}", format_log_entry(&entry));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn log_warn(message: String, context: Option<serde_json::Value>) -> Result<(), String> {
+    let entry = LogEntry::new(levels::WARN, "frontend", message);
+    let entry = if let Some(ctx) = context {
+        entry.with_context(ctx)
+    } else {
+        entry
+    };
+
+    log::warn!("{}", format_log_entry(&entry));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn log_error(
+    message: String,
+    error: Option<String>,
+    context: Option<serde_json::Value>,
+) -> Result<(), String> {
+    let mut entry = LogEntry::new(levels::ERROR, "frontend", message);
+
+    if let Some(err) = error {
+        entry = entry.with_error(err);
+    }
+
+    if let Some(ctx) = context {
+        entry = entry.with_context(ctx);
+    }
+
+    log::error!("{}", format_log_entry(&entry));
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_log_path(app: AppHandle) -> Result<String, String> {
+    get_log_dir(&app)
+        .and_then(|path| path.to_str().map(String::from))
+        .ok_or_else(|| "Failed to get log directory".to_string())
+}
+
+#[tauri::command]
+pub async fn open_log_folder(app: AppHandle) -> Result<(), String> {
+    let log_dir = get_log_dir(&app).ok_or("Failed to get log directory")?;
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(log_dir)
+            .spawn()
+            .map_err(|e| format!("Failed to open log folder: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(log_dir)
+            .spawn()
+            .map_err(|e| format!("Failed to open log folder: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(log_dir)
+            .spawn()
+            .map_err(|e| format!("Failed to open log folder: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_log_entry_creation() {
+        let entry = LogEntry::new("info", "test", "Test message".to_string());
+        assert_eq!(entry.level, "info");
+        assert_eq!(entry.target, "test");
+        assert_eq!(entry.message, "Test message");
+    }
+
+    #[test]
+    fn test_log_entry_with_error() {
+        let entry = LogEntry::new("error", "test", "Test error".to_string())
+            .with_error("Error details".to_string());
+
+        assert_eq!(entry.error, Some("Error details".to_string()));
+    }
+
+    #[test]
+    fn test_log_entry_serialization() {
+        let entry = LogEntry::new("info", "test", "Test".to_string());
+        let json = format_log_entry(&entry);
+        assert!(json.contains("\"level\":\"info\""));
+        assert!(json.contains("\"message\":\"Test\""));
+    }
+}

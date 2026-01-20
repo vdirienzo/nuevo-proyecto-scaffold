@@ -1,0 +1,98 @@
+/*! Application settings model.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+use uuid::Uuid;
+
+/// Theme options for the application.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Theme {
+    Light,
+    Dark,
+    System,
+}
+
+impl Default for Theme {
+    fn default() -> Self {
+        Self::System
+    }
+}
+
+/// Language options.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    En,
+    Es,
+    Fr,
+    De,
+}
+
+impl Default for Language {
+    fn default() -> Self {
+        Self::En
+    }
+}
+
+/// Application settings stored in the database.
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Settings {
+    pub id: Uuid,
+    pub user_id: Option<Uuid>,
+    pub theme: String,
+    pub language: String,
+    pub notifications_enabled: bool,
+    pub auto_update: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+/// Request to update settings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSettingsRequest {
+    pub theme: Option<Theme>,
+    pub language: Option<Language>,
+    pub notifications_enabled: Option<bool>,
+    pub auto_update: Option<bool>,
+}
+
+impl Settings {
+    /// Get theme as enum.
+    pub fn theme(&self) -> Theme {
+        match self.theme.as_str() {
+            "light" => Theme::Light,
+            "dark" => Theme::Dark,
+            _ => Theme::System,
+        }
+    }
+
+    /// Get language as enum.
+    pub fn language(&self) -> Language {
+        match self.language.as_str() {
+            "es" => Language::Es,
+            "fr" => Language::Fr,
+            "de" => Language::De,
+            _ => Language::En,
+        }
+    }
+
+    /// Create default settings.
+    pub fn default_for_user(user_id: Option<Uuid>) -> Self {
+        let now = Utc::now();
+        Self {
+            id: Uuid::new_v4(),
+            user_id,
+            theme: "system".to_string(),
+            language: "en".to_string(),
+            notifications_enabled: true,
+            auto_update: true,
+            created_at: now,
+            updated_at: now,
+        }
+    }
+}

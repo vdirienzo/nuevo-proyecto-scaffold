@@ -1,0 +1,448 @@
+/**
+ * useTauri.ts - React hook for Tauri commands
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * Custom React hook that provides a convenient interface for calling
+ * Tauri commands with loading states, error handling, and memoization.
+ */
+
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import * as tauri from '../lib/tauri';
+import { TauriStore, getStore } from '../lib/tauri-store';
+import type {
+  AppInfo,
+  SystemInfo,
+  User,
+  AuthResponse,
+} from '../lib/tauri';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * State for async Tauri commands
+ */
+interface CommandState<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+}
+
+/**
+ * Hook return type for commands
+ */
+interface UseCommandResult<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  execute: (...args: any[]) => Promise<T>;
+  reset: () => void;
+}
+
+// ============================================================================
+// Main hook
+// ============================================================================
+
+/**
+ * Main Tauri hook with common functionality
+ *
+ * @returns Tauri utilities and store instance
+ */
+export function useTauri() {
+  const [isTauriEnv, setIsTauriEnv] = useState(false);
+  const store = useMemo(() => getStore(), []);
+
+  useEffect(() => {
+    setIsTauriEnv(tauri.isTauri());
+  }, []);
+
+  return {
+    isTauri: isTauriEnv,
+    store,
+    commands: tauri,
+  };
+}
+
+// ============================================================================
+// Command hooks
+// ============================================================================
+
+/**
+ * Generic hook for executing Tauri commands
+ *
+ * @param commandFn - Tauri command function
+ * @param autoExecute - Execute command on mount
+ * @returns Command state and execute function
+ */
+export function useCommand<T, Args extends any[]>(
+  commandFn: (...args: Args) => Promise<T>,
+  autoExecute = false
+): UseCommandResult<T> {
+  const [state, setState] = useState<CommandState<T>>({
+    data: null,
+    loading: false,
+    error: null,
+  });
+
+  const execute = useCallback(
+    async (...args: Args): Promise<T> => {
+      setState({ data: null, loading: true, error: null });
+
+      try {
+        const result = await commandFn(...args);
+        setState({ data: result, loading: false, error: null });
+        return result;
+      } catch (error) {
+        const errorMessage = tauri.handleTauriError(error);
+        setState({ data: null, loading: false, error: errorMessage });
+        throw error;
+      }
+    },
+    [commandFn]
+  );
+
+  const reset = useCallback(() => {
+    setState({ data: null, loading: false, error: null });
+  }, []);
+
+  useEffect(() => {
+    if (autoExecute) {
+      execute();
+    }
+  }, [autoExecute, execute]);
+
+  return {
+    data: state.data,
+    loading: state.loading,
+    error: state.error,
+    execute,
+    reset,
+  };
+}
+
+/**
+ * Hook for app info
+ *
+ * @param autoLoad - Load app info on mount
+ */
+export function useAppInfo(autoLoad = true) {
+  return useCommand<AppInfo, []>(tauri.getAppInfo, autoLoad);
+}
+
+/**
+ * Hook for system info
+ *
+ * @param autoLoad - Load system info on mount
+ */
+export function useSystemInfo(autoLoad = true) {
+  return useCommand<SystemInfo, []>(tauri.getSystemInfo, autoLoad);
+}
+
+/**
+ * Hook for greet command
+ */
+export function useGreet() {
+  return useCommand<string, [string]>(tauri.greet);
+}
+
+// ============================================================================
+// Authentication hook
+// ============================================================================
+
+/**
+ * Authentication state
+ */
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  error: string | null;
+}
+
+/**
+ * Hook for authentication
+ */
+export function useAuth() {
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    token: null,
+    isAuthenticated: false,
+    loading: true,
+    error: null,
+  });
+
+  const store = useMemo(() => getStore(), []);
+
+  // Load auth state on mount
+  useEffect(() => {
+    loadAuthState();
+  }, []);
+
+  const loadAuthState = useCallback(async () => {
+    setState((prev) => ({ ...prev, loading: true }));
+
+    try {
+      const authData = await store.getAuth();
+
+      if (!authData) {
+        setState({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          loading: false,
+          error: null,
+        });
+        return;
+      }
+
+      // Validate token
+      const isValid = await tauri.validateToken(authData.token);
+
+      if (!isValid) {
+        await store.clearAuth();
+        setState({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          loading: false,
+          error: 'Session expired',
+        });
+        return;
+      }
+
+      // Get user data
+      const user = await tauri.getCurrentUser(authData.token);
+
+      setState({
+        user,
+        token: authData.token,
+        isAuthenticated: true,
+        loading: false,
+        error: null,
+      });
+    } catch (error) {
+      const errorMessage = tauri.handleTauriError(error);
+      setState({
+        user: null,
+        token: null,
+        isAuthenticated: false,
+        loading: false,
+        error: errorMessage,
+      });
+    }
+  }, [store]);
+
+  const login = useCallback(
+    async (username: string, password: string): Promise<void> => {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+
+      try {
+        const response = await tauri.authenticate(username, password);
+
+        // Save auth data
+        await store.saveAuth({
+          token: response.token,
+          userId: response.user.id,
+          username: response.user.username,
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+        });
+
+        setState({
+          user: response.user,
+          token: response.token,
+          isAuthenticated: true,
+          loading: false,
+          error: null,
+        });
+      } catch (error) {
+        const errorMessage = tauri.handleTauriError(error);
+        setState((prev) => ({
+          ...prev,
+          loading: false,
+          error: errorMessage,
+        }));
+        throw error;
+      }
+    },
+    [store]
+  );
+
+  const logout = useCallback(async (): Promise<void> => {
+    await store.clearAuth();
+    setState({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      loading: false,
+      error: null,
+    });
+  }, [store]);
+
+  return {
+    ...state,
+    login,
+    logout,
+    refresh: loadAuthState,
+  };
+}
+
+// ============================================================================
+// Store hooks
+// ============================================================================
+
+/**
+ * Hook for store value with reactivity
+ *
+ * @param key - Store key
+ * @param defaultValue - Default value if key doesn't exist
+ */
+export function useStoreValue<T>(
+  key: string,
+  defaultValue: T
+): [T, (value: T) => Promise<void>] {
+  const [value, setValue] = useState<T>(defaultValue);
+  const store = useMemo(() => getStore(), []);
+
+  useEffect(() => {
+    loadValue();
+  }, [key]);
+
+  const loadValue = async () => {
+    const stored = await store.get<T>(key);
+    setValue(stored ?? defaultValue);
+  };
+
+  const updateValue = async (newValue: T) => {
+    await store.set(key, newValue);
+    setValue(newValue);
+  };
+
+  return [value, updateValue];
+}
+
+/**
+ * Hook for user settings
+ */
+export function useSettings() {
+  const store = useMemo(() => getStore(), []);
+  const [settings, setSettings] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    setLoading(true);
+    const current = await store.getSettings();
+    setSettings(current);
+    setLoading(false);
+  };
+
+  const updateSettings = async (updates: any) => {
+    await store.saveSettings(updates);
+    await loadSettings();
+  };
+
+  const updateSetting = async (key: string, value: any) => {
+    await store.updateSetting(key as any, value);
+    await loadSettings();
+  };
+
+  const resetSettings = async () => {
+    await store.resetSettings();
+    await loadSettings();
+  };
+
+  return {
+    settings,
+    loading,
+    updateSettings,
+    updateSetting,
+    resetSettings,
+    refresh: loadSettings,
+  };
+}
+
+// ============================================================================
+// Window hooks
+// ============================================================================
+
+/**
+ * Hook for window state
+ */
+export function useWindow() {
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  useEffect(() => {
+    checkMaximized();
+  }, []);
+
+  const checkMaximized = async () => {
+    const maximized = await tauri.isWindowMaximized();
+    setIsMaximized(maximized);
+  };
+
+  const minimize = useCallback(async () => {
+    await tauri.minimizeWindow();
+  }, []);
+
+  const maximize = useCallback(async () => {
+    await tauri.maximizeWindow();
+    await checkMaximized();
+  }, []);
+
+  const close = useCallback(async () => {
+    await tauri.closeWindow();
+  }, []);
+
+  return {
+    isMaximized,
+    minimize,
+    maximize,
+    close,
+    refresh: checkMaximized,
+  };
+}
+
+// ============================================================================
+// Health check hook
+// ============================================================================
+
+/**
+ * Hook for periodic health checks
+ *
+ * @param intervalMs - Check interval in milliseconds (default: 30000)
+ */
+export function useHealthCheck(intervalMs = 30000) {
+  const [isHealthy, setIsHealthy] = useState(true);
+  const [lastCheck, setLastCheck] = useState<Date | null>(null);
+
+  const check = useCallback(async () => {
+    const healthy = await tauri.healthCheck();
+    setIsHealthy(healthy);
+    setLastCheck(new Date());
+  }, []);
+
+  useEffect(() => {
+    check(); // Initial check
+
+    const interval = setInterval(check, intervalMs);
+    return () => clearInterval(interval);
+  }, [check, intervalMs]);
+
+  return {
+    isHealthy,
+    lastCheck,
+    check,
+  };
+}
+
+// ============================================================================
+// Exports
+// ============================================================================
+
+export default useTauri;

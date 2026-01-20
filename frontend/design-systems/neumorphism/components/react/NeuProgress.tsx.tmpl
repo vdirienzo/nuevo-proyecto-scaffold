@@ -1,0 +1,162 @@
+/**
+ * NeuProgress Component - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Progress bar with inset track and raised fill
+ */
+
+import React, { HTMLAttributes } from 'react';
+import { cn } from '@/lib/utils'; // or use clsx/classnames
+
+export interface NeuProgressProps extends HTMLAttributes<HTMLDivElement> {
+  /** Progress value (0-100) */
+  value: number;
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Show label */
+  showLabel?: boolean;
+  /** Custom label */
+  label?: string;
+  /** Label formatter */
+  formatLabel?: (value: number) => string;
+  /** Use gradient fill */
+  gradient?: boolean;
+  /** Animation */
+  animated?: boolean;
+  /** Indeterminate state */
+  indeterminate?: boolean;
+}
+
+const NeuProgress = React.forwardRef<HTMLDivElement, NeuProgressProps>(
+  (
+    {
+      value,
+      size = 'md',
+      showLabel = false,
+      label,
+      formatLabel = (val) => `${Math.round(val)}%`,
+      gradient = true,
+      animated = false,
+      indeterminate = false,
+      className,
+      ...props
+    },
+    ref
+  ) => {
+    // Clamp value between 0 and 100
+    const clampedValue = Math.min(100, Math.max(0, value));
+
+    const wrapperStyles = cn('w-full', className);
+
+    const trackStyles = cn(
+      'relative w-full rounded-soft-full overflow-hidden',
+      'neu-pressed', // Inset shadow for track
+      {
+        'h-2': size === 'sm',
+        'h-3': size === 'md',
+        'h-4': size === 'lg',
+      }
+    );
+
+    const fillStyles = cn(
+      'h-full transition-all duration-500 ease-out',
+      'neu-surface', // Raised fill (uses surface shadow for subtle raise)
+      gradient ? 'neu-gradient' : 'bg-neu-accent',
+      animated && 'animate-pulse',
+      // Indeterminate animation
+      indeterminate && 'animate-[indeterminate_1.5s_ease-in-out_infinite]'
+    );
+
+    const labelStyles = cn(
+      'flex items-center justify-between mb-2 neu-text',
+      {
+        'text-xs': size === 'sm',
+        'text-sm': size === 'md',
+        'text-base': size === 'lg',
+      }
+    );
+
+    return (
+      <div ref={ref} className={wrapperStyles} {...props}>
+        {(showLabel || label) && (
+          <div className={labelStyles}>
+            {label && <span className="font-medium">{label}</span>}
+            {showLabel && (
+              <span className="neu-text-secondary font-mono">
+                {indeterminate ? '...' : formatLabel(clampedValue)}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className={trackStyles}>
+          <div
+            className={fillStyles}
+            style={{
+              width: indeterminate ? '40%' : `${clampedValue}%`,
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+);
+
+NeuProgress.displayName = 'NeuProgress';
+
+export default NeuProgress;
+
+/**
+ * Usage Examples:
+ *
+ * // Basic progress
+ * <NeuProgress value={75} />
+ *
+ * // With label
+ * <NeuProgress value={60} showLabel />
+ *
+ * // Custom label
+ * <NeuProgress value={45} label="Uploading..." showLabel />
+ *
+ * // Custom formatter
+ * <NeuProgress
+ *   value={30}
+ *   showLabel
+ *   formatLabel={(val) => `${val} of 100 items`}
+ * />
+ *
+ * // Sizes
+ * <NeuProgress value={50} size="sm" />
+ * <NeuProgress value={50} size="lg" />
+ *
+ * // Without gradient
+ * <NeuProgress value={80} gradient={false} />
+ *
+ * // Animated (pulsing)
+ * <NeuProgress value={40} animated />
+ *
+ * // Indeterminate (loading)
+ * <NeuProgress value={0} indeterminate label="Loading..." />
+ *
+ * // Complete example
+ * <NeuProgress
+ *   value={uploadProgress}
+ *   size="md"
+ *   label="Upload Progress"
+ *   showLabel
+ *   gradient
+ *   animated={uploadProgress < 100}
+ * />
+ */
+
+/**
+ * Add this to your tailwind.config.js or globals.css for indeterminate animation:
+ *
+ * @keyframes indeterminate {
+ *   0% { transform: translateX(-100%); }
+ *   50% { transform: translateX(250%); }
+ *   100% { transform: translateX(-100%); }
+ * }
+ */

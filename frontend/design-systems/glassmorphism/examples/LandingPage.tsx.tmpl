@@ -1,0 +1,239 @@
+/**
+ * LandingPage.tsx - Glassmorphism Design System Landing Page Example
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * Glass morphism landing page with frosted glass effects and vibrant gradients.
+ * Design principles: Depth, translucency, layering.
+ */
+
+import React from 'react';
+import { GlassButton } from '../components/react/GlassButton';
+import { GlassCard } from '../components/react/GlassCard';
+import { GlassInput } from '../components/react/GlassInput';
+import { GlassNavbar } from '../components/react/GlassNavbar';
+import { GlassTooltip } from '../components/react/GlassTooltip';
+
+const LandingPage: React.FC = () => {
+  return (
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Animated gradient background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute top-0 left-0 w-[800px] h-[800px] bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-full blur-3xl opacity-30 animate-pulse"></div>
+        <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-gradient-to-tl from-blue-500 via-cyan-500 to-teal-500 rounded-full blur-3xl opacity-30 animate-pulse delay-1000"></div>
+        <div className="absolute top-1/2 left-1/2 w-[700px] h-[700px] bg-gradient-to-r from-yellow-500 via-orange-500 to-pink-500 rounded-full blur-3xl opacity-20 animate-pulse delay-500"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"></div>
+      </div>
+
+      {/* Glass Navbar - Sticky with blur */}
+      <div className="sticky top-0 z-50">
+        <GlassNavbar />
+      </div>
+
+      {/* Hero Section - Glass card overlay */}
+      <section className="container mx-auto px-6 pt-32 pb-24">
+        <GlassCard className="max-w-4xl mx-auto text-center p-12">
+          <h1 className="text-6xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+            Experience the Future
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-2xl mx-auto">
+            {{APP_TITLE}} brings stunning glass morphism design to your applications with beautiful depth and transparency.
+          </p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <GlassButton variant="primary" glow size="lg">
+              Start Building ✨
+            </GlassButton>
+            <GlassButton variant="secondary" size="lg">
+              Watch Demo
+            </GlassButton>
+          </div>
+        </GlassCard>
+      </section>
+
+      {/* Features Grid - Glass cards with hover glow */}
+      <section className="container mx-auto px-6 py-24">
+        <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 text-white">
+          Stunning Features
+        </h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          <GlassCard blur="lg" className="group hover:scale-105 transition-transform">
+            <div className="text-5xl mb-4">🎨</div>
+            <h3 className="text-2xl font-semibold mb-3 text-white">Beautiful Design</h3>
+            <p className="text-gray-300">
+              Frosted glass effects with vibrant gradients create depth and visual hierarchy.
+            </p>
+          </GlassCard>
+          <GlassCard blur="lg" className="group hover:scale-105 transition-transform">
+            <div className="text-5xl mb-4">⚡</div>
+            <h3 className="text-2xl font-semibold mb-3 text-white">Performance First</h3>
+            <p className="text-gray-300">
+              CSS-only effects ensure smooth performance across all devices and browsers.
+            </p>
+          </GlassCard>
+          <GlassCard blur="lg" className="group hover:scale-105 transition-transform">
+            <div className="text-5xl mb-4">🔧</div>
+            <h3 className="text-2xl font-semibold mb-3 text-white">Fully Customizable</h3>
+            <p className="text-gray-300">
+              Adjust blur, opacity, and glow to match your brand perfectly.
+            </p>
+          </GlassCard>
+        </div>
+      </section>
+
+      {/* Stats Section - Glass panels */}
+      <section className="container mx-auto px-6 py-24">
+        <div className="grid md:grid-cols-4 gap-6">
+          <GlassCard className="text-center" blur="md">
+            <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              10K+
+            </div>
+            <div className="text-gray-300">Happy Users</div>
+          </GlassCard>
+          <GlassCard className="text-center" blur="md">
+            <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              50+
+            </div>
+            <div className="text-gray-300">Components</div>
+          </GlassCard>
+          <GlassCard className="text-center" blur="md">
+            <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-green-400 to-teal-400 bg-clip-text text-transparent">
+              99.9%
+            </div>
+            <div className="text-gray-300">Uptime</div>
+          </GlassCard>
+          <GlassCard className="text-center" blur="md">
+            <div className="text-5xl font-bold mb-2 bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
+              24/7
+            </div>
+            <div className="text-gray-300">Support</div>
+          </GlassCard>
+        </div>
+      </section>
+
+      {/* Testimonials - Glass cards with avatars */}
+      <section className="container mx-auto px-6 py-24">
+        <h2 className="text-4xl md:text-5xl font-bold text-center mb-16 text-white">
+          What People Say
+        </h2>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <GlassCard blur="lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full"></div>
+              <div>
+                <div className="font-semibold text-white">Emma Thompson</div>
+                <div className="text-sm text-gray-300">Product Designer</div>
+              </div>
+            </div>
+            <p className="text-gray-300">
+              "The glass effects are absolutely stunning. Our users love the modern aesthetic!"
+            </p>
+          </GlassCard>
+          <GlassCard blur="lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full"></div>
+              <div>
+                <div className="font-semibold text-white">Jake Martinez</div>
+                <div className="text-sm text-gray-300">Frontend Dev</div>
+              </div>
+            </div>
+            <p className="text-gray-300">
+              "Easy to implement and performs great. Best glass design system I've used."
+            </p>
+          </GlassCard>
+          <GlassCard blur="lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-full"></div>
+              <div>
+                <div className="font-semibold text-white">Sofia Kim</div>
+                <div className="text-sm text-gray-300">UI Engineer</div>
+              </div>
+            </div>
+            <p className="text-gray-300">
+              "{{APP_TITLE}} transformed our app. The depth and layering is perfect."
+            </p>
+          </GlassCard>
+        </div>
+      </section>
+
+      {/* CTA Section - Large glass card with glowing button */}
+      <section className="container mx-auto px-6 py-24">
+        <GlassCard className="max-w-4xl mx-auto text-center p-16" blur="xl">
+          <h2 className="text-5xl font-bold mb-6 text-white">
+            Ready to Build Something Amazing?
+          </h2>
+          <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
+            Join thousands of developers creating beautiful, modern interfaces with {{PROJECT_NAME}}.
+          </p>
+          <GlassButton variant="primary" glow size="lg">
+            Get Started for Free ✨
+          </GlassButton>
+        </GlassCard>
+      </section>
+
+      {/* Newsletter - Glass form */}
+      <section className="container mx-auto px-6 py-24">
+        <GlassCard className="max-w-2xl mx-auto p-10" blur="lg">
+          <h3 className="text-3xl font-bold mb-4 text-white text-center">
+            Stay in the Loop
+          </h3>
+          <p className="text-gray-300 text-center mb-8">
+            Get weekly updates on new components, features, and design tips.
+          </p>
+          <div className="flex gap-3">
+            <GlassInput
+              type="email"
+              placeholder="your@email.com"
+              className="flex-1"
+            />
+            <GlassButton variant="primary" glow>
+              Subscribe
+            </GlassButton>
+          </div>
+        </GlassCard>
+      </section>
+
+      {/* Footer - Glass footer */}
+      <footer className="border-t border-white/10 backdrop-blur-xl bg-white/5 mt-24">
+        <div className="container mx-auto px-6 py-12">
+          <div className="grid md:grid-cols-4 gap-8 mb-8">
+            <div>
+              <div className="font-bold text-2xl mb-4 text-white">{{PROJECT_NAME}}</div>
+              <p className="text-gray-300 text-sm">
+                Beautiful glass morphism design for modern web applications.
+              </p>
+            </div>
+            <div>
+              <div className="font-semibold mb-3 text-white">Product</div>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Docs</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-semibold mb-3 text-white">Resources</div>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Tutorials</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Community</a></li>
+              </ul>
+            </div>
+            <div>
+              <div className="font-semibold mb-3 text-white">Company</div>
+              <ul className="space-y-2 text-gray-300 text-sm">
+                <li><a href="#" className="hover:text-white transition-colors">About</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Privacy</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="text-center text-gray-400 text-sm pt-8 border-t border-white/10">
+            © {new Date().getFullYear()} {{PROJECT_NAME}}. Crafted with glass and gradients.
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default LandingPage;

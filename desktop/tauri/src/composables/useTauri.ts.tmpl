@@ -1,0 +1,499 @@
+/**
+ * useTauri.ts - Vue composable for Tauri commands
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * Composition API composable that provides a convenient interface for calling
+ * Tauri commands with reactive state, loading states, and error handling.
+ */
+
+import { ref, computed, onMounted, type Ref } from 'vue';
+import * as tauri from '../lib/tauri';
+import { getStore, type TauriStore } from '../lib/tauri-store';
+import type {
+  AppInfo,
+  SystemInfo,
+  User,
+  AuthResponse,
+} from '../lib/tauri';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * State for async Tauri commands
+ */
+interface CommandState<T> {
+  data: Ref<T | null>;
+  loading: Ref<boolean>;
+  error: Ref<string | null>;
+}
+
+/**
+ * Composable return type for commands
+ */
+interface UseCommandResult<T> {
+  data: Ref<T | null>;
+  loading: Ref<boolean>;
+  error: Ref<string | null>;
+  execute: (...args: any[]) => Promise<T>;
+  reset: () => void;
+}
+
+// ============================================================================
+// Main composable
+// ============================================================================
+
+/**
+ * Main Tauri composable with common functionality
+ *
+ * @returns Tauri utilities and store instance
+ */
+export function useTauri() {
+  const isTauriEnv = ref(false);
+  const store = getStore();
+
+  onMounted(() => {
+    isTauriEnv.value = tauri.isTauri();
+  });
+
+  return {
+    isTauri: computed(() => isTauriEnv.value),
+    store,
+    commands: tauri,
+  };
+}
+
+// ============================================================================
+// Command composables
+// ============================================================================
+
+/**
+ * Generic composable for executing Tauri commands
+ *
+ * @param commandFn - Tauri command function
+ * @param autoExecute - Execute command on mount
+ * @returns Command state and execute function
+ */
+export function useCommand<T, Args extends any[]>(
+  commandFn: (...args: Args) => Promise<T>,
+  autoExecute = false
+): UseCommandResult<T> {
+  const data = ref<T | null>(null);
+  const loading = ref(false);
+  const error = ref<string | null>(null);
+
+  const execute = async (...args: Args): Promise<T> => {
+    data.value = null;
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const result = await commandFn(...args);
+      data.value = result;
+      loading.value = false;
+      return result;
+    } catch (err) {
+      const errorMessage = tauri.handleTauriError(err);
+      error.value = errorMessage;
+      loading.value = false;
+      throw err;
+    }
+  };
+
+  const reset = () => {
+    data.value = null;
+    loading.value = false;
+    error.value = null;
+  };
+
+  onMounted(() => {
+    if (autoExecute) {
+      execute();
+    }
+  });
+
+  return {
+    data: data as Ref<T | null>,
+    loading,
+    error,
+    execute,
+    reset,
+  };
+}
+
+/**
+ * Composable for app info
+ *
+ * @param autoLoad - Load app info on mount
+ */
+export function useAppInfo(autoLoad = true) {
+  return useCommand<AppInfo, []>(tauri.getAppInfo, autoLoad);
+}
+
+/**
+ * Composable for system info
+ *
+ * @param autoLoad - Load system info on mount
+ */
+export function useSystemInfo(autoLoad = true) {
+  return useCommand<SystemInfo, []>(tauri.getSystemInfo, autoLoad);
+}
+
+/**
+ * Composable for greet command
+ */
+export function useGreet() {
+  return useCommand<string, [string]>(tauri.greet);
+}
+
+// ============================================================================
+// Authentication composable
+// ============================================================================
+
+/**
+ * Authentication state
+ */
+interface AuthState {
+  user: Ref<User | null>;
+  token: Ref<string | null>;
+  isAuthenticated: Ref<boolean>;
+  loading: Ref<boolean>;
+  error: Ref<string | null>;
+}
+
+/**
+ * Composable for authentication
+ */
+export function useAuth() {
+  const user = ref<User | null>(null);
+  const token = ref<string | null>(null);
+  const isAuthenticated = ref(false);
+  const loading = ref(true);
+  const error = ref<string | null>(null);
+  const store = getStore();
+
+  const loadAuthState = async () => {
+    loading.value = true;
+
+    try {
+      const authData = await store.getAuth();
+
+      if (!authData) {
+        user.value = null;
+        token.value = null;
+        isAuthenticated.value = false;
+        loading.value = false;
+        error.value = null;
+        return;
+      }
+
+      // Validate token
+      const isValid = await tauri.validateToken(authData.token);
+
+      if (!isValid) {
+        await store.clearAuth();
+        user.value = null;
+        token.value = null;
+        isAuthenticated.value = false;
+        loading.value = false;
+        error.value = 'Session expired';
+        return;
+      }
+
+      // Get user data
+      const userData = await tauri.getCurrentUser(authData.token);
+
+      user.value = userData;
+      token.value = authData.token;
+      isAuthenticated.value = true;
+      loading.value = false;
+      error.value = null;
+    } catch (err) {
+      const errorMessage = tauri.handleTauriError(err);
+      user.value = null;
+      token.value = null;
+      isAuthenticated.value = false;
+      loading.value = false;
+      error.value = errorMessage;
+    }
+  };
+
+  const login = async (username: string, password: string): Promise<void> => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await tauri.authenticate(username, password);
+
+      // Save auth data
+      await store.saveAuth({
+        token: response.token,
+        userId: response.user.id,
+        username: response.user.username,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours
+      });
+
+      user.value = response.user;
+      token.value = response.token;
+      isAuthenticated.value = true;
+      loading.value = false;
+      error.value = null;
+    } catch (err) {
+      const errorMessage = tauri.handleTauriError(err);
+      loading.value = false;
+      error.value = errorMessage;
+      throw err;
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    await store.clearAuth();
+    user.value = null;
+    token.value = null;
+    isAuthenticated.value = false;
+    loading.value = false;
+    error.value = null;
+  };
+
+  onMounted(() => {
+    loadAuthState();
+  });
+
+  return {
+    user: computed(() => user.value),
+    token: computed(() => token.value),
+    isAuthenticated: computed(() => isAuthenticated.value),
+    loading: computed(() => loading.value),
+    error: computed(() => error.value),
+    login,
+    logout,
+    refresh: loadAuthState,
+  };
+}
+
+// ============================================================================
+// Store composables
+// ============================================================================
+
+/**
+ * Composable for store value with reactivity
+ *
+ * @param key - Store key
+ * @param defaultValue - Default value if key doesn't exist
+ */
+export function useStoreValue<T>(
+  key: string,
+  defaultValue: T
+): {
+  value: Ref<T>;
+  update: (value: T) => Promise<void>;
+  loading: Ref<boolean>;
+} {
+  const value = ref<T>(defaultValue);
+  const loading = ref(true);
+  const store = getStore();
+
+  const loadValue = async () => {
+    loading.value = true;
+    const stored = await store.get<T>(key);
+    value.value = (stored ?? defaultValue) as T;
+    loading.value = false;
+  };
+
+  const update = async (newValue: T) => {
+    await store.set(key, newValue);
+    value.value = newValue;
+  };
+
+  onMounted(() => {
+    loadValue();
+  });
+
+  return {
+    value: value as Ref<T>,
+    update,
+    loading,
+  };
+}
+
+/**
+ * Composable for user settings
+ */
+export function useSettings() {
+  const settings = ref<any>(null);
+  const loading = ref(true);
+  const store = getStore();
+
+  const loadSettings = async () => {
+    loading.value = true;
+    const current = await store.getSettings();
+    settings.value = current;
+    loading.value = false;
+  };
+
+  const updateSettings = async (updates: any) => {
+    await store.saveSettings(updates);
+    await loadSettings();
+  };
+
+  const updateSetting = async (key: string, value: any) => {
+    await store.updateSetting(key as any, value);
+    await loadSettings();
+  };
+
+  const resetSettings = async () => {
+    await store.resetSettings();
+    await loadSettings();
+  };
+
+  onMounted(() => {
+    loadSettings();
+  });
+
+  return {
+    settings: computed(() => settings.value),
+    loading: computed(() => loading.value),
+    updateSettings,
+    updateSetting,
+    resetSettings,
+    refresh: loadSettings,
+  };
+}
+
+// ============================================================================
+// Window composables
+// ============================================================================
+
+/**
+ * Composable for window state
+ */
+export function useWindow() {
+  const isMaximized = ref(false);
+
+  const checkMaximized = async () => {
+    const maximized = await tauri.isWindowMaximized();
+    isMaximized.value = maximized;
+  };
+
+  const minimize = async () => {
+    await tauri.minimizeWindow();
+  };
+
+  const maximize = async () => {
+    await tauri.maximizeWindow();
+    await checkMaximized();
+  };
+
+  const close = async () => {
+    await tauri.closeWindow();
+  };
+
+  onMounted(() => {
+    checkMaximized();
+  });
+
+  return {
+    isMaximized: computed(() => isMaximized.value),
+    minimize,
+    maximize,
+    close,
+    refresh: checkMaximized,
+  };
+}
+
+// ============================================================================
+// Health check composable
+// ============================================================================
+
+/**
+ * Composable for periodic health checks
+ *
+ * @param intervalMs - Check interval in milliseconds (default: 30000)
+ */
+export function useHealthCheck(intervalMs = 30000) {
+  const isHealthy = ref(true);
+  const lastCheck = ref<Date | null>(null);
+
+  const check = async () => {
+    const healthy = await tauri.healthCheck();
+    isHealthy.value = healthy;
+    lastCheck.value = new Date();
+  };
+
+  onMounted(() => {
+    check(); // Initial check
+
+    const interval = setInterval(check, intervalMs);
+
+    // Cleanup on unmount
+    return () => clearInterval(interval);
+  });
+
+  return {
+    isHealthy: computed(() => isHealthy.value),
+    lastCheck: computed(() => lastCheck.value),
+    check,
+  };
+}
+
+// ============================================================================
+// Dialog composables
+// ============================================================================
+
+/**
+ * Composable for dialogs
+ */
+export function useDialog() {
+  const showMessage = async (title: string, message: string) => {
+    await tauri.showMessage(title, message);
+  };
+
+  const showError = async (title: string, message: string) => {
+    await tauri.showError(title, message);
+  };
+
+  const showWarning = async (title: string, message: string) => {
+    await tauri.showWarning(title, message);
+  };
+
+  const openFilePicker = async (options?: any) => {
+    return await tauri.openFilePicker(options);
+  };
+
+  return {
+    showMessage,
+    showError,
+    showWarning,
+    openFilePicker,
+  };
+}
+
+// ============================================================================
+// File system composables
+// ============================================================================
+
+/**
+ * Composable for file operations
+ */
+export function useFileSystem() {
+  const readFile = async (path: string): Promise<string> => {
+    return await tauri.readFile(path);
+  };
+
+  const writeFile = async (path: string, contents: string): Promise<void> => {
+    await tauri.writeFile(path, contents);
+  };
+
+  return {
+    readFile,
+    writeFile,
+  };
+}
+
+// ============================================================================
+// Exports
+// ============================================================================
+
+export default useTauri;

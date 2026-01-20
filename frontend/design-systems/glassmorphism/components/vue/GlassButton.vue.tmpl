@@ -1,0 +1,128 @@
+<!--
+  GlassButton.vue - Glass Button Component (Vue 3)
+
+  Autor: {{AUTHOR}}
+  Proyecto: {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+
+export interface GlassButtonProps {
+  variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+  loading?: boolean
+  ripple?: boolean
+  disabled?: boolean
+}
+
+const props = withDefaults(defineProps<GlassButtonProps>(), {
+  variant: 'primary',
+  size: 'md',
+  loading: false,
+  ripple: true,
+  disabled: false,
+})
+
+const emit = defineEmits<{
+  click: [event: MouseEvent]
+}>()
+
+interface Ripple {
+  x: number
+  y: number
+  id: number
+}
+
+const ripples = ref<Ripple[]>([])
+
+const variantClasses = {
+  primary: 'bg-glass-white-md border-glass-white-lg hover:shadow-glow-md',
+  secondary: 'bg-glass-purple border-glass-purple hover:shadow-glow-purple',
+  ghost: 'bg-transparent border-glass-white hover:bg-glass-white',
+}
+
+const sizeClasses = {
+  sm: 'px-4 py-2 text-sm',
+  md: 'px-6 py-3 text-base',
+  lg: 'px-8 py-4 text-lg',
+}
+
+const buttonClasses = computed(() => [
+  'glass-button relative overflow-hidden rounded-lg border backdrop-blur-xl',
+  'font-medium transition-all duration-300',
+  'focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent',
+  'disabled:opacity-50 disabled:cursor-not-allowed',
+  variantClasses[props.variant],
+  sizeClasses[props.size],
+])
+
+const handleClick = (e: MouseEvent) => {
+  if (props.ripple && !props.disabled && !props.loading) {
+    const button = e.currentTarget as HTMLButtonElement
+    const rect = button.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    const id = Date.now()
+
+    ripples.value.push({ x, y, id })
+
+    setTimeout(() => {
+      ripples.value = ripples.value.filter((r) => r.id !== id)
+    }, 600)
+  }
+
+  emit('click', e)
+}
+</script>
+
+<template>
+  <button
+    :disabled="disabled || loading"
+    :class="buttonClasses"
+    @click="handleClick"
+  >
+    <!-- Gradient overlay -->
+    <div class="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+
+    <!-- Ripple effect -->
+    <span
+      v-for="ripple in ripples"
+      :key="ripple.id"
+      class="absolute bg-white/30 rounded-full animate-ripple"
+      :style="{
+        left: `${ripple.x}px`,
+        top: `${ripple.y}px`,
+        width: '10px',
+        height: '10px',
+        transform: 'translate(-50%, -50%)',
+      }"
+    />
+
+    <!-- Content -->
+    <span class="relative z-10 flex items-center justify-center gap-2">
+      <svg
+        v-if="loading"
+        class="animate-spin h-5 w-5"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        />
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+        />
+      </svg>
+      <slot />
+    </span>
+  </button>
+</template>

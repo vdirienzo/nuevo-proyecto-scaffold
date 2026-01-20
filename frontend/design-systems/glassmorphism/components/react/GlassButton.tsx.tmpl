@@ -1,0 +1,132 @@
+/**
+ * GlassButton.tsx - Glass Button Component
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+import React, { useState } from 'react'
+import { cn } from '@/lib/utils'
+
+export interface GlassButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+  loading?: boolean
+  ripple?: boolean
+}
+
+const variantStyles = {
+  primary: 'bg-glass-white-md border-glass-white-lg hover:shadow-glow-md',
+  secondary: 'bg-glass-purple border-glass-purple hover:shadow-glow-purple',
+  ghost: 'bg-transparent border-glass-white hover:bg-glass-white',
+}
+
+const sizeStyles = {
+  sm: 'px-4 py-2 text-sm',
+  md: 'px-6 py-3 text-base',
+  lg: 'px-8 py-4 text-lg',
+}
+
+export const GlassButton = React.forwardRef<HTMLButtonElement, GlassButtonProps>(
+  (
+    {
+      variant = 'primary',
+      size = 'md',
+      loading = false,
+      ripple = true,
+      className,
+      children,
+      disabled,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
+    const [ripples, setRipples] = useState<Array<{ x: number; y: number; id: number }>>([])
+
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (ripple && !disabled && !loading) {
+        const button = e.currentTarget
+        const rect = button.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const y = e.clientY - rect.top
+        const id = Date.now()
+
+        setRipples((prev) => [...prev, { x, y, id }])
+
+        setTimeout(() => {
+          setRipples((prev) => prev.filter((r) => r.id !== id))
+        }, 600)
+      }
+
+      onClick?.(e)
+    }
+
+    return (
+      <button
+        ref={ref}
+        disabled={disabled || loading}
+        onClick={handleClick}
+        className={cn(
+          'glass-button relative overflow-hidden rounded-lg border backdrop-blur-xl',
+          'font-medium transition-all duration-300',
+          'focus:outline-none focus:ring-2 focus:ring-white/50 focus:ring-offset-2 focus:ring-offset-transparent',
+          'disabled:opacity-50 disabled:cursor-not-allowed',
+          variantStyles[variant],
+          sizeStyles[size],
+          className
+        )}
+        {...props}
+      >
+        {/* Gradient overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none" />
+
+        {/* Ripple effect */}
+        {ripples.map((ripple) => (
+          <span
+            key={ripple.id}
+            className="absolute bg-white/30 rounded-full animate-ripple"
+            style={{
+              left: ripple.x,
+              top: ripple.y,
+              width: 10,
+              height: 10,
+              transform: 'translate(-50%, -50%)',
+            }}
+          />
+        ))}
+
+        {/* Content */}
+        <span className="relative z-10 flex items-center justify-center gap-2">
+          {loading && (
+            <svg
+              className="animate-spin h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              />
+            </svg>
+          )}
+          {children}
+        </span>
+      </button>
+    )
+  }
+)
+
+GlassButton.displayName = 'GlassButton'
+
+export default GlassButton

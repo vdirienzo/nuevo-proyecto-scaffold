@@ -1,0 +1,297 @@
+# Content Security Policy (CSP) for {{APP_TITLE}}
+
+**Author:** {{AUTHOR}}
+
+## Overview
+
+Content Security Policy (CSP) is a security layer that helps detect and mitigate certain types of attacks in Tauri applications, including Cross-Site Scripting (XSS) and data injection attacks.
+
+## What is CSP in Tauri?
+
+In Tauri v2, CSP is configured in `tauri.conf.json` under the `security.csp` field. It controls:
+
+- Where scripts can be loaded from
+- What external resources can be accessed
+- What inline scripts/styles are allowed
+- What protocols are permitted
+
+## Default CSP for {{APP_TITLE}}
+
+The current CSP is configured in `src-tauri/tauri.conf.json`:
+
+```json
+{
+  "security": {
+    "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+  }
+}
+```
+
+## CSP Directives Explained
+
+### Core Directives
+
+| Directive | Purpose | Example |
+|-----------|---------|---------|
+| `default-src` | Fallback for all resource types | `default-src 'self'` |
+| `script-src` | Control script sources | `script-src 'self' 'unsafe-inline'` |
+| `style-src` | Control stylesheet sources | `style-src 'self' 'unsafe-inline'` |
+| `img-src` | Control image sources | `img-src 'self' data: https:` |
+| `font-src` | Control font sources | `font-src 'self' data:` |
+| `connect-src` | Control AJAX/fetch/WebSocket | `connect-src 'self' https://api.example.com` |
+| `media-src` | Control audio/video sources | `media-src 'self'` |
+| `object-src` | Control plugins (Flash, etc.) | `object-src 'none'` |
+| `frame-src` | Control iframe sources | `frame-src 'none'` |
+
+### Special Keywords
+
+| Keyword | Meaning |
+|---------|---------|
+| `'self'` | Same origin as the app |
+| `'none'` | Block all sources |
+| `'unsafe-inline'` | Allow inline scripts/styles (⚠️ security risk) |
+| `'unsafe-eval'` | Allow eval() (⚠️ security risk) |
+| `data:` | Allow data: URIs |
+| `https:` | Allow any HTTPS source |
+| `wss:` | Allow WebSocket Secure |
+
+## Recommended CSP Configurations
+
+### 1. Strict (Maximum Security)
+
+Best for apps that don't load external resources:
+
+```json
+{
+  "security": {
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'"
+  }
+}
+```
+
+**Use when:**
+- All assets are bundled with the app
+- No external APIs are called
+- No third-party scripts/styles
+
+**Pros:**
+- Maximum security
+- No XSS risk from external sources
+
+**Cons:**
+- Cannot load CDN resources
+- Cannot use inline styles/scripts
+
+### 2. Moderate (Balanced)
+
+Allows external API calls and CDN resources:
+
+```json
+{
+  "security": {
+    "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://api.yourdomain.com; object-src 'none'; frame-src 'none'"
+  }
+}
+```
+
+**Use when:**
+- App calls external APIs
+- Using web fonts or images from CDNs
+- Framework requires inline styles
+
+**Pros:**
+- Good security with flexibility
+- Supports modern frameworks (React, Vue)
+
+**Cons:**
+- `unsafe-inline` for styles reduces security slightly
+
+### 3. Permissive (Development)
+
+Easier to work with during development:
+
+```json
+{
+  "security": {
+    "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss: https:; object-src 'none'"
+  }
+}
+```
+
+**Use when:**
+- Developing locally
+- Hot module replacement (HMR) is enabled
+- Testing with external services
+
+**Pros:**
+- Less restrictive, easier debugging
+- Works with dev tools and HMR
+
+**Cons:**
+- ⚠️ **DO NOT USE IN PRODUCTION**
+- Reduced security
+
+## CSP for Common Scenarios
+
+### Using External APIs
+
+```json
+"connect-src 'self' https://api.example.com https://cdn.example.com wss://websocket.example.com"
+```
+
+### Using Google Fonts
+
+```json
+"font-src 'self' https://fonts.gstatic.com; style-src 'self' https://fonts.googleapis.com"
+```
+
+### Using CDN for Images
+
+```json
+"img-src 'self' data: https://cdn.example.com https://images.example.com"
+```
+
+### Using Analytics (e.g., Plausible, PostHog)
+
+```json
+"connect-src 'self' https://plausible.io; script-src 'self' https://plausible.io"
+```
+
+### WebSocket Connections
+
+```json
+"connect-src 'self' wss://yourdomain.com"
+```
+
+## Testing Your CSP
+
+### 1. Check Browser Console
+
+CSP violations appear in the browser console:
+
+```
+Refused to load the script 'https://evil.com/script.js' because it violates
+the following Content Security Policy directive: "script-src 'self'"
+```
+
+### 2. CSP Report-Only Mode
+
+Test CSP without blocking (for development):
+
+```json
+{
+  "security": {
+    "csp": null,
+    "cspReportOnly": "default-src 'self'; report-uri /csp-report"
+  }
+}
+```
+
+### 3. Online CSP Evaluator
+
+- [Google CSP Evaluator](https://csp-evaluator.withgoogle.com/)
+- [Mozilla Observatory](https://observatory.mozilla.org/)
+
+## Common CSP Issues
+
+### Issue: React/Vue apps not working
+
+**Problem:** Framework requires inline scripts/styles
+
+**Solution:** Add `'unsafe-inline'` to `style-src` (scripts should still be external)
+
+```json
+"style-src 'self' 'unsafe-inline'"
+```
+
+### Issue: External fonts not loading
+
+**Problem:** Font CDN not whitelisted
+
+**Solution:** Add font sources
+
+```json
+"font-src 'self' data: https://fonts.gstatic.com"
+```
+
+### Issue: API calls blocked
+
+**Problem:** API domain not in `connect-src`
+
+**Solution:** Add your API domain
+
+```json
+"connect-src 'self' https://api.yourdomain.com"
+```
+
+### Issue: Images from S3/CDN not loading
+
+**Problem:** Image sources not whitelisted
+
+**Solution:** Add CDN to `img-src`
+
+```json
+"img-src 'self' data: https: https://yourbucket.s3.amazonaws.com"
+```
+
+## Security Best Practices
+
+### ✅ DO
+
+- Start with strict CSP and relax as needed
+- Use `'self'` whenever possible
+- Whitelist specific domains instead of `https:`
+- Use `'none'` for unused directives
+- Test CSP in development before production
+- Review CSP violations in logs
+
+### ❌ DON'T
+
+- Use `'unsafe-eval'` (enables code injection)
+- Use `'unsafe-inline'` for scripts (XSS risk)
+- Allow `*` wildcards (too permissive)
+- Ignore CSP violations
+- Copy CSP from other projects without understanding
+
+## Migrating from Tauri v1
+
+In Tauri v1, CSP was under `tauri.security.csp`. In v2:
+
+```json
+// OLD (v1)
+{
+  "tauri": {
+    "security": {
+      "csp": "..."
+    }
+  }
+}
+
+// NEW (v2)
+{
+  "security": {
+    "csp": "..."
+  }
+}
+```
+
+## Additional Resources
+
+- [MDN: Content Security Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP)
+- [Tauri Security Best Practices](https://tauri.app/security/)
+- [OWASP: Content Security Policy](https://owasp.org/www-community/controls/Content_Security_Policy)
+- [CSP Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Content_Security_Policy_Cheat_Sheet.html)
+
+## Getting Help
+
+If you encounter CSP issues:
+
+1. Check browser console for violation reports
+2. Identify which directive is blocking the resource
+3. Add the specific domain to that directive
+4. Test in development before deploying
+
+---
+
+**Last Updated:** {{CURRENT_DATE}}
+**Version:** 1.0

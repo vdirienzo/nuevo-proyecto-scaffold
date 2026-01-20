@@ -1,0 +1,139 @@
+# Dockerfile para aplicación Tauri
+# Autor: {{AUTHOR}}
+#
+# Multi-stage build para optimizar el tamaño de la imagen final
+# Soporta compilación multi-plataforma de aplicaciones Tauri
+
+# =============================================================================
+# Stage 1: Builder - Instalación de dependencias y compilación
+# =============================================================================
+FROM rust:1.75-bookworm AS builder
+
+# Metadata
+LABEL maintainer="{{AUTHOR}}"
+LABEL description="Builder stage para {{PROJECT_NAME}}"
+
+# Variables de entorno para la compilación
+ENV DEBIAN_FRONTEND=noninteractive \
+    CARGO_HOME=/usr/local/cargo \
+    RUSTUP_HOME=/usr/local/rustup \
+    PATH=/usr/local/cargo/bin:$PATH
+
+# Instalar dependencias del sistema requeridas por Tauri
+# webkit2gtk: Motor de renderizado web
+# librsvg: Soporte para iconos SVG
+# libayatana-appindicator3: System tray support
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build essentials
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    # Tauri core dependencies
+    libwebkit2gtk-4.0-dev \
+    libgtk-3-dev \
+    libayatana-appindicator3-dev \
+    librsvg2-dev \
+    # Additional utilities
+    curl \
+    wget \
+    file \
+    # Node.js dependencies (necesario para frontend build)
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    # Cleanup para reducir tamaño de imagen
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Verificar instalaciones
+RUN node --version && npm --version && rustc --version
+
+# Crear directorio de trabajo
+WORKDIR /app
+
+# Copiar archivos de configuración de dependencias primero (mejor caching)
+COPY package*.json ./
+COPY src-tauri/Cargo.toml src-tauri/Cargo.lock ./src-tauri/
+
+# Instalar dependencias de Node.js
+RUN npm ci --only=production
+
+# Pre-compilar dependencias de Rust (mejora velocidad de builds posteriores)
+RUN mkdir -p src-tauri/src && \
+    echo "fn main() {}" > src-tauri/src/main.rs && \
+    cd src-tauri && \
+    cargo build --release && \
+    rm -rf src target
+
+# Copiar código fuente completo
+COPY . .
+
+# Build del frontend
+RUN npm run build
+
+# Build de la aplicación Tauri
+WORKDIR /app/src-tauri
+RUN cargo build --release
+
+# =============================================================================
+# Stage 2: Runtime - Imagen mínima para ejecutar la aplicación
+# =============================================================================
+FROM debian:bookworm-slim AS runtime
+
+# Metadata
+LABEL maintainer="{{AUTHOR}}"
+LABEL description="{{PROJECT_NAME}} - Tauri Desktop Application"
+LABEL version="1.0.0"
+
+# Instalar solo las dependencias de runtime necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Runtime libraries for Tauri
+    libwebkit2gtk-4.0-37 \
+    libgtk-3-0 \
+    libayatana-appindicator3-1 \
+    librsvg2-2 \
+    # SSL support
+    ca-certificates \
+    # Cleanup
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Crear usuario no-root para seguridad
+RUN useradd --create-home --shell /bin/bash appuser
+
+# Crear directorio de aplicación
+WORKDIR /app
+
+# Copiar binario compilado desde builder
+COPY --from=builder --chown=appuser:appuser /app/src-tauri/target/release/{{PROJECT_NAME}} /app/
+
+# Copiar recursos adicionales si existen
+COPY --from=builder --chown=appuser:appuser /app/src-tauri/icons /app/icons/
+
+# Cambiar a usuario no-root
+USER appuser
+
+# Health check (opcional, ajustar según necesidades)
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+#     CMD pgrep -x {{PROJECT_NAME}} || exit 1
+
+# Puerto por defecto (ajustar si la app usa servidor interno)
+# EXPOSE 8080
+
+# Comando de inicio
+CMD ["/app/{{PROJECT_NAME}}"]
+
+# =============================================================================
+# Build Instructions:
+# =============================================================================
+#
+# Build de la imagen:
+#   docker build -t {{PROJECT_NAME}}:latest .
+#
+# Build multi-plataforma (requiere buildx):
+#   docker buildx build --platform linux/amd64,linux/arm64 -t {{PROJECT_NAME}}:latest .
+#
+# Run del container:
+#   docker run --rm -e DISPLAY=$DISPLAY -v /tmp/.X11-unix:/tmp/.X11-unix {{PROJECT_NAME}}:latest
+#
+# Para aplicaciones con GUI, necesitas configurar X11 forwarding o usar un VNC server
+# =============================================================================

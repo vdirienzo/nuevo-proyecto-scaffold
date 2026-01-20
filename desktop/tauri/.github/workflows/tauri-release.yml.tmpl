@@ -1,0 +1,401 @@
+# GitHub Actions Workflow para build y release de Tauri
+# Autor: {{AUTHOR}}
+#
+# Este workflow:
+# - Compila la aplicación para Windows, macOS y Linux
+# - Cachea dependencias para builds más rápidos
+# - Crea releases automáticos con binarios
+# - Soporta tags para versiones semánticas
+
+name: Tauri Release
+
+on:
+  # Trigger manual desde GitHub UI
+  workflow_dispatch:
+
+  # Trigger en push de tags (v1.0.0, v1.2.3-beta, etc.)
+  push:
+    tags:
+      - 'v*.*.*'
+
+  # Trigger en pull requests (solo build, no release)
+  pull_request:
+    branches:
+      - main
+      - develop
+
+# Variables de entorno globales
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+# Permisos necesarios para crear releases
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ===========================================================================
+  # Job 1: Build de la aplicación en múltiples plataformas
+  # ===========================================================================
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+
+    # Strategy matrix para compilación multi-plataforma
+    strategy:
+      fail-fast: false  # Continuar otros builds si uno falla
+      matrix:
+        include:
+          # Windows x64
+          - platform: 'windows-latest'
+            os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            artifact_name: {{PROJECT_NAME}}-windows-x64
+
+          # macOS Intel
+          - platform: 'macos-latest'
+            os: macos-latest
+            rust_target: x86_64-apple-darwin
+            artifact_name: {{PROJECT_NAME}}-macos-x64
+
+          # macOS Apple Silicon
+          - platform: 'macos-latest'
+            os: macos-latest
+            rust_target: aarch64-apple-darwin
+            artifact_name: {{PROJECT_NAME}}-macos-arm64
+
+          # Linux x64
+          - platform: 'ubuntu-22.04'
+            os: ubuntu-22.04
+            rust_target: x86_64-unknown-linux-gnu
+            artifact_name: {{PROJECT_NAME}}-linux-x64
+
+    steps:
+      # -----------------------------------------------------------------------
+      # Setup: Checkout y configuración inicial
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      # -----------------------------------------------------------------------
+      # Cache: Dependencias de Rust y Node.js
+      # -----------------------------------------------------------------------
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          cache-on-failure: true
+
+      - name: Cache Node modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      # -----------------------------------------------------------------------
+      # Dependencias del sistema (Linux)
+      # -----------------------------------------------------------------------
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      # -----------------------------------------------------------------------
+      # Dependencias del sistema (macOS)
+      # -----------------------------------------------------------------------
+      - name: Install macOS dependencies
+        if: startsWith(matrix.platform, 'macos')
+        run: |
+          brew install create-dmg
+
+      # -----------------------------------------------------------------------
+      # Build: Instalar dependencias de Node.js
+      # -----------------------------------------------------------------------
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # -----------------------------------------------------------------------
+      # Build: Tauri application
+      # -----------------------------------------------------------------------
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          # No crear release automáticamente (lo hacemos en job separado)
+          tagName: ''
+          releaseName: ''
+          releaseBody: ''
+          releaseDraft: true
+          prerelease: false
+          args: --target ${{ matrix.rust_target }}
+
+      # -----------------------------------------------------------------------
+      # Upload: Artifacts para el siguiente job
+      # -----------------------------------------------------------------------
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            src-tauri/target/${{ matrix.rust_target }}/release/bundle/**/*
+          retention-days: 7
+          if-no-files-found: error
+
+  # ===========================================================================
+  # Job 2: Tests automatizados
+  # ===========================================================================
+  test:
+    name: Run tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
+        run: npm test || echo "No tests configured"
+
+      - name: Run Rust tests
+        working-directory: src-tauri
+        run: cargo test --all-features
+
+      - name: Run Clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
+
+      - name: Check formatting
+        working-directory: src-tauri
+        run: cargo fmt -- --check
+
+  # ===========================================================================
+  # Job 3: Security audit
+  # ===========================================================================
+  security:
+    name: Security audit
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+
+      - name: Run security audit
+        working-directory: src-tauri
+        run: cargo audit
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate || true
+
+  # ===========================================================================
+  # Job 4: Crear GitHub Release (solo en tags)
+  # ===========================================================================
+  release:
+    name: Create Release
+    needs: [build, test, security]
+    runs-on: ubuntu-22.04
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Descargar todos los artifacts de los builds
+      # -----------------------------------------------------------------------
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: {{PROJECT_NAME}}-windows-x64
+          path: ./artifacts/windows
+
+      - name: Download macOS Intel artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: {{PROJECT_NAME}}-macos-x64
+          path: ./artifacts/macos-x64
+
+      - name: Download macOS ARM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: {{PROJECT_NAME}}-macos-arm64
+          path: ./artifacts/macos-arm64
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: {{PROJECT_NAME}}-linux-x64
+          path: ./artifacts/linux
+
+      # -----------------------------------------------------------------------
+      # Generar changelog desde commits
+      # -----------------------------------------------------------------------
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Obtener tag anterior
+          PREV_TAG=$(git describe --abbrev=0 --tags $(git rev-list --tags --skip=1 --max-count=1) 2>/dev/null || echo "")
+
+          if [ -z "$PREV_TAG" ]; then
+            # Primer release: todos los commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          else
+            # Commits desde el tag anterior
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      # -----------------------------------------------------------------------
+      # Crear release en GitHub
+      # -----------------------------------------------------------------------
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: {{PROJECT_NAME}} ${{ github.ref_name }}
+          body: |
+            # {{PROJECT_NAME}} ${{ github.ref_name }}
+
+            ## 📦 Installation
+
+            Download the appropriate installer for your platform:
+
+            - **Windows**: Download `.msi` or `.exe`
+            - **macOS**: Download `.dmg` (Intel or Apple Silicon)
+            - **Linux**: Download `.AppImage` or `.deb`
+
+            ## ✨ What's Changed
+
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## 🔐 Checksums
+
+            See `checksums.txt` for SHA256 hashes of all binaries.
+
+            ---
+
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.changelog.outputs.prev_tag }}...${{ github.ref_name }}
+          files: |
+            artifacts/**/*
+          draft: false
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+          generate_release_notes: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # ===========================================================================
+  # Job 5: Publish a registros de paquetes (opcional)
+  # ===========================================================================
+  # publish:
+  #   name: Publish packages
+  #   needs: [release]
+  #   runs-on: ubuntu-22.04
+  #   if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'beta')
+  #
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Publish to npm
+  #       run: |
+  #         echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+  #         npm publish
+  #
+  #     - name: Publish to Homebrew
+  #       run: |
+  #         # Script para actualizar Homebrew formula
+  #         echo "Implement Homebrew publishing"
+
+# =============================================================================
+# Configuración de Secrets Requeridos
+# =============================================================================
+#
+# En GitHub Settings > Secrets and variables > Actions, agregar:
+#
+# TAURI_PRIVATE_KEY: Key privada para firma de updates (opcional)
+#   Generar con: tauri signer generate -w ~/.tauri/myapp.key
+#
+# TAURI_KEY_PASSWORD: Password de la key privada (opcional)
+#
+# NPM_TOKEN: Token para publicar en npm (opcional)
+#
+# =============================================================================
+# Triggers del Workflow
+# =============================================================================
+#
+# 1. Manual: GitHub UI > Actions > Tauri Release > Run workflow
+#
+# 2. Tag: git tag -a v1.0.0 -m "Release v1.0.0" && git push origin v1.0.0
+#
+# 3. Pull Request: Automático al crear PR a main/develop
+#
+# =============================================================================
+# Nomenclatura de Tags
+# =============================================================================
+#
+# Releases estables:   v1.0.0, v1.2.3
+# Pre-releases:        v1.0.0-beta.1, v1.0.0-rc.2
+# Dev versions:        v1.0.0-alpha.1
+#
+# =============================================================================

@@ -1,7 +1,7 @@
 # Wizard Configuration for nuevo-proyecto
 # Author: Homero Thompson del Lago del Terror
-# Version: 4.0.0 - Next Generation Edition
-# Last Updated: 2026-01-19
+# Version: 6.1.0 - Design Systems & Tauri Edition
+# Last Updated: 2026-01-20
 
 phases:
   # ============================================
@@ -210,6 +210,27 @@ phases:
           - value: pwa
             label: "PWA"
             description: "Installable web app"
+
+      - id: desktop_platform
+        type: select
+        prompt: "Desktop platform (optional)"
+        required: false
+        options:
+          - value: none
+            label: "No desktop app"
+            description: "Web/mobile only"
+          - value: tauri
+            label: "Tauri"
+            description: "Rust backend, web frontend, 3-10MB bundle, secure"
+          - value: tauri-react
+            label: "Tauri + React"
+            description: "Tauri with React SPA frontend (Vite)"
+          - value: tauri-vue
+            label: "Tauri + Vue"
+            description: "Tauri with Vue 3 frontend (Composition API)"
+          - value: electron
+            label: "Electron (Legacy)"
+            description: "Node.js + Chromium, larger bundle (~150MB)"
 
       - id: api_style
         type: select
@@ -718,6 +739,30 @@ phases:
           - value: codeowners
             label: "CODEOWNERS"
             description: "Automatic PR reviewers"
+
+      - id: design_system
+        type: select
+        prompt: "UI Design System aesthetic"
+        required: true
+        options:
+          - value: geist
+            label: "Vercel/Geist"
+            description: "Black background, high contrast, subtle gradients, ultra-clean typography, sharp minimalism"
+          - value: glassmorphism
+            label: "Glassmorphism"
+            description: "Transparency + backdrop-blur, frosted glass layers, glowing borders, futuristic dark mode"
+          - value: neumorphism
+            label: "Neumorphism (Soft UI)"
+            description: "Soft shadows inset/outset, same color base, low contrast, tactile and calm"
+          - value: claymorphism
+            label: "Claymorphism"
+            description: "Organic shapes, clay-like shadows, pastel colors, warm and friendly"
+          - value: neo-brutalism
+            label: "Neo-Brutalism"
+            description: "Loud colors, chunky typography, asymmetric layouts, ugly on purpose"
+          - value: custom
+            label: "Custom / None"
+            description: "No pre-built design system, start from scratch"
 
   # ============================================
   # PHASE 10: Advanced Technologies

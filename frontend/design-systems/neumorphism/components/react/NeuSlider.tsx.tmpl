@@ -1,0 +1,250 @@
+/**
+ * NeuSlider Component - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Range slider with inset track and raised thumb
+ */
+
+import React, { useState, InputHTMLAttributes, useId, useRef } from 'react';
+import { cn } from '@/lib/utils'; // or use clsx/classnames
+
+export interface NeuSliderProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size' | 'type'> {
+  /** Label text */
+  label?: string;
+  /** Minimum value */
+  min?: number;
+  /** Maximum value */
+  max?: number;
+  /** Step increment */
+  step?: number;
+  /** Show value tooltip */
+  showValue?: boolean;
+  /** Value formatter */
+  formatValue?: (value: number) => string;
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Controlled value */
+  value?: number;
+  /** Change handler */
+  onValueChange?: (value: number) => void;
+}
+
+const NeuSlider = React.forwardRef<HTMLInputElement, NeuSliderProps>(
+  (
+    {
+      label,
+      min = 0,
+      max = 100,
+      step = 1,
+      showValue = true,
+      formatValue = (val) => val.toString(),
+      size = 'md',
+      value: controlledValue,
+      onValueChange,
+      disabled,
+      className,
+      id,
+      onChange,
+      ...props
+    },
+    ref
+  ) => {
+    const generatedId = useId();
+    const sliderId = id || generatedId;
+    const [internalValue, setInternalValue] = useState(min);
+    const [isDragging, setIsDragging] = useState(false);
+    const [showTooltip, setShowTooltip] = useState(false);
+    const sliderRef = useRef<HTMLDivElement>(null);
+
+    // Use controlled or uncontrolled mode
+    const isControlled = controlledValue !== undefined;
+    const value = isControlled ? controlledValue : internalValue;
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = parseFloat(e.target.value);
+
+      if (!isControlled) {
+        setInternalValue(newValue);
+      }
+
+      if (onValueChange) {
+        onValueChange(newValue);
+      }
+
+      if (onChange) {
+        onChange(e);
+      }
+    };
+
+    // Calculate percentage for visual indicators
+    const percentage = ((value - min) / (max - min)) * 100;
+
+    const wrapperStyles = cn(
+      'w-full',
+      disabled && 'neu-disabled',
+      className
+    );
+
+    const trackStyles = cn(
+      'relative w-full rounded-soft-full neu-pressed',
+      'overflow-hidden',
+      {
+        'h-2': size === 'sm',
+        'h-3': size === 'md',
+        'h-4': size === 'lg',
+      }
+    );
+
+    const thumbStyles = cn(
+      'slider-thumb appearance-none w-0 h-0',
+      'cursor-pointer focus:outline-none',
+      // Thumb as custom element (via CSS)
+      'relative z-10'
+    );
+
+    const labelStyles = cn(
+      'flex items-center justify-between mb-2',
+      {
+        'text-sm': size === 'sm',
+        'text-base': size === 'md',
+        'text-lg': size === 'lg',
+      }
+    );
+
+    return (
+      <div className={wrapperStyles}>
+        {(label || showValue) && (
+          <div className={labelStyles}>
+            {label && (
+              <label htmlFor={sliderId} className="neu-text font-medium">
+                {label}
+              </label>
+            )}
+            {showValue && (
+              <span className="neu-text-secondary text-sm font-mono">
+                {formatValue(value)}
+              </span>
+            )}
+          </div>
+        )}
+
+        <div
+          ref={sliderRef}
+          className="relative"
+          onMouseEnter={() => setShowTooltip(true)}
+          onMouseLeave={() => !isDragging && setShowTooltip(false)}
+        >
+          {/* Track container */}
+          <div className={trackStyles}>
+            {/* Fill (optional gradient) */}
+            <div
+              className="absolute left-0 top-0 h-full neu-gradient transition-all duration-150"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+
+          {/* Input (invisible but functional) */}
+          <input
+            ref={ref}
+            id={sliderId}
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={handleChange}
+            disabled={disabled}
+            onMouseDown={() => setIsDragging(true)}
+            onMouseUp={() => {
+              setIsDragging(false);
+              setShowTooltip(false);
+            }}
+            className={cn(
+              'absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-20',
+              disabled && 'cursor-not-allowed'
+            )}
+            {...props}
+          />
+
+          {/* Custom thumb */}
+          <div
+            className={cn(
+              'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 pointer-events-none',
+              'rounded-full neu-surface transition-all duration-150',
+              'z-30',
+              {
+                'w-4 h-4': size === 'sm',
+                'w-5 h-5': size === 'md',
+                'w-6 h-6': size === 'lg',
+              },
+              isDragging && 'scale-110'
+            )}
+            style={{ left: `${percentage}%` }}
+          />
+
+          {/* Tooltip */}
+          {showTooltip && !disabled && (
+            <div
+              className={cn(
+                'absolute -top-10 -translate-x-1/2 pointer-events-none',
+                'neu-surface rounded-soft-md px-3 py-1.5',
+                'neu-text text-sm font-medium whitespace-nowrap',
+                'transition-all duration-150 z-40'
+              )}
+              style={{ left: `${percentage}%` }}
+            >
+              {formatValue(value)}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-2 h-2 bg-neu-light-bg dark:bg-neu-dark-bg rotate-45" />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+);
+
+NeuSlider.displayName = 'NeuSlider';
+
+export default NeuSlider;
+
+/**
+ * Usage Examples:
+ *
+ * // Basic slider
+ * <NeuSlider />
+ *
+ * // With label
+ * <NeuSlider label="Volume" />
+ *
+ * // Custom range and step
+ * <NeuSlider min={0} max={10} step={0.5} />
+ *
+ * // Controlled
+ * const [volume, setVolume] = useState(50);
+ * <NeuSlider
+ *   value={volume}
+ *   onValueChange={setVolume}
+ *   label="Volume"
+ * />
+ *
+ * // Custom formatter
+ * <NeuSlider
+ *   label="Price"
+ *   min={0}
+ *   max={1000}
+ *   step={10}
+ *   formatValue={(val) => `$${val}`}
+ * />
+ *
+ * // Sizes
+ * <NeuSlider size="sm" label="Small" />
+ * <NeuSlider size="lg" label="Large" />
+ *
+ * // Without value display
+ * <NeuSlider showValue={false} />
+ *
+ * // Disabled
+ * <NeuSlider disabled value={75} />
+ */

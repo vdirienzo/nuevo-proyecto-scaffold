@@ -1,0 +1,260 @@
+/**
+ * Glassmorphism Design System - Global Styles
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Glass effect base colors */
+    --glass-white: rgba(255, 255, 255, 0.1);
+    --glass-white-md: rgba(255, 255, 255, 0.15);
+    --glass-white-lg: rgba(255, 255, 255, 0.2);
+    --glass-dark: rgba(0, 0, 0, 0.1);
+    --glass-dark-md: rgba(0, 0, 0, 0.15);
+    --glass-dark-lg: rgba(0, 0, 0, 0.2);
+
+    /* Colored glass variants */
+    --glass-purple: rgba(147, 51, 234, 0.1);
+    --glass-blue: rgba(59, 130, 246, 0.1);
+    --glass-cyan: rgba(6, 182, 212, 0.1);
+    --glass-pink: rgba(236, 72, 153, 0.1);
+
+    /* Glow effects */
+    --glow-sm: 0 0 10px rgba(255, 255, 255, 0.1);
+    --glow: 0 0 15px rgba(255, 255, 255, 0.15);
+    --glow-md: 0 0 20px rgba(255, 255, 255, 0.2);
+    --glow-lg: 0 0 30px rgba(255, 255, 255, 0.25);
+    --glow-purple: 0 0 20px rgba(147, 51, 234, 0.4);
+    --glow-blue: 0 0 20px rgba(59, 130, 246, 0.4);
+    --glow-cyan: 0 0 20px rgba(6, 182, 212, 0.4);
+    --glow-pink: 0 0 20px rgba(236, 72, 153, 0.4);
+  }
+
+  /* Dark background for glassmorphism to work properly */
+  body {
+    @apply bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 min-h-screen text-white;
+  }
+
+  /* Fallback for browsers without backdrop-filter support */
+  @supports not (backdrop-filter: blur(10px)) {
+    .glass-card,
+    .glass-button,
+    .glass-input,
+    .glass-modal-panel,
+    .glass-navbar {
+      background-color: rgba(255, 255, 255, 0.15);
+    }
+  }
+}
+
+@layer components {
+  /* Glass card base */
+  .glass-card {
+    position: relative;
+    background: var(--glass-white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* Glass button base */
+  .glass-button {
+    position: relative;
+    background: var(--glass-white-md);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* Glass input base */
+  .glass-input {
+    background: var(--glass-white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+  }
+
+  /* Gradient border utility */
+  .gradient-border {
+    position: relative;
+  }
+
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.4), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Glow on hover utility */
+  .hover-glow {
+    transition: box-shadow 0.3s ease;
+  }
+
+  .hover-glow:hover {
+    box-shadow: var(--glow-md);
+  }
+}
+
+@layer utilities {
+  /* Glass utilities */
+  .glass-white {
+    background-color: var(--glass-white);
+  }
+
+  .glass-white-md {
+    background-color: var(--glass-white-md);
+  }
+
+  .glass-white-lg {
+    background-color: var(--glass-white-lg);
+  }
+
+  .glass-dark {
+    background-color: var(--glass-dark);
+  }
+
+  /* Text glow utility */
+  .text-glow {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+  }
+
+  .text-glow-purple {
+    text-shadow: 0 0 20px rgba(147, 51, 234, 0.7);
+  }
+
+  .text-glow-blue {
+    text-shadow: 0 0 20px rgba(59, 130, 246, 0.7);
+  }
+
+  .text-glow-cyan {
+    text-shadow: 0 0 20px rgba(6, 182, 212, 0.7);
+  }
+
+  /* Scrollbar styling for glassmorphism */
+  .glass-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-track {
+    background: var(--glass-white);
+    border-radius: 4px;
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--glass-white-lg);
+    border-radius: 4px;
+    backdrop-filter: blur(10px);
+  }
+
+  .glass-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+/* Keyframe animations */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: var(--glow);
+  }
+  50% {
+    box-shadow: var(--glow-md);
+  }
+}
+
+@keyframes border-glow {
+  0%,
+  100% {
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+}
+
+@keyframes ripple {
+  0% {
+    transform: scale(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* Entrance animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes zoom-in-95 {
+  from {
+    transform: scale(0.95);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* Tailwind animate classes */
+.animate-in {
+  animation-fill-mode: both;
+}
+
+.fade-in {
+  animation-name: fade-in;
+}
+
+.zoom-in-95 {
+  animation-name: zoom-in-95;
+}
+
+.duration-200 {
+  animation-duration: 200ms;
+}
+
+.duration-300 {
+  animation-duration: 300ms;
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-card,
+  .glass-button,
+  .glass-input,
+  .glass-modal-panel,
+  .glass-navbar {
+    border-width: 2px;
+  }
+}

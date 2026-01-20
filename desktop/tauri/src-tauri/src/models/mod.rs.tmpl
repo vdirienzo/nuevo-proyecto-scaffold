@@ -1,0 +1,10 @@
+/*! Models module - Data structures and domain entities.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+pub mod user;
+pub mod settings;
+
+pub use user::{User, CreateUserRequest, UpdateUserRequest, UserResponse};
+pub use settings::{Settings, UpdateSettingsRequest};

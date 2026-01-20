@@ -1,0 +1,207 @@
+/**
+ * Modal.tsx - Geist design system Modal component
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Dark glass modal with gradient border accent and smooth animations.
+ */
+
+import React, { useEffect } from 'react';
+import { cn } from '@/lib/utils';
+import { createPortal } from 'react-dom';
+
+export interface ModalProps {
+  /** Controls modal visibility */
+  open: boolean;
+  /** Callback when modal should close */
+  onClose: () => void;
+  /** Modal title */
+  title?: string;
+  /** Modal description */
+  description?: string;
+  /** Modal content */
+  children: React.ReactNode;
+  /** Footer content (typically buttons) */
+  footer?: React.ReactNode;
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  /** Disable closing on backdrop click */
+  disableBackdropClick?: boolean;
+  /** Disable closing on Escape key */
+  disableEscapeKey?: boolean;
+  /** Show close button */
+  showCloseButton?: boolean;
+  /** Additional className for modal container */
+  className?: string;
+}
+
+export const Modal: React.FC<ModalProps> = ({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+  disableBackdropClick = false,
+  disableEscapeKey = false,
+  showCloseButton = true,
+  className,
+}) => {
+  // Handle escape key
+  useEffect(() => {
+    if (!open || disableEscapeKey) return;
+
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open, onClose, disableEscapeKey]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!disableBackdropClick && e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const sizeClasses = {
+    sm: 'max-w-md',
+    md: 'max-w-lg',
+    lg: 'max-w-2xl',
+    xl: 'max-w-4xl',
+    full: 'max-w-[95vw]',
+  };
+
+  const modalContent = (
+    <div
+      className="fixed inset-0 z-[var(--z-modal-backdrop)] flex items-center justify-center p-4 animate-fade-in"
+      onClick={handleBackdropClick}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+
+      {/* Modal */}
+      <div
+        className={cn(
+          'relative w-full bg-geist-black-card rounded-geist-lg shadow-geist-xl',
+          'border border-geist-gray-800',
+          'animate-scale-in',
+          sizeClasses[size],
+          className
+        )}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? 'modal-title' : undefined}
+        aria-describedby={description ? 'modal-description' : undefined}
+      >
+        {/* Gradient border effect */}
+        <div
+          className="absolute inset-0 rounded-[inherit] p-[1px] -z-10 opacity-50"
+          style={{
+            background: 'linear-gradient(135deg, var(--geist-blue), var(--geist-violet), var(--geist-magenta))',
+          }}
+          aria-hidden="true"
+        />
+
+        {/* Header */}
+        {(title || showCloseButton) && (
+          <div className="flex items-start justify-between p-6 border-b border-geist-gray-800">
+            <div className="flex-1">
+              {title && (
+                <h2
+                  id="modal-title"
+                  className="text-xl font-semibold text-geist-white"
+                >
+                  {title}
+                </h2>
+              )}
+              {description && (
+                <p
+                  id="modal-description"
+                  className="mt-1 text-sm text-geist-gray-400"
+                >
+                  {description}
+                </p>
+              )}
+            </div>
+
+            {showCloseButton && (
+              <button
+                onClick={onClose}
+                className={cn(
+                  'ml-4 p-1 rounded-geist text-geist-gray-400',
+                  'hover:text-geist-white hover:bg-geist-black-lighter',
+                  'transition-colors duration-200',
+                  'focus:outline-none focus:ring-2 focus:ring-geist-blue'
+                )}
+                aria-label="Close modal"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(100vh-16rem)] scrollbar-geist">
+          {children}
+        </div>
+
+        {/* Footer */}
+        {footer && (
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-geist-gray-800">
+            {footer}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Render in portal to body
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+
+  return null;
+};
+
+Modal.displayName = 'Modal';
+
+// Utility function for className merging
+function cn(...inputs: (string | undefined | null | false)[]) {
+  return inputs.filter(Boolean).join(' ');
+}
+
+export default Modal;

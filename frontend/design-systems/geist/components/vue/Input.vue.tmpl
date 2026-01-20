@@ -1,0 +1,176 @@
+<template>
+  <div class="w-full">
+    <!-- Label -->
+    <label v-if="label" class="block text-sm font-medium text-geist-white mb-2">
+      {{ label }}
+      <span v-if="required" class="text-geist-error ml-1">*</span>
+    </label>
+
+    <!-- Input container -->
+    <div class="relative">
+      <!-- Left icon -->
+      <div
+        v-if="$slots.leftIcon"
+        class="absolute left-3 top-1/2 -translate-y-1/2 text-geist-gray-500 pointer-events-none"
+      >
+        <slot name="leftIcon" />
+      </div>
+
+      <!-- Input field -->
+      <input
+        :type="type"
+        :value="modelValue"
+        :placeholder="placeholder"
+        :disabled="disabled"
+        :required="required"
+        :class="inputClasses"
+        @input="handleInput"
+        @blur="$emit('blur', $event)"
+        @focus="$emit('focus', $event)"
+      />
+
+      <!-- Right icon -->
+      <div
+        v-if="$slots.rightIcon"
+        class="absolute right-3 top-1/2 -translate-y-1/2 text-geist-gray-500 pointer-events-none"
+      >
+        <slot name="rightIcon" />
+      </div>
+
+      <!-- Gradient border for gradient variant -->
+      <div
+        v-if="variant === 'gradient'"
+        class="absolute inset-0 rounded-geist -z-10 p-[1px] bg-gradient-to-r from-geist-blue via-geist-violet to-geist-magenta opacity-0 transition-opacity duration-200 focus-within:opacity-100"
+        aria-hidden="true"
+      />
+    </div>
+
+    <!-- Helper text or error -->
+    <p
+      v-if="error || helperText"
+      :class="['mt-2 text-sm', hasError ? 'text-geist-error' : 'text-geist-gray-500']"
+    >
+      {{ error || helperText }}
+    </p>
+  </div>
+</template>
+
+<script setup lang="ts">
+/**
+ * Input.vue - Geist design system Input component (Vue 3)
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Dark input field with gradient focus state, error handling, and icon support.
+ */
+
+import { computed } from 'vue';
+
+interface Props {
+  modelValue?: string | number;
+  type?: string;
+  label?: string;
+  placeholder?: string;
+  helperText?: string;
+  error?: string;
+  variant?: 'default' | 'gradient' | 'error';
+  size?: 'sm' | 'md' | 'lg';
+  disabled?: boolean;
+  required?: boolean;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  type: 'text',
+  variant: 'default',
+  size: 'md',
+  disabled: false,
+  required: false,
+});
+
+const emit = defineEmits<{
+  (e: 'update:modelValue', value: string): void;
+  (e: 'blur', event: FocusEvent): void;
+  (e: 'focus', event: FocusEvent): void;
+}>();
+
+const hasError = computed(() => !!props.error);
+const finalVariant = computed(() => (hasError.value ? 'error' : props.variant));
+
+const inputClasses = computed(() => {
+  const baseClasses = [
+    'w-full',
+    'rounded-geist',
+    'px-4',
+    'py-2.5',
+    'text-base',
+    'bg-geist-black-lighter',
+    'border',
+    'text-geist-white',
+    'placeholder:text-geist-gray-500',
+    'transition-all',
+    'duration-200',
+    'focus:outline-none',
+    'disabled:opacity-50',
+    'disabled:cursor-not-allowed',
+  ];
+
+  // Variant styles
+  const variantClasses = {
+    default: [
+      'border-geist-gray-800',
+      'focus:border-geist-blue',
+      'focus:ring-1',
+      'focus:ring-geist-blue',
+    ],
+    gradient: [
+      'border-geist-gray-800',
+      'focus:border-transparent',
+      'focus:ring-2',
+      'focus:ring-transparent',
+      'relative',
+    ],
+    error: [
+      'border-geist-error',
+      'focus:border-geist-error',
+      'focus:ring-1',
+      'focus:ring-geist-error',
+    ],
+  };
+
+  // Size styles
+  const sizeClasses = {
+    sm: ['h-8', 'px-3', 'py-1.5', 'text-sm'],
+    md: ['h-10', 'px-4', 'py-2.5', 'text-base'],
+    lg: ['h-12', 'px-5', 'py-3', 'text-lg'],
+  };
+
+  // Icon spacing
+  const iconClasses = [];
+  if (props.$slots?.leftIcon) {
+    iconClasses.push('pl-10');
+  }
+  if (props.$slots?.rightIcon) {
+    iconClasses.push('pr-10');
+  }
+
+  return [
+    ...baseClasses,
+    ...variantClasses[finalVariant.value],
+    ...sizeClasses[props.size],
+    ...iconClasses,
+  ].join(' ');
+});
+
+const handleInput = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  emit('update:modelValue', target.value);
+};
+</script>
+
+<style scoped>
+/* Fix for gradient border variant */
+input:focus + div {
+  opacity: 1;
+}
+</style>

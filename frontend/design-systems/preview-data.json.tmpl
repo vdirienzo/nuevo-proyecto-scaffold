@@ -1,0 +1,299 @@
+{
+  "meta": {
+    "version": "6.1.0",
+    "lastUpdate": "2026-01-20",
+    "author": "{{AUTHOR}}",
+    "project": "{{PROJECT_NAME}}"
+  },
+  "systems": {
+    "geist": {
+      "id": "geist",
+      "name": "Vercel/Geist",
+      "tagline": "Minimalismo profesional",
+      "description": "Sistema minimalista inspirado en Vercel con enfoque en tipografía, espaciado y microinteracciones sutiles.",
+      "preview": {
+        "screenshot": "/frontend/design-systems/geist/preview.png",
+        "colorSwatches": [
+          { "name": "Background", "hex": "#FFFFFF", "usage": "Fondos principales" },
+          { "name": "Foreground", "hex": "#000000", "usage": "Texto principal" },
+          { "name": "Primary", "hex": "#0070F3", "usage": "Acciones primarias" },
+          { "name": "Secondary", "hex": "#EAEAEA", "usage": "Bordes y fondos secundarios" },
+          { "name": "Tertiary", "hex": "#666666", "usage": "Texto secundario" }
+        ],
+        "components": ["Button", "Card", "Input", "Badge", "Modal", "Dropdown", "Tabs", "Alert"]
+      },
+      "features": [
+        "Transiciones fluidas y naturales",
+        "Tipografía optimizada para legibilidad",
+        "Componentes limpios y funcionales",
+        "Microinteracciones sutiles",
+        "Paleta monocromática con acentos"
+      ],
+      "keyFeatures": {
+        "accessibility": "WCAG 2.1 AAA",
+        "browserSupport": "Todos los navegadores",
+        "performance": "Excelente",
+        "complexity": "Baja",
+        "maintainability": "Alta"
+      },
+      "bestFor": [
+        "Apps corporativas y SaaS",
+        "Dashboards ejecutivos",
+        "Plataformas de documentación",
+        "Herramientas de productividad",
+        "Aplicaciones financieras"
+      ],
+      "notRecommendedFor": [
+        "Portfolios creativos que requieren diferenciación visual fuerte",
+        "Proyectos lúdicos o infantiles",
+        "Marcas con personalidad audaz"
+      ],
+      "metrics": {
+        "accessibilityScore": 5,
+        "visualImpact": 3,
+        "complexity": 1,
+        "browserCompatibility": 5,
+        "performance": 5
+      }
+    },
+    "glassmorphism": {
+      "id": "glassmorphism",
+      "name": "Glassmorphism",
+      "tagline": "Moderno y translúcido",
+      "description": "Efecto de vidrio esmerilado con blur y transparencias para una estética premium y moderna.",
+      "preview": {
+        "screenshot": "/frontend/design-systems/glassmorphism/preview.png",
+        "colorSwatches": [
+          { "name": "Glass BG", "hex": "rgba(255,255,255,0.1)", "usage": "Fondo translúcido" },
+          { "name": "Foreground", "hex": "#FFFFFF", "usage": "Texto sobre glass" },
+          { "name": "Purple", "hex": "#A855F7", "usage": "Acento primario" },
+          { "name": "Blue", "hex": "#3B82F6", "usage": "Acento secundario" },
+          { "name": "Border", "hex": "rgba(255,255,255,0.2)", "usage": "Bordes sutiles" }
+        ],
+        "components": ["GlassCard", "GlassButton", "GlassModal", "GlassInput", "GlassBadge", "GlassNav"]
+      },
+      "features": [
+        "Backdrop blur con transparencias controladas",
+        "Bordes sutiles con efecto luminoso",
+        "Gradientes de fondo vibrantes",
+        "Profundidad visual sin complejidad",
+        "Estética premium y moderna"
+      ],
+      "keyFeatures": {
+        "accessibility": "WCAG 2.1 AA (requiere testing)",
+        "browserSupport": "Chrome 76+, Safari 14+, Firefox 103+",
+        "performance": "Media (blur es costoso)",
+        "complexity": "Media",
+        "maintainability": "Media"
+      },
+      "bestFor": [
+        "Landing pages de productos tech",
+        "Portfolios creativos con fondos visuales",
+        "Apps de música y streaming",
+        "Interfaces premium",
+        "Dashboards con visualizaciones"
+      ],
+      "notRecommendedFor": [
+        "Apps con contenido denso en texto",
+        "Dispositivos móviles de gama baja",
+        "Proyectos que requieren IE11",
+        "Interfaces donde accesibilidad es crítica"
+      ],
+      "metrics": {
+        "accessibilityScore": 3,
+        "visualImpact": 5,
+        "complexity": 3,
+        "browserCompatibility": 3,
+        "performance": 2
+      }
+    },
+    "neumorphism": {
+      "id": "neumorphism",
+      "name": "Neumorphism",
+      "tagline": "Soft 3D táctil",
+      "description": "Diseño soft-UI con sombras duales para crear efecto 3D sutil y táctil.",
+      "preview": {
+        "screenshot": "/frontend/design-systems/neumorphism/preview.png",
+        "colorSwatches": [
+          { "name": "Background", "hex": "#E0E5EC", "usage": "Fondo principal" },
+          { "name": "Shadow Light", "hex": "#FFFFFF", "usage": "Sombra clara" },
+          { "name": "Shadow Dark", "hex": "#A3B1C6", "usage": "Sombra oscura" },
+          { "name": "Accent", "hex": "#667EEA", "usage": "Elementos destacados" },
+          { "name": "Text", "hex": "#4A5568", "usage": "Texto principal" }
+        ],
+        "components": ["NeumorphicCard", "NeumorphicButton", "NeumorphicToggle", "NeumorphicSlider", "NeumorphicInput"]
+      },
+      "features": [
+        "Sombras duales (light + dark) para efecto 3D",
+        "Efecto inset para elementos presionados",
+        "Paleta monocromática armoniosa",
+        "Bordes muy redondeados",
+        "Aspecto suave y táctil"
+      ],
+      "keyFeatures": {
+        "accessibility": "WCAG 2.1 A (contraste bajo)",
+        "browserSupport": "Todos los navegadores",
+        "performance": "Buena",
+        "complexity": "Media",
+        "maintainability": "Media"
+      },
+      "bestFor": [
+        "Apps móviles táctiles",
+        "Controles de smart home",
+        "Reproductores de audio/video",
+        "Widgets de sistema",
+        "Interfaces de wearables"
+      ],
+      "notRecommendedFor": [
+        "Interfaces con contenido denso",
+        "Proyectos donde accesibilidad es crítica",
+        "Apps con muchos elementos pequeños",
+        "Diseños que requieren alto contraste"
+      ],
+      "metrics": {
+        "accessibilityScore": 2,
+        "visualImpact": 4,
+        "complexity": 3,
+        "browserCompatibility": 4,
+        "performance": 4
+      }
+    },
+    "claymorphism": {
+      "id": "claymorphism",
+      "name": "Claymorphism",
+      "tagline": "Vibrante estilo arcilla",
+      "description": "Estética de arcilla con colores vibrantes, sombras internas difusas y aspecto inflado.",
+      "preview": {
+        "screenshot": "/frontend/design-systems/claymorphism/preview.png",
+        "colorSwatches": [
+          { "name": "Red", "hex": "#FF6B6B", "usage": "Fondo primario" },
+          { "name": "Teal", "hex": "#4ECDC4", "usage": "Fondo secundario" },
+          { "name": "Yellow", "hex": "#FFE66D", "usage": "Acento cálido" },
+          { "name": "Green", "hex": "#A8E6CF", "usage": "Success" },
+          { "name": "Pink", "hex": "#FF8B94", "usage": "Error/Warning" }
+        ],
+        "components": ["ClayCard", "ClayButton", "ClayBadge", "ClayModal", "ClayInput", "ClayToggle"]
+      },
+      "features": [
+        "Colores vibrantes y saturados",
+        "Sombras internas difusas",
+        "Bordes muy redondeados (24px+)",
+        "Apariencia inflada y suave",
+        "Textura mate y táctil"
+      ],
+      "keyFeatures": {
+        "accessibility": "WCAG 2.1 AA (con colores correctos)",
+        "browserSupport": "Todos los navegadores",
+        "performance": "Buena",
+        "complexity": "Media",
+        "maintainability": "Media"
+      },
+      "bestFor": [
+        "Apps educativas para niños",
+        "Productos infantiles",
+        "Interfaces lúdicas y juegos",
+        "Plataformas de gamificación",
+        "Apps de bienestar y fitness"
+      ],
+      "notRecommendedFor": [
+        "Apps corporativas serias",
+        "Proyectos financieros o legales",
+        "Audiencias conservadoras",
+        "Contenido profesional"
+      ],
+      "metrics": {
+        "accessibilityScore": 4,
+        "visualImpact": 5,
+        "complexity": 3,
+        "browserCompatibility": 4,
+        "performance": 4
+      }
+    },
+    "neo-brutalism": {
+      "id": "neo-brutalism",
+      "name": "Neo-Brutalism",
+      "tagline": "Atrevido y contrastante",
+      "description": "Diseño audaz con bordes negros gruesos, sombras duras y colores saturados de alto contraste.",
+      "preview": {
+        "screenshot": "/frontend/design-systems/neo-brutalism/preview.png",
+        "colorSwatches": [
+          { "name": "Black", "hex": "#000000", "usage": "Bordes y texto" },
+          { "name": "White", "hex": "#FFFFFF", "usage": "Fondos principales" },
+          { "name": "Yellow", "hex": "#FFFF00", "usage": "Acento primario" },
+          { "name": "Magenta", "hex": "#FF00FF", "usage": "Acento secundario" },
+          { "name": "Cyan", "hex": "#00FFFF", "usage": "Acento terciario" }
+        ],
+        "components": ["BrutalCard", "BrutalButton", "BrutalBadge", "BrutalModal", "BrutalInput", "BrutalNav"]
+      },
+      "features": [
+        "Bordes negros gruesos (3-4px)",
+        "Sombras duras con offset",
+        "Colores saturados de alto contraste",
+        "Tipografía bold y prominente",
+        "Sin border radius (esquinas rectas)"
+      ],
+      "keyFeatures": {
+        "accessibility": "WCAG 2.1 AAA",
+        "browserSupport": "Todos los navegadores",
+        "performance": "Excelente",
+        "complexity": "Baja",
+        "maintainability": "Alta"
+      },
+      "bestFor": [
+        "Portfolios de diseñadores y artistas",
+        "Agencias creativas",
+        "Comunidades de arte digital",
+        "Proyectos NFT/Web3",
+        "Marcas jóvenes y atrevidas"
+      ],
+      "notRecommendedFor": [
+        "Apps corporativas conservadoras",
+        "Proyectos con audiencia mayor",
+        "Interfaces que requieren sutileza",
+        "Clientes risk-averse"
+      ],
+      "metrics": {
+        "accessibilityScore": 5,
+        "visualImpact": 5,
+        "complexity": 1,
+        "browserCompatibility": 5,
+        "performance": 5
+      }
+    }
+  },
+  "recommendations": {
+    "byProjectType": {
+      "corporate": ["geist"],
+      "creative": ["glassmorphism", "neo-brutalism"],
+      "educational": ["claymorphism"],
+      "technical": ["geist"],
+      "entertainment": ["glassmorphism", "claymorphism"]
+    },
+    "byScale": {
+      "mvp": ["geist", "neo-brutalism"],
+      "scaleup": ["geist", "glassmorphism"],
+      "enterprise": ["geist"],
+      "netflix": ["geist"]
+    },
+    "byAccessibility": {
+      "critical": ["geist", "neo-brutalism"],
+      "important": ["geist", "claymorphism", "neo-brutalism"],
+      "normal": ["geist", "glassmorphism", "claymorphism", "neo-brutalism"]
+    },
+    "byPerformance": {
+      "high": ["geist", "neo-brutalism"],
+      "medium": ["neumorphism", "claymorphism"],
+      "low": ["glassmorphism"]
+    }
+  },
+  "wizardIntegration": {
+    "questionId": "design_system",
+    "phase": "Stack",
+    "displayOrder": ["geist", "glassmorphism", "neumorphism", "claymorphism", "neo-brutalism"],
+    "defaultSelection": "geist",
+    "previewFormat": "grid",
+    "showMetrics": true,
+    "showColorSwatches": true,
+    "allowCustom": false
+  }
+}

@@ -1,0 +1,123 @@
+/**
+ * useDesignSystem.ts - React hook for design system configuration
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ */
+
+import { useContext } from 'react';
+import { DesignSystemContext } from '../context/DesignSystemProvider';
+import type { DesignSystemConfig, DesignTokens, ComponentStyles } from '../types';
+
+/**
+ * Hook to access current design system configuration
+ *
+ * Provides:
+ * - Design tokens (colors, spacing, typography)
+ * - Component styles
+ * - Utility functions
+ * - Theme configuration
+ *
+ * @returns Design system configuration and utilities
+ *
+ * @example
+ * ```tsx
+ * function Button() {
+ *   const { tokens, components, utils } = useDesignSystem();
+ *   return (
+ *     <button className={utils.cn(
+ *       components.button.base,
+ *       components.button.variants.primary
+ *     )}>
+ *       Click me
+ *     </button>
+ *   );
+ * }
+ * ```
+ */
+export function useDesignSystem() {
+  const context = useContext(DesignSystemContext);
+
+  if (!context) {
+    throw new Error('useDesignSystem must be used within a DesignSystemProvider');
+  }
+
+  const { config, tokens, components } = context;
+
+  /**
+   * Get token value by path
+   * @example getToken('colors.primary.500')
+   */
+  const getToken = (path: string): string | number | undefined => {
+    return path.split('.').reduce((obj, key) => obj?.[key], tokens as any);
+  };
+
+  /**
+   * Get component styles by name
+   * @example getComponent('button')
+   */
+  const getComponent = (name: keyof ComponentStyles) => {
+    return components[name];
+  };
+
+  /**
+   * Check if current system matches
+   */
+  const isSystem = (systemName: string) => {
+    return config.name === systemName;
+  };
+
+  /**
+   * Get responsive value based on breakpoint
+   */
+  const getResponsive = <T,>(values: {
+    mobile?: T;
+    tablet?: T;
+    desktop?: T;
+    default: T;
+  }): T => {
+    if (typeof window === 'undefined') return values.default;
+
+    const width = window.innerWidth;
+    if (width >= 1024 && values.desktop) return values.desktop;
+    if (width >= 768 && values.tablet) return values.tablet;
+    if (width < 768 && values.mobile) return values.mobile;
+    return values.default;
+  };
+
+  return {
+    // Core config
+    config,
+    tokens,
+    components,
+
+    // Utilities
+    getToken,
+    getComponent,
+    isSystem,
+    getResponsive,
+
+    // Design system specific flags
+    isGlassmorphism: isSystem('glassmorphism'),
+    isNeumorphism: isSystem('neumorphism'),
+    isNeoBrutalism: isSystem('neo-brutalism'),
+    isClaymorphism: isSystem('claymorphism'),
+    isGeist: isSystem('geist'),
+  };
+}
+
+/**
+ * Hook to access design tokens directly
+ */
+export function useTokens(): DesignTokens {
+  const { tokens } = useDesignSystem();
+  return tokens;
+}
+
+/**
+ * Hook to access component styles directly
+ */
+export function useComponents(): ComponentStyles {
+  const { components } = useDesignSystem();
+  return components;
+}

@@ -1,0 +1,250 @@
+/*! Authentication service - Password hashing and token management.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
+use chrono::{Duration, Utc};
+use serde::{Deserialize, Serialize};
+use sqlx::SqlitePool;
+use uuid::Uuid;
+
+use crate::error::{AppError, AppResult};
+use crate::models::{CreateUserRequest, User, UserResponse};
+
+/// Session token data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionToken {
+    pub token: String,
+    pub user_id: Uuid,
+    pub expires_at: chrono::DateTime<Utc>,
+}
+
+/// Authentication service for user management.
+pub struct AuthService {
+    pool: SqlitePool,
+}
+
+impl AuthService {
+    /// Create a new auth service.
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+
+    /// Hash a password using Argon2.
+    pub fn hash_password(password: &str) -> AppResult<String> {
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+
+        let password_hash = argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map_err(|e| AppError::Internal(format!("Failed to hash password: {}", e)))?
+            .to_string();
+
+        Ok(password_hash)
+    }
+
+    /// Verify a password against a hash.
+    pub fn verify_password(password: &str, password_hash: &str) -> AppResult<bool> {
+        let parsed_hash = PasswordHash::new(password_hash)
+            .map_err(|e| AppError::Internal(format!("Invalid password hash: {}", e)))?;
+
+        let argon2 = Argon2::default();
+
+        match argon2.verify_password(password.as_bytes(), &parsed_hash) {
+            Ok(()) => Ok(true),
+            Err(_) => Ok(false),
+        }
+    }
+
+    /// Create a new session token.
+    pub fn create_token(user_id: Uuid, duration_hours: i64) -> AppResult<SessionToken> {
+        let token = Uuid::new_v4().to_string();
+        let expires_at = Utc::now() + Duration::hours(duration_hours);
+
+        Ok(SessionToken {
+            token,
+            user_id,
+            expires_at,
+        })
+    }
+
+    /// Verify if a token is valid and not expired.
+    pub async fn verify_token(&self, token: &str) -> AppResult<Uuid> {
+        let result = sqlx::query!(
+            r#"
+            SELECT user_id, expires_at
+            FROM sessions
+            WHERE token = ?
+            "#,
+            token
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        match result {
+            Some(row) => {
+                let expires_at = chrono::DateTime::parse_from_rfc3339(&row.expires_at)
+                    .map_err(|e| AppError::Internal(format!("Invalid date format: {}", e)))?
+                    .with_timezone(&Utc);
+
+                if Utc::now() > expires_at {
+                    return Err(AppError::Unauthorized("Token expired".into()));
+                }
+
+                let user_id = Uuid::parse_str(&row.user_id)
+                    .map_err(|e| AppError::Internal(format!("Invalid UUID: {}", e)))?;
+
+                Ok(user_id)
+            }
+            None => Err(AppError::Unauthorized("Invalid token".into())),
+        }
+    }
+
+    /// Register a new user.
+    pub async fn register(&self, request: CreateUserRequest) -> AppResult<UserResponse> {
+        // Check if user already exists
+        let existing = sqlx::query!(
+            r#"
+            SELECT id FROM users
+            WHERE email = ? OR username = ?
+            "#,
+            request.email,
+            request.username
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        if existing.is_some() {
+            return Err(AppError::BadRequest(
+                "User with this email or username already exists".into(),
+            ));
+        }
+
+        // Hash password
+        let password_hash = Self::hash_password(&request.password)?;
+
+        // Create user
+        let user_id = Uuid::new_v4();
+        let now = Utc::now();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO users (id, email, username, password_hash, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+            user_id.to_string(),
+            request.email,
+            request.username,
+            password_hash,
+            now.to_rfc3339(),
+            now.to_rfc3339()
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to create user: {}", e)))?;
+
+        Ok(UserResponse {
+            id: user_id,
+            email: request.email,
+            username: request.username,
+            created_at: now,
+            updated_at: now,
+        })
+    }
+
+    /// Login a user and create a session.
+    pub async fn login(&self, email: &str, password: &str) -> AppResult<(UserResponse, String)> {
+        // Get user
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT
+                id as "id: Uuid",
+                email,
+                username,
+                password_hash,
+                created_at as "created_at: DateTime<Utc>",
+                updated_at as "updated_at: DateTime<Utc>"
+            FROM users
+            WHERE email = ?
+            "#,
+            email
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .ok_or_else(|| AppError::Unauthorized("Invalid credentials".into()))?;
+
+        // Verify password
+        if !Self::verify_password(password, &user.password_hash)? {
+            return Err(AppError::Unauthorized("Invalid credentials".into()));
+        }
+
+        // Create session token
+        let session = Self::create_token(user.id, 24)?;
+
+        // Store session in database
+        sqlx::query!(
+            r#"
+            INSERT INTO sessions (token, user_id, expires_at, created_at)
+            VALUES (?, ?, ?, ?)
+            "#,
+            session.token,
+            user.id.to_string(),
+            session.expires_at.to_rfc3339(),
+            Utc::now().to_rfc3339()
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to create session: {}", e)))?;
+
+        Ok((user.into_response(), session.token))
+    }
+
+    /// Logout a user by invalidating their session.
+    pub async fn logout(&self, token: &str) -> AppResult<()> {
+        sqlx::query!(
+            r#"
+            DELETE FROM sessions
+            WHERE token = ?
+            "#,
+            token
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to delete session: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Get user by ID.
+    pub async fn get_user(&self, user_id: Uuid) -> AppResult<UserResponse> {
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT
+                id as "id: Uuid",
+                email,
+                username,
+                password_hash,
+                created_at as "created_at: DateTime<Utc>",
+                updated_at as "updated_at: DateTime<Utc>"
+            FROM users
+            WHERE id = ?
+            "#,
+            user_id.to_string()
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .ok_or_else(|| AppError::NotFound("User not found".into()))?;
+
+        Ok(user.into_response())
+    }
+}

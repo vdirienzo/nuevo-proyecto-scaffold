@@ -1,0 +1,224 @@
+/**
+ * NeuInput Component - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Input field with inset shadow and optional floating label
+ */
+
+import React, { useState, InputHTMLAttributes, useId } from 'react';
+import { cn } from '@/lib/utils'; // or use clsx/classnames
+
+export interface NeuInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'size'> {
+  /** Label text */
+  label?: string;
+  /** Floating label style */
+  floatingLabel?: boolean;
+  /** Size variant */
+  size?: 'sm' | 'md' | 'lg';
+  /** Error message */
+  error?: string;
+  /** Helper text */
+  helperText?: string;
+  /** Left icon/element */
+  leftIcon?: React.ReactNode;
+  /** Right icon/element */
+  rightIcon?: React.ReactNode;
+  /** Full width */
+  fullWidth?: boolean;
+}
+
+const NeuInput = React.forwardRef<HTMLInputElement, NeuInputProps>(
+  (
+    {
+      label,
+      floatingLabel = false,
+      size = 'md',
+      error,
+      helperText,
+      leftIcon,
+      rightIcon,
+      fullWidth = false,
+      disabled,
+      className,
+      id,
+      value,
+      onChange,
+      ...props
+    },
+    ref
+  ) => {
+    const generatedId = useId();
+    const inputId = id || generatedId;
+    const [isFocused, setIsFocused] = useState(false);
+    const hasValue = value !== undefined && value !== '';
+
+    const wrapperStyles = cn(
+      'relative',
+      fullWidth && 'w-full'
+    );
+
+    const inputStyles = cn(
+      'neu-pressed w-full',
+      'bg-transparent border-none outline-none',
+      'neu-text placeholder:neu-text-muted',
+      'transition-neu',
+      'rounded-soft-md',
+      // Size variants
+      {
+        'px-3 py-2 text-sm': size === 'sm',
+        'px-4 py-3 text-base': size === 'md',
+        'px-5 py-4 text-lg': size === 'lg',
+      },
+      // Icon padding adjustments
+      {
+        'pl-10': leftIcon && size === 'sm',
+        'pl-11': leftIcon && size === 'md',
+        'pl-12': leftIcon && size === 'lg',
+        'pr-10': rightIcon && size === 'sm',
+        'pr-11': rightIcon && size === 'md',
+        'pr-12': rightIcon && size === 'lg',
+      },
+      // Floating label spacing
+      floatingLabel && {
+        'pt-5 pb-1': size === 'sm',
+        'pt-6 pb-2': size === 'md',
+        'pt-7 pb-3': size === 'lg',
+      },
+      // States
+      disabled && 'neu-disabled',
+      error && 'shadow-neu-focus-error',
+      isFocused && !error && 'shadow-neu-focus dark:shadow-neu-focus-dark',
+      className
+    );
+
+    const labelStyles = cn(
+      'neu-text-secondary transition-all duration-200',
+      // Floating label behavior
+      floatingLabel
+        ? cn(
+            'absolute left-4 pointer-events-none',
+            {
+              // Active state (focused or has value)
+              'top-1.5 text-xs': (isFocused || hasValue) && size === 'sm',
+              'top-2 text-xs': (isFocused || hasValue) && size === 'md',
+              'top-2.5 text-sm': (isFocused || hasValue) && size === 'lg',
+              // Inactive state
+              'top-1/2 -translate-y-1/2 text-sm': !(isFocused || hasValue) && size === 'sm',
+              'top-1/2 -translate-y-1/2 text-base': !(isFocused || hasValue) && size === 'md',
+              'top-1/2 -translate-y-1/2 text-lg': !(isFocused || hasValue) && size === 'lg',
+            },
+            isFocused && 'neu-accent'
+          )
+        : 'block mb-2 text-sm font-medium'
+    );
+
+    const iconStyles = cn(
+      'absolute top-1/2 -translate-y-1/2 neu-text-muted pointer-events-none',
+      {
+        'w-4 h-4': size === 'sm',
+        'w-5 h-5': size === 'md',
+        'w-6 h-6': size === 'lg',
+      }
+    );
+
+    return (
+      <div className={wrapperStyles}>
+        {label && !floatingLabel && (
+          <label htmlFor={inputId} className={labelStyles}>
+            {label}
+          </label>
+        )}
+
+        <div className="relative">
+          {leftIcon && (
+            <div className={cn(iconStyles, 'left-3')}>
+              {leftIcon}
+            </div>
+          )}
+
+          <input
+            ref={ref}
+            id={inputId}
+            value={value}
+            onChange={onChange}
+            disabled={disabled}
+            className={inputStyles}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            {...props}
+          />
+
+          {floatingLabel && label && (
+            <label htmlFor={inputId} className={labelStyles}>
+              {label}
+            </label>
+          )}
+
+          {rightIcon && (
+            <div className={cn(iconStyles, 'right-3')}>
+              {rightIcon}
+            </div>
+          )}
+        </div>
+
+        {(error || helperText) && (
+          <p
+            className={cn(
+              'mt-1.5 text-xs',
+              error ? 'text-red-500' : 'neu-text-muted'
+            )}
+          >
+            {error || helperText}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
+
+NeuInput.displayName = 'NeuInput';
+
+export default NeuInput;
+
+/**
+ * Usage Examples:
+ *
+ * // Basic input
+ * <NeuInput placeholder="Enter text" />
+ *
+ * // With label
+ * <NeuInput label="Username" placeholder="johndoe" />
+ *
+ * // Floating label
+ * <NeuInput label="Email" floatingLabel placeholder=" " />
+ *
+ * // With icons
+ * <NeuInput
+ *   label="Search"
+ *   leftIcon={<SearchIcon />}
+ *   placeholder="Search..."
+ * />
+ *
+ * // With error
+ * <NeuInput
+ *   label="Email"
+ *   error="Invalid email address"
+ *   value="invalid@"
+ * />
+ *
+ * // With helper text
+ * <NeuInput
+ *   label="Password"
+ *   type="password"
+ *   helperText="Must be at least 8 characters"
+ * />
+ *
+ * // Sizes
+ * <NeuInput size="sm" placeholder="Small" />
+ * <NeuInput size="lg" placeholder="Large" />
+ *
+ * // Disabled
+ * <NeuInput disabled value="Disabled" />
+ */

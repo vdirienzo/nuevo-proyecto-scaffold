@@ -1,0 +1,438 @@
+/**
+ * tauri-store.ts - Type-safe wrapper for tauri-plugin-store
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * This module provides a type-safe interface to Tauri's persistent store,
+ * with support for authentication tokens, user settings, and app state.
+ */
+
+import { Store } from 'tauri-plugin-store-api';
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Authentication data stored in the store
+ */
+export interface AuthData {
+  token: string;
+  userId: string;
+  username: string;
+  expiresAt: string;
+}
+
+/**
+ * User preferences and settings
+ */
+export interface UserSettings {
+  theme: 'light' | 'dark' | 'system';
+  language: string;
+  notifications: boolean;
+  autoStart: boolean;
+  minimizeToTray: boolean;
+}
+
+/**
+ * Application state that persists across sessions
+ */
+export interface AppState {
+  lastWindowPosition?: { x: number; y: number };
+  lastWindowSize?: { width: number; height: number };
+  isMaximized?: boolean;
+  lastOpenedFiles?: string[];
+  recentProjects?: string[];
+}
+
+/**
+ * Store keys enum for type safety
+ */
+export enum StoreKey {
+  AUTH = 'auth',
+  SETTINGS = 'settings',
+  APP_STATE = 'appState',
+}
+
+// ============================================================================
+// Store wrapper class
+// ============================================================================
+
+/**
+ * Type-safe wrapper for Tauri Store
+ */
+export class TauriStore {
+  private store: Store;
+  private static instance: TauriStore | null = null;
+
+  private constructor(storeName = 'store.json') {
+    this.store = new Store(storeName);
+  }
+
+  /**
+   * Get singleton instance of TauriStore
+   */
+  public static getInstance(storeName?: string): TauriStore {
+    if (!TauriStore.instance) {
+      TauriStore.instance = new TauriStore(storeName);
+    }
+    return TauriStore.instance;
+  }
+
+  // ==========================================================================
+  // Generic methods
+  // ==========================================================================
+
+  /**
+   * Get value from store
+   *
+   * @param key - Store key
+   * @returns Value or null if not found
+   */
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const value = await this.store.get<T>(key);
+      return value ?? null;
+    } catch (error) {
+      console.error(`Failed to get key "${key}" from store:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * Set value in store
+   *
+   * @param key - Store key
+   * @param value - Value to store
+   */
+  async set<T>(key: string, value: T): Promise<void> {
+    try {
+      await this.store.set(key, value);
+      await this.store.save();
+    } catch (error) {
+      console.error(`Failed to set key "${key}" in store:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete key from store
+   *
+   * @param key - Store key to delete
+   */
+  async delete(key: string): Promise<void> {
+    try {
+      await this.store.delete(key);
+      await this.store.save();
+    } catch (error) {
+      console.error(`Failed to delete key "${key}" from store:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if key exists in store
+   *
+   * @param key - Store key
+   * @returns True if key exists
+   */
+  async has(key: string): Promise<boolean> {
+    try {
+      return await this.store.has(key);
+    } catch (error) {
+      console.error(`Failed to check key "${key}" in store:`, error);
+      return false;
+    }
+  }
+
+  /**
+   * Clear all data from store
+   */
+  async clear(): Promise<void> {
+    try {
+      await this.store.clear();
+      await this.store.save();
+    } catch (error) {
+      console.error('Failed to clear store:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all keys in store
+   */
+  async keys(): Promise<string[]> {
+    try {
+      return await this.store.keys();
+    } catch (error) {
+      console.error('Failed to get store keys:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all entries in store
+   */
+  async entries<T>(): Promise<Array<[string, T]>> {
+    try {
+      return await this.store.entries<T>();
+    } catch (error) {
+      console.error('Failed to get store entries:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all values in store
+   */
+  async values<T>(): Promise<T[]> {
+    try {
+      return await this.store.values<T>();
+    } catch (error) {
+      console.error('Failed to get store values:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Get store length
+   */
+  async length(): Promise<number> {
+    try {
+      return await this.store.length();
+    } catch (error) {
+      console.error('Failed to get store length:', error);
+      return 0;
+    }
+  }
+
+  // ==========================================================================
+  // Authentication methods
+  // ==========================================================================
+
+  /**
+   * Save authentication data
+   *
+   * @param authData - Authentication data to save
+   */
+  async saveAuth(authData: AuthData): Promise<void> {
+    await this.set(StoreKey.AUTH, authData);
+  }
+
+  /**
+   * Get stored authentication data
+   *
+   * @returns Authentication data or null if not logged in
+   */
+  async getAuth(): Promise<AuthData | null> {
+    return await this.get<AuthData>(StoreKey.AUTH);
+  }
+
+  /**
+   * Check if user is authenticated
+   *
+   * @returns True if valid auth token exists
+   */
+  async isAuthenticated(): Promise<boolean> {
+    const auth = await this.getAuth();
+    if (!auth) return false;
+
+    // Check if token is expired
+    const expiresAt = new Date(auth.expiresAt);
+    return expiresAt > new Date();
+  }
+
+  /**
+   * Get stored auth token
+   *
+   * @returns Auth token or null
+   */
+  async getToken(): Promise<string | null> {
+    const auth = await this.getAuth();
+    return auth?.token ?? null;
+  }
+
+  /**
+   * Clear authentication data (logout)
+   */
+  async clearAuth(): Promise<void> {
+    await this.delete(StoreKey.AUTH);
+  }
+
+  // ==========================================================================
+  // Settings methods
+  // ==========================================================================
+
+  /**
+   * Get default user settings
+   */
+  private getDefaultSettings(): UserSettings {
+    return {
+      theme: 'system',
+      language: 'en',
+      notifications: true,
+      autoStart: false,
+      minimizeToTray: true,
+    };
+  }
+
+  /**
+   * Save user settings
+   *
+   * @param settings - Settings to save
+   */
+  async saveSettings(settings: Partial<UserSettings>): Promise<void> {
+    const current = await this.getSettings();
+    await this.set(StoreKey.SETTINGS, { ...current, ...settings });
+  }
+
+  /**
+   * Get user settings
+   *
+   * @returns User settings with defaults
+   */
+  async getSettings(): Promise<UserSettings> {
+    const settings = await this.get<UserSettings>(StoreKey.SETTINGS);
+    return settings ?? this.getDefaultSettings();
+  }
+
+  /**
+   * Get specific setting value
+   *
+   * @param key - Setting key
+   * @returns Setting value
+   */
+  async getSetting<K extends keyof UserSettings>(
+    key: K
+  ): Promise<UserSettings[K]> {
+    const settings = await this.getSettings();
+    return settings[key];
+  }
+
+  /**
+   * Update specific setting
+   *
+   * @param key - Setting key
+   * @param value - Setting value
+   */
+  async updateSetting<K extends keyof UserSettings>(
+    key: K,
+    value: UserSettings[K]
+  ): Promise<void> {
+    await this.saveSettings({ [key]: value });
+  }
+
+  /**
+   * Reset settings to defaults
+   */
+  async resetSettings(): Promise<void> {
+    await this.set(StoreKey.SETTINGS, this.getDefaultSettings());
+  }
+
+  // ==========================================================================
+  // App state methods
+  // ==========================================================================
+
+  /**
+   * Save app state
+   *
+   * @param state - App state to save
+   */
+  async saveAppState(state: Partial<AppState>): Promise<void> {
+    const current = await this.getAppState();
+    await this.set(StoreKey.APP_STATE, { ...current, ...state });
+  }
+
+  /**
+   * Get app state
+   *
+   * @returns App state
+   */
+  async getAppState(): Promise<AppState> {
+    const state = await this.get<AppState>(StoreKey.APP_STATE);
+    return state ?? {};
+  }
+
+  /**
+   * Save window position
+   *
+   * @param x - X coordinate
+   * @param y - Y coordinate
+   */
+  async saveWindowPosition(x: number, y: number): Promise<void> {
+    await this.saveAppState({ lastWindowPosition: { x, y } });
+  }
+
+  /**
+   * Save window size
+   *
+   * @param width - Window width
+   * @param height - Window height
+   */
+  async saveWindowSize(width: number, height: number): Promise<void> {
+    await this.saveAppState({ lastWindowSize: { width, height } });
+  }
+
+  /**
+   * Save maximized state
+   *
+   * @param isMaximized - Is window maximized
+   */
+  async saveMaximizedState(isMaximized: boolean): Promise<void> {
+    await this.saveAppState({ isMaximized });
+  }
+
+  /**
+   * Add file to recently opened files
+   *
+   * @param filePath - File path to add
+   * @param maxRecent - Maximum recent files to keep (default: 10)
+   */
+  async addRecentFile(filePath: string, maxRecent = 10): Promise<void> {
+    const state = await this.getAppState();
+    const recent = state.lastOpenedFiles ?? [];
+
+    // Remove if already exists
+    const filtered = recent.filter((path) => path !== filePath);
+
+    // Add to front and limit
+    const updated = [filePath, ...filtered].slice(0, maxRecent);
+
+    await this.saveAppState({ lastOpenedFiles: updated });
+  }
+
+  /**
+   * Get recently opened files
+   */
+  async getRecentFiles(): Promise<string[]> {
+    const state = await this.getAppState();
+    return state.lastOpenedFiles ?? [];
+  }
+
+  /**
+   * Clear recent files
+   */
+  async clearRecentFiles(): Promise<void> {
+    await this.saveAppState({ lastOpenedFiles: [] });
+  }
+}
+
+// ============================================================================
+// Exports
+// ============================================================================
+
+/**
+ * Get default store instance
+ */
+export function getStore(): TauriStore {
+  return TauriStore.getInstance();
+}
+
+/**
+ * Create new store instance with custom name
+ */
+export function createStore(storeName: string): TauriStore {
+  return TauriStore.getInstance(storeName);
+}
+
+export default TauriStore;

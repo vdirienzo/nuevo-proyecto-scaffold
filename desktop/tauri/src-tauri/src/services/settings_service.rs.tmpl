@@ -1,0 +1,214 @@
+/*! Settings service - Application configuration management.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use chrono::Utc;
+use sqlx::SqlitePool;
+use uuid::Uuid;
+
+use crate::error::{AppError, AppResult};
+use crate::models::{Settings, UpdateSettingsRequest};
+
+/// Settings service for managing application configuration.
+pub struct SettingsService {
+    pool: SqlitePool,
+}
+
+impl SettingsService {
+    /// Create a new settings service.
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+
+    /// Get settings for a user (or global settings if user_id is None).
+    pub async fn get_settings(&self, user_id: Option<Uuid>) -> AppResult<Settings> {
+        let settings = if let Some(uid) = user_id {
+            sqlx::query_as!(
+                Settings,
+                r#"
+                SELECT
+                    id as "id: Uuid",
+                    user_id as "user_id: Option<Uuid>",
+                    theme,
+                    language,
+                    notifications_enabled,
+                    auto_update,
+                    created_at as "created_at: chrono::DateTime<Utc>",
+                    updated_at as "updated_at: chrono::DateTime<Utc>"
+                FROM settings
+                WHERE user_id = ?
+                "#,
+                uid.to_string()
+            )
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        } else {
+            sqlx::query_as!(
+                Settings,
+                r#"
+                SELECT
+                    id as "id: Uuid",
+                    user_id as "user_id: Option<Uuid>",
+                    theme,
+                    language,
+                    notifications_enabled,
+                    auto_update,
+                    created_at as "created_at: chrono::DateTime<Utc>",
+                    updated_at as "updated_at: chrono::DateTime<Utc>"
+                FROM settings
+                WHERE user_id IS NULL
+                "#
+            )
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        };
+
+        match settings {
+            Some(s) => Ok(s),
+            None => {
+                // Create default settings if they don't exist
+                let default_settings = Settings::default_for_user(user_id);
+                self.create_settings(&default_settings).await?;
+                Ok(default_settings)
+            }
+        }
+    }
+
+    /// Create new settings.
+    async fn create_settings(&self, settings: &Settings) -> AppResult<()> {
+        sqlx::query!(
+            r#"
+            INSERT INTO settings (id, user_id, theme, language, notifications_enabled, auto_update, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            "#,
+            settings.id.to_string(),
+            settings.user_id.map(|id| id.to_string()),
+            settings.theme,
+            settings.language,
+            settings.notifications_enabled,
+            settings.auto_update,
+            settings.created_at.to_rfc3339(),
+            settings.updated_at.to_rfc3339()
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to create settings: {}", e)))?;
+
+        Ok(())
+    }
+
+    /// Update settings.
+    pub async fn update_settings(
+        &self,
+        user_id: Option<Uuid>,
+        request: UpdateSettingsRequest,
+    ) -> AppResult<Settings> {
+        // Get current settings
+        let mut settings = self.get_settings(user_id).await?;
+
+        // Update fields
+        if let Some(theme) = request.theme {
+            settings.theme = format!("{:?}", theme).to_lowercase();
+        }
+        if let Some(language) = request.language {
+            settings.language = format!("{:?}", language).to_lowercase();
+        }
+        if let Some(notifications) = request.notifications_enabled {
+            settings.notifications_enabled = notifications;
+        }
+        if let Some(auto_update) = request.auto_update {
+            settings.auto_update = auto_update;
+        }
+
+        settings.updated_at = Utc::now();
+
+        // Save to database
+        sqlx::query!(
+            r#"
+            UPDATE settings
+            SET theme = ?,
+                language = ?,
+                notifications_enabled = ?,
+                auto_update = ?,
+                updated_at = ?
+            WHERE id = ?
+            "#,
+            settings.theme,
+            settings.language,
+            settings.notifications_enabled,
+            settings.auto_update,
+            settings.updated_at.to_rfc3339(),
+            settings.id.to_string()
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to update settings: {}", e)))?;
+
+        Ok(settings)
+    }
+
+    /// Reset settings to default values.
+    pub async fn reset_to_defaults(&self, user_id: Option<Uuid>) -> AppResult<Settings> {
+        // Get current settings to preserve ID
+        let current = self.get_settings(user_id).await?;
+
+        // Create default settings with same ID
+        let mut default_settings = Settings::default_for_user(user_id);
+        default_settings.id = current.id;
+
+        // Update in database
+        sqlx::query!(
+            r#"
+            UPDATE settings
+            SET theme = ?,
+                language = ?,
+                notifications_enabled = ?,
+                auto_update = ?,
+                updated_at = ?
+            WHERE id = ?
+            "#,
+            default_settings.theme,
+            default_settings.language,
+            default_settings.notifications_enabled,
+            default_settings.auto_update,
+            default_settings.updated_at.to_rfc3339(),
+            default_settings.id.to_string()
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to reset settings: {}", e)))?;
+
+        Ok(default_settings)
+    }
+
+    /// Delete settings for a user.
+    pub async fn delete_settings(&self, user_id: Option<Uuid>) -> AppResult<()> {
+        if let Some(uid) = user_id {
+            sqlx::query!(
+                r#"
+                DELETE FROM settings
+                WHERE user_id = ?
+                "#,
+                uid.to_string()
+            )
+            .execute(&self.pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to delete settings: {}", e)))?;
+        } else {
+            sqlx::query!(
+                r#"
+                DELETE FROM settings
+                WHERE user_id IS NULL
+                "#
+            )
+            .execute(&self.pool)
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to delete settings: {}", e)))?;
+        }
+
+        Ok(())
+    }
+}

@@ -1,0 +1,170 @@
+/**
+ * tailwind.config.clay.js - Claymorphism Design System
+ *
+ * Autor: {{AUTHOR}}
+ * Proyecto: {{PROJECT_NAME}}
+ */
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './src/**/*.{js,ts,jsx,tsx,vue}',
+    './components/**/*.{js,ts,jsx,tsx,vue}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        clay: {
+          pink: {
+            50: '#fff0f5',
+            100: '#ffe3ed',
+            200: '#ffc7db',
+            300: '#ffa3c7',
+            400: '#ff7aad',
+            500: '#ff5e9a',
+            600: '#f03d7f',
+            700: '#d42763',
+            800: '#b01e52',
+            900: '#921c48',
+          },
+          blue: {
+            50: '#eff6ff',
+            100: '#dbe9fe',
+            200: '#bfd7fe',
+            300: '#93bbfd',
+            400: '#6096fa',
+            500: '#3b6ff6',
+            600: '#254deb',
+            700: '#1d3ad8',
+            800: '#1e30af',
+            900: '#1e2c8a',
+          },
+          green: {
+            50: '#f0fdf4',
+            100: '#dcfce7',
+            200: '#bbf7d0',
+            300: '#86efac',
+            400: '#4ade80',
+            500: '#22c55e',
+            600: '#16a34a',
+            700: '#15803d',
+            800: '#166534',
+            900: '#14532d',
+          },
+          yellow: {
+            50: '#fefce8',
+            100: '#fef9c3',
+            200: '#fef08a',
+            300: '#fde047',
+            400: '#facc15',
+            500: '#eab308',
+            600: '#ca8a04',
+            700: '#a16207',
+            800: '#854d0e',
+            900: '#713f12',
+          },
+          purple: {
+            50: '#faf5ff',
+            100: '#f3e8ff',
+            200: '#e9d5ff',
+            300: '#d8b4fe',
+            400: '#c084fc',
+            500: '#a855f7',
+            600: '#9333ea',
+            700: '#7e22ce',
+            800: '#6b21a8',
+            900: '#581c87',
+          },
+          orange: {
+            50: '#fff7ed',
+            100: '#ffedd5',
+            200: '#fed7aa',
+            300: '#fdba74',
+            400: '#fb923c',
+            500: '#f97316',
+            600: '#ea580c',
+            700: '#c2410c',
+            800: '#9a3412',
+            900: '#7c2d12',
+          },
+        },
+      },
+      borderRadius: {
+        clay: '24px',
+        blob: '32px',
+        'blob-lg': '40px',
+      },
+      boxShadow: {
+        // Clay shadows: outer dark + inner highlight
+        clay: '0 10px 30px rgba(0, 0, 0, 0.15), inset 0 -5px 10px rgba(0, 0, 0, 0.05), inset 0 5px 10px rgba(255, 255, 255, 0.5)',
+        'clay-sm': '0 5px 15px rgba(0, 0, 0, 0.12), inset 0 -3px 6px rgba(0, 0, 0, 0.04), inset 0 3px 6px rgba(255, 255, 255, 0.6)',
+        'clay-lg': '0 15px 40px rgba(0, 0, 0, 0.18), inset 0 -7px 14px rgba(0, 0, 0, 0.06), inset 0 7px 14px rgba(255, 255, 255, 0.5)',
+        'clay-inset': 'inset 0 5px 15px rgba(0, 0, 0, 0.1), inset 0 -5px 10px rgba(255, 255, 255, 0.3)',
+        'clay-hover': '0 12px 35px rgba(0, 0, 0, 0.2), inset 0 -6px 12px rgba(0, 0, 0, 0.06), inset 0 6px 12px rgba(255, 255, 255, 0.5)',
+      },
+      animation: {
+        'bounce-soft': 'bounce-soft 0.6s ease-in-out',
+        'wobble': 'wobble 0.8s ease-in-out',
+        'float': 'float 3s ease-in-out infinite',
+        'blob': 'blob 7s infinite',
+        'pop': 'pop 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+      },
+      keyframes: {
+        'bounce-soft': {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-10px)' },
+        },
+        wobble: {
+          '0%, 100%': { transform: 'rotate(0deg)' },
+          '25%': { transform: 'rotate(5deg)' },
+          '75%': { transform: 'rotate(-5deg)' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0px)' },
+          '50%': { transform: 'translateY(-20px)' },
+        },
+        blob: {
+          '0%': {
+            transform: 'translate(0px, 0px) scale(1)',
+          },
+          '33%': {
+            transform: 'translate(30px, -50px) scale(1.1)',
+          },
+          '66%': {
+            transform: 'translate(-20px, 20px) scale(0.9)',
+          },
+          '100%': {
+            transform: 'translate(0px, 0px) scale(1)',
+          },
+        },
+        pop: {
+          '0%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.1)' },
+          '100%': { transform: 'scale(1)' },
+        },
+      },
+      backgroundImage: {
+        'blob-pink': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath fill=\'%23ff7aad\' d=\'M43.3,-59.9C56.2,-50.8,67.3,-38.6,71.8,-24.3C76.3,-10,74.2,6.4,67.9,20.3C61.6,34.2,51.1,45.6,38.4,53.5C25.7,61.4,10.9,65.8,-4.3,68.5C-19.5,71.2,-35.1,72.2,-47.6,64.8C-60.1,57.4,-69.5,41.6,-73.4,24.8C-77.3,8,-75.7,-9.8,-69.1,-25.2C-62.5,-40.6,-51,-53.6,-37.6,-62.6C-24.2,-71.6,-9.4,-76.6,3.7,-81.5C16.8,-86.4,30.4,-69,43.3,-59.9Z\' transform=\'translate(100 100)\' /%3E%3C/svg%3E")',
+        'blob-blue': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath fill=\'%236096fa\' d=\'M39.5,-65.5C51.4,-57.2,61.5,-46.3,68.4,-33.5C75.3,-20.7,79,-6,77.3,7.9C75.6,21.8,68.5,35,58.9,45.8C49.3,56.6,37.2,65,23.5,69.5C9.8,74,-5.5,74.6,-19.8,71.3C-34.1,68,-47.4,60.8,-57.8,50.3C-68.2,39.8,-75.7,26,-77.9,11.7C-80.1,-2.6,-77,-17.4,-70.3,-30.7C-63.6,-44,-53.3,-55.8,-40.8,-63.9C-28.3,-72,-14.2,-76.4,0.2,-76.7C14.6,-77,27.6,-73.8,39.5,-65.5Z\' transform=\'translate(100 100)\' /%3E%3C/svg%3E")',
+        'blob-green': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath fill=\'%234ade80\' d=\'M47.2,-73.9C60.3,-65.8,69.3,-51.2,74.8,-35.9C80.3,-20.6,82.3,-4.6,79.3,10.3C76.3,25.2,68.3,39,57.5,50.3C46.7,61.6,33.1,70.4,18.2,74.3C3.3,78.2,-12.9,77.2,-27.8,72.2C-42.7,67.2,-56.3,58.2,-66.4,46.2C-76.5,34.2,-83.1,19.2,-83.7,3.9C-84.3,-11.4,-79,-26.9,-70.4,-40.1C-61.8,-53.3,-49.9,-64.2,-36.5,-72.2C-23.1,-80.2,-8.3,-85.3,5.5,-93.1C19.3,-100.9,34.1,-82,47.2,-73.9Z\' transform=\'translate(100 100)\' /%3E%3C/svg%3E")',
+        'blob-yellow': 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath fill=\'%23facc15\' d=\'M42.8,-71.8C54.5,-63.5,62.5,-50.2,68.4,-36.2C74.3,-22.2,78.1,-7.5,76.9,6.5C75.7,20.5,69.5,33.8,61.4,45.8C53.3,57.8,43.3,68.5,30.8,74.3C18.3,80.1,3.3,81,-11.5,78.9C-26.3,76.8,-40.9,71.7,-53.4,63.2C-65.9,54.7,-76.3,42.8,-80.8,28.9C-85.3,15,-84,-0.9,-78.7,-15.2C-73.4,-29.5,-64.1,-42.2,-52.6,-50.6C-41.1,-59,-27.4,-63.1,-13.9,-65.7C-0.4,-68.3,12.9,-69.4,24.8,-67.2C36.7,-65,47.2,-59.5,42.8,-71.8Z\' transform=\'translate(100 100)\' /%3E%3C/svg%3E")',
+      },
+    },
+  },
+  plugins: [
+    function({ addUtilities }) {
+      const newUtilities = {
+        '.clay-base': {
+          'box-shadow': '0 10px 30px rgba(0, 0, 0, 0.15), inset 0 -5px 10px rgba(0, 0, 0, 0.05), inset 0 5px 10px rgba(255, 255, 255, 0.5)',
+        },
+        '.clay-raised': {
+          'box-shadow': '0 12px 35px rgba(0, 0, 0, 0.2), inset 0 -6px 12px rgba(0, 0, 0, 0.06), inset 0 6px 12px rgba(255, 255, 255, 0.5)',
+        },
+        '.clay-pressed': {
+          'box-shadow': 'inset 0 5px 15px rgba(0, 0, 0, 0.1), inset 0 -5px 10px rgba(255, 255, 255, 0.3)',
+        },
+      }
+      addUtilities(newUtilities)
+    },
+  ],
+}

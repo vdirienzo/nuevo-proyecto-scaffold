@@ -1,0 +1,109 @@
+/*! Auto-updater plugin configuration
+ *
+ * Handles automatic updates from GitHub releases or custom update server.
+ * Checks for updates on startup and notifies users when updates are available.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use tauri::{AppHandle, Manager};
+use tauri_plugin_updater::UpdaterExt;
+
+/// Setup auto-updater plugin
+///
+/// Configures the updater to check for updates on app startup.
+/// Updates are downloaded in the background and user is notified.
+pub fn setup_updater(app: &AppHandle) {
+    let app_handle = app.clone();
+
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = check_for_updates(&app_handle).await {
+            log::error!("Failed to check for updates: {}", e);
+        }
+    });
+}
+
+/// Check for updates from configured source
+///
+/// # Errors
+///
+/// Returns error if update check fails or update download/installation fails
+async fn check_for_updates(app: &AppHandle) -> Result<(), Box<dyn std::error::Error>> {
+    log::info!("Checking for updates...");
+
+    let updater = app.updater_builder().build()?;
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            log::info!(
+                "Update available: {} -> {}",
+                update.current_version,
+                update.version
+            );
+
+            // Notify user about available update
+            app.emit("update-available", &update)?;
+
+            // Download update in background
+            log::info!("Downloading update...");
+            let mut downloaded = 0;
+
+            update
+                .download_and_install(
+                    |chunk_length, content_length| {
+                        downloaded += chunk_length;
+                        let progress = content_length
+                            .map(|total| (downloaded as f64 / total as f64) * 100.0)
+                            .unwrap_or(0.0);
+
+                        log::debug!("Download progress: {:.2}%", progress);
+                    },
+                    || {
+                        log::info!("Download complete, ready to install");
+                    },
+                )
+                .await?;
+
+            // Notify user that update is ready to install
+            app.emit("update-downloaded", ())?;
+
+            log::info!("Update downloaded successfully");
+        }
+        Ok(None) => {
+            log::info!("No updates available");
+        }
+        Err(e) => {
+            log::error!("Failed to check for updates: {}", e);
+            return Err(Box::new(e));
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn check_updates_manually(app: AppHandle) -> Result<String, String> {
+    check_for_updates(&app)
+        .await
+        .map(|_| "Update check completed".to_string())
+        .map_err(|e| format!("Update check failed: {}", e))
+}
+
+#[tauri::command]
+pub async fn install_update_now(app: AppHandle) -> Result<(), String> {
+    log::info!("User requested immediate update installation");
+
+    // Restart app to complete installation
+    app.restart();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_updater_module_exists() {
+        // Smoke test to ensure module compiles
+        assert!(true);
+    }
+}

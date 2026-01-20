@@ -1,0 +1,250 @@
+/**
+ * LandingPage.tsx - Geist Design System Landing Page Example
+ *
+ * Autor: {{AUTHOR}}
+ *
+ * Vercel-inspired minimal landing page showcasing Geist components.
+ * Design principles: Simplicity, speed, elegance.
+ */
+
+import React from 'react';
+import { Button } from '../components/react/Button';
+import { Card } from '../components/react/Card';
+import { Input } from '../components/react/Input';
+import { Navbar } from '../components/react/Navbar';
+
+const LandingPage: React.FC = () => {
+  return (
+    <div className="min-h-screen bg-black text-white">
+      {/* Navbar - Clean and minimal */}
+      <Navbar />
+
+      {/* Hero Section - Gradient text and clear CTAs */}
+      <section className="container mx-auto px-6 pt-32 pb-24 text-center">
+        <h1 className="text-6xl md:text-8xl font-bold mb-6">
+          <span className="bg-gradient-to-r from-white via-gray-300 to-gray-500 bg-clip-text text-transparent">
+            Build the future
+          </span>
+        </h1>
+        <p className="text-xl md:text-2xl text-gray-400 mb-12 max-w-3xl mx-auto">
+          {{APP_TITLE}} empowers developers to create amazing experiences with speed and simplicity.
+        </p>
+        <div className="flex gap-4 justify-center">
+          <Button variant="primary" size="lg">
+            Get Started →
+          </Button>
+          <Button variant="secondary" size="lg">
+            View Demo
+          </Button>
+        </div>
+      </section>
+
+      {/* Features Grid - Cards with hover effects */}
+      <section className="container mx-auto px-6 py-24">
+        <h2 className="text-4xl font-bold text-center mb-16">
+          Why Choose {{APP_TITLE}}?
+        </h2>
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card>
+            <div className="text-3xl mb-4">⚡</div>
+            <h3 className="text-xl font-semibold mb-2">Lightning Fast</h3>
+            <p className="text-gray-400">
+              Optimized for performance with edge computing and instant page loads.
+            </p>
+          </Card>
+          <Card>
+            <div className="text-3xl mb-4">🔒</div>
+            <h3 className="text-xl font-semibold mb-2">Secure by Default</h3>
+            <p className="text-gray-400">
+              Enterprise-grade security with automatic SSL and DDoS protection.
+            </p>
+          </Card>
+          <Card>
+            <div className="text-3xl mb-4">🌍</div>
+            <h3 className="text-xl font-semibold mb-2">Global Scale</h3>
+            <p className="text-gray-400">
+              Deploy to 100+ edge locations worldwide with zero configuration.
+            </p>
+          </Card>
+        </div>
+      </section>
+
+      {/* Stats Section - Bold numbers */}
+      <section className="container mx-auto px-6 py-24 border-y border-gray-800">
+        <div className="grid md:grid-cols-4 gap-8 text-center">
+          <div>
+            <div className="text-5xl font-bold mb-2">99.99%</div>
+            <div className="text-gray-400">Uptime SLA</div>
+          </div>
+          <div>
+            <div className="text-5xl font-bold mb-2">10ms</div>
+            <div className="text-gray-400">P99 Latency</div>
+          </div>
+          <div>
+            <div className="text-5xl font-bold mb-2">1M+</div>
+            <div className="text-gray-400">Developers</div>
+          </div>
+          <div>
+            <div className="text-5xl font-bold mb-2">50B+</div>
+            <div className="text-gray-400">Requests/Month</div>
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials - Minimal quote cards */}
+      <section className="container mx-auto px-6 py-24">
+        <h2 className="text-4xl font-bold text-center mb-16">
+          Loved by Developers
+        </h2>
+        <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+          <Card>
+            <p className="text-lg mb-4">
+              "{{APP_TITLE}} changed how we ship software. From idea to production in minutes."
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full"></div>
+              <div>
+                <div className="font-semibold">Sarah Chen</div>
+                <div className="text-sm text-gray-400">CTO, TechCorp</div>
+              </div>
+            </div>
+          </Card>
+          <Card>
+            <p className="text-lg mb-4">
+              "The developer experience is unmatched. We've never shipped faster."
+            </p>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full"></div>
+              <div>
+                <div className="font-semibold">Alex Rivera</div>
+                <div className="text-sm text-gray-400">Lead Engineer, StartupXYZ</div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      {/* Pricing Table - Clean tiers */}
+      <section className="container mx-auto px-6 py-24">
+        <h2 className="text-4xl font-bold text-center mb-4">
+          Simple, Transparent Pricing
+        </h2>
+        <p className="text-gray-400 text-center mb-16">
+          Start free, scale as you grow
+        </p>
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+          <Card>
+            <div className="mb-4">
+              <div className="text-sm text-gray-400 mb-1">Hobby</div>
+              <div className="text-4xl font-bold">$0</div>
+              <div className="text-gray-400">forever</div>
+            </div>
+            <ul className="space-y-3 mb-6 text-gray-300">
+              <li>✓ 100GB bandwidth</li>
+              <li>✓ Unlimited projects</li>
+              <li>✓ Community support</li>
+            </ul>
+            <Button variant="secondary" fullWidth>
+              Start Free
+            </Button>
+          </Card>
+          <Card className="border-2 border-white">
+            <div className="mb-4">
+              <div className="text-sm mb-1">Pro</div>
+              <div className="text-4xl font-bold">$20</div>
+              <div className="text-gray-400">per month</div>
+            </div>
+            <ul className="space-y-3 mb-6">
+              <li>✓ 1TB bandwidth</li>
+              <li>✓ Priority support</li>
+              <li>✓ Advanced analytics</li>
+              <li>✓ Custom domains</li>
+            </ul>
+            <Button variant="primary" fullWidth>
+              Upgrade Now
+            </Button>
+          </Card>
+          <Card>
+            <div className="mb-4">
+              <div className="text-sm text-gray-400 mb-1">Enterprise</div>
+              <div className="text-4xl font-bold">Custom</div>
+              <div className="text-gray-400">contact sales</div>
+            </div>
+            <ul className="space-y-3 mb-6 text-gray-300">
+              <li>✓ Unlimited bandwidth</li>
+              <li>✓ 24/7 support</li>
+              <li>✓ SLA guarantee</li>
+              <li>✓ Dedicated account manager</li>
+            </ul>
+            <Button variant="secondary" fullWidth>
+              Contact Sales
+            </Button>
+          </Card>
+        </div>
+      </section>
+
+      {/* Newsletter CTA - Input with button */}
+      <section className="container mx-auto px-6 py-24 border-t border-gray-800">
+        <div className="max-w-2xl mx-auto text-center">
+          <h2 className="text-3xl font-bold mb-4">
+            Stay Updated
+          </h2>
+          <p className="text-gray-400 mb-8">
+            Get the latest features and updates delivered to your inbox.
+          </p>
+          <div className="flex gap-3 max-w-md mx-auto">
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              className="flex-1"
+            />
+            <Button variant="primary">
+              Subscribe
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer - Minimal links */}
+      <footer className="container mx-auto px-6 py-12 border-t border-gray-800">
+        <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div>
+            <div className="font-bold text-xl mb-4">{{PROJECT_NAME}}</div>
+            <p className="text-gray-400 text-sm">
+              Built with care by developers, for developers.
+            </p>
+          </div>
+          <div>
+            <div className="font-semibold mb-3">Product</div>
+            <ul className="space-y-2 text-gray-400 text-sm">
+              <li><a href="#" className="hover:text-white">Features</a></li>
+              <li><a href="#" className="hover:text-white">Pricing</a></li>
+              <li><a href="#" className="hover:text-white">Documentation</a></li>
+            </ul>
+          </div>
+          <div>
+            <div className="font-semibold mb-3">Company</div>
+            <ul className="space-y-2 text-gray-400 text-sm">
+              <li><a href="#" className="hover:text-white">About</a></li>
+              <li><a href="#" className="hover:text-white">Blog</a></li>
+              <li><a href="#" className="hover:text-white">Careers</a></li>
+            </ul>
+          </div>
+          <div>
+            <div className="font-semibold mb-3">Legal</div>
+            <ul className="space-y-2 text-gray-400 text-sm">
+              <li><a href="#" className="hover:text-white">Privacy</a></li>
+              <li><a href="#" className="hover:text-white">Terms</a></li>
+              <li><a href="#" className="hover:text-white">Security</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="text-center text-gray-400 text-sm">
+          © {new Date().getFullYear()} {{PROJECT_NAME}}. All rights reserved.
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default LandingPage;

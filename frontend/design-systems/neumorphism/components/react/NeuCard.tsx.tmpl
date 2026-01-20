@@ -1,0 +1,127 @@
+/**
+ * NeuCard Component - Neumorphism Design System
+ *
+ * Author: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Container with soft shadows and optional hover effect
+ */
+
+import React, { HTMLAttributes } from 'react';
+import { cn } from '@/lib/utils'; // or use clsx/classnames
+
+export interface NeuCardProps extends HTMLAttributes<HTMLDivElement> {
+  /** Visual variant */
+  variant?: 'flat' | 'convex' | 'raised' | 'pressed';
+  /** Enable hover effect */
+  hoverable?: boolean;
+  /** Padding size */
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+  /** Border radius */
+  rounded?: 'sm' | 'md' | 'lg' | 'xl';
+  children: React.ReactNode;
+}
+
+const NeuCard = React.forwardRef<HTMLDivElement, NeuCardProps>(
+  (
+    {
+      variant = 'flat',
+      hoverable = false,
+      padding = 'md',
+      rounded = 'md',
+      className,
+      children,
+      ...props
+    },
+    ref
+  ) => {
+    const baseStyles = cn(
+      'neu-surface transition-neu',
+      // Padding
+      {
+        'p-0': padding === 'none',
+        'p-3': padding === 'sm',
+        'p-5': padding === 'md',
+        'p-7': padding === 'lg',
+      },
+      // Border radius
+      {
+        'rounded-soft-sm': rounded === 'sm',
+        'rounded-soft-md': rounded === 'md',
+        'rounded-soft-lg': rounded === 'lg',
+        'rounded-soft-xl': rounded === 'xl',
+      },
+      className
+    );
+
+    const variantStyles = cn({
+      // Flat - standard shadow
+      'shadow-neu-flat dark:shadow-neu-flat-dark': variant === 'flat',
+
+      // Convex - slightly raised
+      'shadow-neu-convex dark:shadow-neu-convex-dark': variant === 'convex',
+
+      // Raised - more prominent
+      'shadow-neu-raised dark:shadow-neu-raised-dark': variant === 'raised',
+
+      // Pressed - inset
+      'shadow-neu-pressed dark:shadow-neu-pressed-dark': variant === 'pressed',
+    });
+
+    const hoverStyles = cn({
+      'hover:shadow-neu-hover dark:hover:shadow-neu-hover-dark hover:-translate-y-0.5':
+        hoverable && variant !== 'pressed',
+      'cursor-pointer': hoverable,
+    });
+
+    return (
+      <div
+        ref={ref}
+        className={cn(baseStyles, variantStyles, hoverStyles)}
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
+);
+
+NeuCard.displayName = 'NeuCard';
+
+export default NeuCard;
+
+/**
+ * Usage Examples:
+ *
+ * // Basic card
+ * <NeuCard>
+ *   <h3>Card Title</h3>
+ *   <p>Card content</p>
+ * </NeuCard>
+ *
+ * // Convex card
+ * <NeuCard variant="convex">
+ *   Content here
+ * </NeuCard>
+ *
+ * // Raised card with hover
+ * <NeuCard variant="raised" hoverable>
+ *   Hover me!
+ * </NeuCard>
+ *
+ * // Pressed/inset card
+ * <NeuCard variant="pressed" padding="lg">
+ *   Inset container
+ * </NeuCard>
+ *
+ * // Custom padding and radius
+ * <NeuCard padding="lg" rounded="xl">
+ *   Large padding and radius
+ * </NeuCard>
+ *
+ * // No padding (for custom content)
+ * <NeuCard padding="none">
+ *   <img src="image.jpg" alt="Full width" />
+ *   <div className="p-5">Content</div>
+ * </NeuCard>
+ */

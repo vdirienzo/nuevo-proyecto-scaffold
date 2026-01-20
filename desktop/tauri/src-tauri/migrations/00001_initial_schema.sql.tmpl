@@ -1,0 +1,76 @@
+-- Initial Database Schema
+-- Author: {{AUTHOR}}
+-- Project: {{PROJECT_NAME}}
+
+-- Users table: Authentication and user management
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    is_admin INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_active ON users(is_active);
+CREATE INDEX idx_users_created_at ON users(created_at);
+
+-- Settings table: User-specific and global application settings
+CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT NOT NULL,
+    value TEXT,
+    user_id INTEGER,
+    is_global INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE(key, user_id),
+    CHECK((user_id IS NOT NULL AND is_global = 0) OR (user_id IS NULL AND is_global = 1))
+);
+
+CREATE INDEX idx_settings_key ON settings(key);
+CREATE INDEX idx_settings_user_id ON settings(user_id);
+CREATE INDEX idx_settings_global ON settings(is_global);
+
+-- Sessions table: Active user sessions and tokens
+CREATE TABLE IF NOT EXISTS sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    expires_at INTEGER NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
+CREATE INDEX idx_sessions_created_at ON sessions(created_at);
+
+-- Trigger to update updated_at timestamp for users
+CREATE TRIGGER IF NOT EXISTS update_users_timestamp
+AFTER UPDATE ON users
+FOR EACH ROW
+BEGIN
+    UPDATE users SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
+END;
+
+-- Trigger to update updated_at timestamp for settings
+CREATE TRIGGER IF NOT EXISTS update_settings_timestamp
+AFTER UPDATE ON settings
+FOR EACH ROW
+BEGIN
+    UPDATE settings SET updated_at = strftime('%s', 'now') WHERE id = OLD.id;
+END;
+
+-- Trigger to clean expired sessions
+CREATE TRIGGER IF NOT EXISTS clean_expired_sessions
+AFTER INSERT ON sessions
+BEGIN
+    DELETE FROM sessions WHERE expires_at < strftime('%s', 'now');
+END;

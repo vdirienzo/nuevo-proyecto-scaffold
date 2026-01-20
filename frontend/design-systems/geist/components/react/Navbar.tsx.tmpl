@@ -1,0 +1,182 @@
+/**
+ * Navbar.tsx - Geist design system Navbar component
+ *
+ * Autor: {{AUTHOR}}
+ * Project: {{PROJECT_NAME}}
+ *
+ * Sticky navigation bar with blur backdrop, responsive mobile menu, and active states.
+ */
+
+import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
+
+export interface NavLink {
+  label: string;
+  href: string;
+  active?: boolean;
+}
+
+export interface NavbarProps {
+  /** Logo component or text */
+  logo?: React.ReactNode;
+  /** Navigation links */
+  links?: NavLink[];
+  /** CTA button or custom right content */
+  rightContent?: React.ReactNode;
+  /** Sticky positioning */
+  sticky?: boolean;
+  /** Additional className */
+  className?: string;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({
+  logo = '{{PROJECT_NAME}}',
+  links = [],
+  rightContent,
+  sticky = true,
+  className,
+}) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
+
+  return (
+    <nav
+      className={cn(
+        'w-full z-[var(--z-sticky)]',
+        sticky && 'sticky top-0',
+        className
+      )}
+    >
+      {/* Main navbar */}
+      <div className="bg-geist-black/80 backdrop-blur-geist border-b border-geist-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div className="flex-shrink-0">
+              <a
+                href="/"
+                className="flex items-center text-geist-white font-semibold text-lg hover:text-geist-blue transition-colors"
+              >
+                {logo}
+              </a>
+            </div>
+
+            {/* Desktop navigation */}
+            <div className="hidden md:flex md:items-center md:gap-8">
+              {links.map((link, index) => (
+                <a
+                  key={index}
+                  href={link.href}
+                  className={cn(
+                    'text-sm font-medium transition-colors relative py-2',
+                    link.active
+                      ? 'text-geist-white'
+                      : 'text-geist-gray-400 hover:text-geist-white'
+                  )}
+                >
+                  {link.label}
+                  {link.active && (
+                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-geist-blue via-geist-violet to-geist-magenta rounded-full" />
+                  )}
+                </a>
+              ))}
+            </div>
+
+            {/* Right content (CTA button, etc.) */}
+            {rightContent && (
+              <div className="hidden md:flex md:items-center">
+                {rightContent}
+              </div>
+            )}
+
+            {/* Mobile menu button */}
+            <div className="flex md:hidden">
+              <button
+                onClick={toggleMobileMenu}
+                className={cn(
+                  'p-2 rounded-geist text-geist-gray-400',
+                  'hover:text-geist-white hover:bg-geist-black-card',
+                  'transition-colors duration-200',
+                  'focus:outline-none focus:ring-2 focus:ring-geist-blue'
+                )}
+                aria-expanded={mobileMenuOpen}
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden bg-geist-black-card/95 backdrop-blur-geist border-b border-geist-gray-800 animate-slide-down">
+          <div className="max-w-7xl mx-auto px-4 py-4 space-y-1">
+            {links.map((link, index) => (
+              <a
+                key={index}
+                href={link.href}
+                className={cn(
+                  'block px-4 py-3 rounded-geist text-base font-medium transition-colors',
+                  link.active
+                    ? 'bg-geist-black-lighter text-geist-white'
+                    : 'text-geist-gray-400 hover:bg-geist-black-lighter hover:text-geist-white'
+                )}
+              >
+                {link.label}
+                {link.active && (
+                  <span className="ml-2 inline-block w-1.5 h-1.5 rounded-full bg-geist-blue animate-glow-pulse" />
+                )}
+              </a>
+            ))}
+
+            {rightContent && (
+              <div className="pt-4 border-t border-geist-gray-800">
+                {rightContent}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+};
+
+Navbar.displayName = 'Navbar';
+
+// Utility function for className merging
+function cn(...inputs: (string | undefined | null | false)[]) {
+  return inputs.filter(Boolean).join(' ');
+}
+
+export default Navbar;

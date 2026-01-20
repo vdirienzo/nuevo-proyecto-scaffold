@@ -1,0 +1,95 @@
+/**
+ * BrutalMarquee.tsx - Neo-Brutalism scrolling text component
+ *
+ * Autor: Homero Thompson del Lago del Terror
+ * Project: {{PROJECT_NAME}}
+ */
+
+import React from 'react'
+import { cn } from '@/lib/utils'
+
+export interface BrutalMarqueeProps extends React.HTMLAttributes<HTMLDivElement> {
+  text: string
+  separator?: string
+  speed?: 'slow' | 'normal' | 'fast'
+  bgColor?: 'yellow' | 'magenta' | 'cyan' | 'lime' | 'orange' | 'black'
+  textColor?: 'black' | 'white'
+  uppercase?: boolean
+}
+
+const BrutalMarquee = React.forwardRef<HTMLDivElement, BrutalMarqueeProps>(
+  (
+    {
+      className,
+      text,
+      separator = '★',
+      speed = 'normal',
+      bgColor = 'yellow',
+      textColor = 'black',
+      uppercase = true,
+      ...props
+    },
+    ref
+  ) => {
+    const bgClasses = {
+      yellow: 'bg-brutal-yellow',
+      magenta: 'bg-brutal-magenta',
+      cyan: 'bg-brutal-cyan',
+      lime: 'bg-brutal-lime',
+      orange: 'bg-brutal-orange',
+      black: 'bg-brutal-black',
+    }
+
+    const textClasses = {
+      black: 'text-brutal-black',
+      white: 'text-brutal-white',
+    }
+
+    const speedClasses = {
+      slow: 'animate-marquee-slow',
+      normal: 'animate-marquee',
+      fast: 'animate-marquee-fast',
+    }
+
+    const repeatedText = Array(10)
+      .fill(`${text} ${separator}`)
+      .join(' ')
+
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          'overflow-hidden whitespace-nowrap border-y-brutal py-4',
+          bgClasses[bgColor],
+          textClasses[textColor],
+          className
+        )}
+        {...props}
+      >
+        <div className={cn('inline-block', speedClasses[speed])}>
+          <span
+            className={cn(
+              'inline-block font-bold text-brutal-2xl',
+              uppercase && 'uppercase tracking-wider'
+            )}
+          >
+            {repeatedText}
+          </span>
+          <span
+            className={cn(
+              'inline-block font-bold text-brutal-2xl',
+              uppercase && 'uppercase tracking-wider'
+            )}
+            aria-hidden="true"
+          >
+            {repeatedText}
+          </span>
+        </div>
+      </div>
+    )
+  }
+)
+
+BrutalMarquee.displayName = 'BrutalMarquee'
+
+export default BrutalMarquee

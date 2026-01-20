@@ -1,0 +1,254 @@
+/*!
+ * Security Command Examples - Demonstrates usage of security and crypto utilities
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use crate::crypto::{Encryptor, PasswordHasher, TokenGenerator};
+use crate::error::AppResult;
+use crate::security::{CsrfManager, InputSanitizer, PathValidator, RateLimiter, SecureRandom};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
+use tauri::State;
+
+/// Application state with security utilities
+pub struct SecurityState {
+    pub csrf_manager: CsrfManager,
+    pub rate_limiter: RateLimiter,
+    pub encryptor: Encryptor,
+}
+
+impl SecurityState {
+    pub fn new() -> Self {
+        Self {
+            csrf_manager: CsrfManager::new(),
+            rate_limiter: RateLimiter::new(10, Duration::from_secs(60)), // 10 requests per minute
+            encryptor: Encryptor::new(),
+        }
+    }
+}
+
+impl Default for SecurityState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Example: Register a new user with password hashing
+#[tauri::command]
+pub async fn register_user(username: String, password: String) -> AppResult<String> {
+    // 1. Sanitize input
+    let username = InputSanitizer::sanitize_string(&username, 50);
+
+    // 2. Validate username format
+    if !InputSanitizer::is_valid_username(&username) {
+        return Err(crate::error::AppError::Validation(
+            "Invalid username format".to_string(),
+        ));
+    }
+
+    // 3. Hash password
+    let password_hash = PasswordHasher::hash_password(&password)?;
+
+    // 4. Generate API token for the user
+    let api_token = TokenGenerator::generate_token(32);
+
+    // In a real app, you would save username, password_hash, and api_token to database
+
+    Ok(format!("User {} registered successfully", username))
+}
+
+/// Example: Login with rate limiting
+#[tauri::command]
+pub async fn login(
+    username: String,
+    password: String,
+    password_hash: String, // In real app, fetch from database
+    state: State<'_, Arc<SecurityState>>,
+) -> AppResult<String> {
+    // 1. Check rate limit (prevent brute force)
+    if !state.rate_limiter.check_rate_limit(&username)? {
+        return Err(crate::error::AppError::Authorization(
+            "Too many login attempts. Please try again later.".to_string(),
+        ));
+    }
+
+    // 2. Verify password
+    let is_valid = PasswordHasher::verify_password(&password, &password_hash)?;
+
+    if !is_valid {
+        return Err(crate::error::AppError::Authentication(
+            "Invalid credentials".to_string(),
+        ));
+    }
+
+    // 3. Generate session ID and CSRF token
+    let session_id = SecureRandom::generate_session_id();
+    let csrf_token = state.csrf_manager.generate_token(session_id.clone())?;
+
+    // 4. Generate authentication token
+    let auth_token = TokenGenerator::generate_token(32);
+
+    Ok(serde_json::json!({
+        "session_id": session_id,
+        "csrf_token": csrf_token,
+        "auth_token": auth_token
+    })
+    .to_string())
+}
+
+/// Example: Protected command with CSRF validation
+#[tauri::command]
+pub async fn update_profile(
+    session_id: String,
+    csrf_token: String,
+    new_email: String,
+    state: State<'_, Arc<SecurityState>>,
+) -> AppResult<String> {
+    // 1. Validate CSRF token
+    if !state
+        .csrf_manager
+        .validate_token(&session_id, &csrf_token)?
+    {
+        return Err(crate::error::AppError::Authorization(
+            "Invalid CSRF token".to_string(),
+        ));
+    }
+
+    // 2. Validate email format
+    if !InputSanitizer::is_valid_email(&new_email) {
+        return Err(crate::error::AppError::Validation(
+            "Invalid email format".to_string(),
+        ));
+    }
+
+    // 3. Update profile (in database)
+    // ...
+
+    Ok("Profile updated successfully".to_string())
+}
+
+/// Example: Read file with path validation
+#[tauri::command]
+pub async fn read_user_file(file_path: String, user_data_dir: PathBuf) -> AppResult<String> {
+    // 1. Check for directory traversal patterns
+    if PathValidator::has_traversal_pattern(&file_path) {
+        return Err(crate::error::AppError::Authorization(
+            "Invalid file path: directory traversal detected".to_string(),
+        ));
+    }
+
+    // 2. Convert to PathBuf
+    let path = PathBuf::from(&file_path);
+
+    // 3. Validate that path is within allowed directory
+    let safe_path = PathValidator::validate_path(&path, &user_data_dir)?;
+
+    // 4. Read file (if exists)
+    let content = tokio::fs::read_to_string(safe_path).await.map_err(|e| {
+        crate::error::AppError::Io(e)
+    })?;
+
+    Ok(content)
+}
+
+/// Example: Save file with sanitized filename
+#[tauri::command]
+pub async fn save_user_file(
+    filename: String,
+    content: String,
+    user_data_dir: PathBuf,
+) -> AppResult<String> {
+    // 1. Sanitize filename (remove dangerous characters)
+    let safe_filename = PathValidator::sanitize_filename(&filename);
+
+    if safe_filename.is_empty() {
+        return Err(crate::error::AppError::Validation(
+            "Invalid filename".to_string(),
+        ));
+    }
+
+    // 2. Build full path
+    let file_path = user_data_dir.join(&safe_filename);
+
+    // 3. Validate path is within user directory
+    PathValidator::validate_path(&file_path, &user_data_dir)?;
+
+    // 4. Write file
+    tokio::fs::write(&file_path, content).await.map_err(|e| {
+        crate::error::AppError::Io(e)
+    })?;
+
+    Ok(format!("File {} saved successfully", safe_filename))
+}
+
+/// Example: Encrypt sensitive data before storing
+#[tauri::command]
+pub async fn store_sensitive_data(
+    data: String,
+    state: State<'_, Arc<SecurityState>>,
+) -> AppResult<String> {
+    // 1. Encrypt data
+    let encrypted = state.encryptor.encrypt_string(&data)?;
+
+    // 2. In real app, save encrypted.ciphertext and encrypted.nonce to database/storage
+
+    Ok("Data encrypted and stored successfully".to_string())
+}
+
+/// Example: Decrypt sensitive data
+#[tauri::command]
+pub async fn retrieve_sensitive_data(
+    ciphertext: String,
+    nonce: String,
+    state: State<'_, Arc<SecurityState>>,
+) -> AppResult<String> {
+    // 1. Reconstruct EncryptedData
+    let encrypted = crate::crypto::EncryptedData { ciphertext, nonce };
+
+    // 2. Decrypt
+    let decrypted = state.encryptor.decrypt_string(&encrypted)?;
+
+    Ok(decrypted)
+}
+
+/// Example: Generate 2FA code
+#[tauri::command]
+pub async fn generate_2fa_code() -> AppResult<String> {
+    let code = TokenGenerator::generate_verification_code();
+    // In real app, save code to database with expiration time
+    Ok(code)
+}
+
+/// Example: Cleanup expired tokens (should run periodically)
+#[tauri::command]
+pub async fn cleanup_security_state(state: State<'_, Arc<SecurityState>>) -> AppResult<()> {
+    state.csrf_manager.cleanup_expired()?;
+    state.rate_limiter.cleanup()?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_register_user() {
+        let result = register_user("testuser".to_string(), "password123".to_string()).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_invalid_username() {
+        let result = register_user("test@user!".to_string(), "password123".to_string()).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn test_path_validation() {
+        let user_dir = PathBuf::from("/tmp/test_user");
+        let result = read_user_file("../etc/passwd".to_string(), user_dir).await;
+        assert!(result.is_err());
+    }
+}

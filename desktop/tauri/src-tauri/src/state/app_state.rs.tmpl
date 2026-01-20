@@ -1,0 +1,121 @@
+/*!
+ * Application State Management
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use crate::config::Config;
+use crate::db::Database;
+use crate::error::{AppError, AppResult};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+/// Authentication information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthInfo {
+    /// User ID
+    pub user_id: i64,
+
+    /// Username
+    pub username: String,
+
+    /// Authentication token (if using remote API)
+    pub token: Option<String>,
+
+    /// Timestamp of login
+    pub logged_in_at: i64,
+}
+
+/// Application state shared across Tauri commands
+#[derive(Clone)]
+pub struct AppState {
+    /// Application configuration
+    config: Arc<Config>,
+
+    /// Database connection pool
+    database: Arc<Database>,
+
+    /// Current authentication state
+    auth: Arc<RwLock<Option<AuthInfo>>>,
+}
+
+impl AppState {
+    /// Create new application state
+    pub async fn new(config: Config, database: Database) -> AppResult<Self> {
+        Ok(Self {
+            config: Arc::new(config),
+            database: Arc::new(database),
+            auth: Arc::new(RwLock::new(None)),
+        })
+    }
+
+    /// Get reference to configuration
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
+    /// Get reference to database
+    pub fn database(&self) -> &Database {
+        &self.database
+    }
+
+    /// Get current authentication info
+    pub async fn auth_info(&self) -> Option<AuthInfo> {
+        self.auth.read().await.clone()
+    }
+
+    /// Check if user is authenticated
+    pub async fn is_authenticated(&self) -> bool {
+        self.auth.read().await.is_some()
+    }
+
+    /// Set authentication info
+    pub async fn set_auth(&self, auth_info: AuthInfo) -> AppResult<()> {
+        let mut auth = self.auth.write().await;
+        *auth = Some(auth_info);
+        Ok(())
+    }
+
+    /// Clear authentication (logout)
+    pub async fn clear_auth(&self) -> AppResult<()> {
+        let mut auth = self.auth.write().await;
+        *auth = None;
+        Ok(())
+    }
+
+    /// Get user ID of authenticated user
+    pub async fn current_user_id(&self) -> AppResult<i64> {
+        self.auth_info()
+            .await
+            .map(|info| info.user_id)
+            .ok_or_else(|| AppError::Authentication("Not authenticated".to_string()))
+    }
+
+    /// Require authentication (returns error if not authenticated)
+    pub async fn require_auth(&self) -> AppResult<AuthInfo> {
+        self.auth_info()
+            .await
+            .ok_or_else(|| AppError::Authentication("Authentication required".to_string()))
+    }
+
+    /// Perform health check on all components
+    pub async fn health_check(&self) -> AppResult<HealthStatus> {
+        let db_healthy = self.database.health_check().await.is_ok();
+
+        Ok(HealthStatus {
+            database: db_healthy,
+            authenticated: self.is_authenticated().await,
+        })
+    }
+}
+
+/// Health status response
+#[derive(Debug, Serialize)]
+pub struct HealthStatus {
+    /// Database connection status
+    pub database: bool,
+
+    /// Authentication status
+    pub authenticated: bool,
+}

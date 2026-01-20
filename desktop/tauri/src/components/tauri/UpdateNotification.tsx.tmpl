@@ -1,0 +1,193 @@
+/**
+ * UpdateNotification.tsx - Update notification component
+ *
+ * Autor: {{AUTHOR}}
+ */
+
+import { useState, useEffect } from 'react';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+
+interface UpdateNotificationProps {
+  onDismiss?: () => void;
+}
+
+export function UpdateNotification({ onDismiss }: UpdateNotificationProps) {
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateVersion, setUpdateVersion] = useState('');
+  const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [installing, setInstalling] = useState(false);
+
+  useEffect(() => {
+    checkForUpdates();
+  }, []);
+
+  async function checkForUpdates() {
+    try {
+      const update = await check();
+      if (update?.available) {
+        setUpdateAvailable(true);
+        setUpdateVersion(update.version);
+      }
+    } catch (err) {
+      console.error('Failed to check for updates:', err);
+      setError('Failed to check for updates');
+    }
+  }
+
+  async function handleUpdate() {
+    setDownloading(true);
+    setError(null);
+
+    try {
+      const update = await check();
+      if (!update?.available) {
+        setError('No update available');
+        return;
+      }
+
+      // Download update with progress tracking
+      await update.downloadAndInstall((event) => {
+        switch (event.event) {
+          case 'Started':
+            setDownloadProgress(0);
+            break;
+          case 'Progress':
+            setDownloadProgress(event.data.chunkLength / event.data.contentLength * 100);
+            break;
+          case 'Finished':
+            setDownloadProgress(100);
+            setDownloading(false);
+            setInstalling(true);
+            break;
+        }
+      });
+
+      // Relaunch after installation
+      await relaunch();
+    } catch (err) {
+      console.error('Failed to install update:', err);
+      setError('Failed to install update');
+      setDownloading(false);
+      setInstalling(false);
+    }
+  }
+
+  function handleDismiss() {
+    setUpdateAvailable(false);
+    onDismiss?.();
+  }
+
+  if (!updateAvailable) {
+    return null;
+  }
+
+  return (
+    <div
+      className="fixed bottom-4 right-4 max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50"
+      role="alert"
+      aria-live="polite"
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          <svg
+            className="w-6 h-6 text-blue-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+            />
+          </svg>
+        </div>
+
+        <div className="flex-1">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+            Update Available
+          </h3>
+          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+            Version {updateVersion} is ready to install
+          </p>
+
+          {error && (
+            <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+              {error}
+            </p>
+          )}
+
+          {downloading && (
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                <span>Downloading...</span>
+                <span>{Math.round(downloadProgress)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${downloadProgress}%` }}
+                  role="progressbar"
+                  aria-valuenow={downloadProgress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                />
+              </div>
+            </div>
+          )}
+
+          {installing && (
+            <p className="mt-2 text-sm text-blue-600 dark:text-blue-400">
+              Installing update... Application will restart shortly.
+            </p>
+          )}
+
+          {!downloading && !installing && (
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleUpdate}
+                className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                aria-label="Install update and restart"
+              >
+                Install & Restart
+              </button>
+              <button
+                onClick={handleDismiss}
+                className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                aria-label="Dismiss update notification"
+              >
+                Later
+              </button>
+            </div>
+          )}
+        </div>
+
+        {!downloading && !installing && (
+          <button
+            onClick={handleDismiss}
+            className="flex-shrink-0 text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 transition-colors"
+            aria-label="Close notification"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}

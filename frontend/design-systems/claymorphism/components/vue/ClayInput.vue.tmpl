@@ -1,0 +1,149 @@
+<!--
+  ClayInput.vue - Claymorphism Input Component (Vue 3)
+
+  Autor: {{AUTHOR}}
+  Proyecto: {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+
+interface Props {
+  modelValue?: string | number
+  label?: string
+  error?: string
+  variant?: 'pink' | 'blue' | 'green' | 'yellow' | 'purple'
+  inputSize?: 'sm' | 'md' | 'lg'
+  icon?: string
+  iconPosition?: 'left' | 'right'
+  disabled?: boolean
+  placeholder?: string
+  type?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: '',
+  variant: 'blue',
+  inputSize: 'md',
+  iconPosition: 'left',
+  disabled: false,
+  type: 'text',
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string | number]
+  'focus': [event: FocusEvent]
+  'blur': [event: FocusEvent]
+}>()
+
+const isFocused = ref(false)
+const hasValue = ref(!!props.modelValue)
+
+watch(() => props.modelValue, (newVal) => {
+  hasValue.value = !!newVal
+})
+
+const variantClasses = computed(() => {
+  const variants = {
+    pink: 'focus:border-clay-pink-400 focus:ring-clay-pink-400/20',
+    blue: 'focus:border-clay-blue-400 focus:ring-clay-blue-400/20',
+    green: 'focus:border-clay-green-400 focus:ring-clay-green-400/20',
+    yellow: 'focus:border-clay-yellow-400 focus:ring-clay-yellow-400/20',
+    purple: 'focus:border-clay-purple-400 focus:ring-clay-purple-400/20',
+  }
+  return variants[props.variant]
+})
+
+const sizeClasses = computed(() => {
+  const sizes = {
+    sm: 'px-3 py-2 text-sm',
+    md: 'px-4 py-3 text-base',
+    lg: 'px-5 py-4 text-lg',
+  }
+  return sizes[props.inputSize]
+})
+
+const inputClasses = computed(() => {
+  return [
+    'w-full rounded-clay',
+    'bg-white',
+    'border-2 border-gray-200',
+    'shadow-clay-inset',
+    'transition-all duration-200',
+    'placeholder:text-gray-400',
+    'disabled:opacity-50 disabled:cursor-not-allowed',
+    sizeClasses.value,
+    variantClasses.value,
+    isFocused.value ? 'animate-pop ring-4' : 'ring-0',
+    props.error ? 'border-red-400 focus:border-red-500 focus:ring-red-400/20' : '',
+    props.icon && props.iconPosition === 'left' ? 'pl-12' : '',
+    props.icon && props.iconPosition === 'right' ? 'pr-12' : '',
+  ]
+})
+
+const handleInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  emit('update:modelValue', target.value)
+  hasValue.value = !!target.value
+}
+
+const handleFocus = (event: FocusEvent) => {
+  isFocused.value = true
+  emit('focus', event)
+}
+
+const handleBlur = (event: FocusEvent) => {
+  isFocused.value = false
+  emit('blur', event)
+}
+</script>
+
+<template>
+  <div class="w-full">
+    <!-- Label -->
+    <label
+      v-if="label"
+      :class="[
+        'block mb-2 font-medium transition-all duration-200',
+        isFocused || hasValue ? 'text-gray-700 text-sm' : 'text-gray-600 text-base',
+        error ? 'text-red-500' : '',
+      ]"
+    >
+      {{ label }}
+    </label>
+
+    <!-- Input container -->
+    <div class="relative">
+      <!-- Icon left -->
+      <div
+        v-if="icon && iconPosition === 'left'"
+        class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+        v-html="icon"
+      />
+
+      <!-- Input -->
+      <input
+        :class="inputClasses"
+        :value="modelValue"
+        :type="type"
+        :placeholder="placeholder"
+        :disabled="disabled"
+        @input="handleInput"
+        @focus="handleFocus"
+        @blur="handleBlur"
+      />
+
+      <!-- Icon right -->
+      <div
+        v-if="icon && iconPosition === 'right'"
+        class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
+        v-html="icon"
+      />
+    </div>
+
+    <!-- Error message -->
+    <p v-if="error" class="mt-2 text-sm text-red-500 animate-bounce-soft">
+      {{ error }}
+    </p>
+  </div>
+</template>
