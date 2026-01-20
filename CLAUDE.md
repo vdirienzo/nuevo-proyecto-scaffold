@@ -4,10 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Nuevo Proyecto Scaffold** is an enterprise-grade project generator with **866+ templates**. This repository contains templates and wizard configuration—it is NOT an executable project itself. Projects are generated via Claude Code skill `/nuevo-proyecto`.
+**Nuevo Proyecto Scaffold** is an enterprise-grade project generator with **972 templates**. This repository contains templates and wizard configuration—it is NOT an executable project itself. Projects are generated via Claude Code skill `/nuevo-proyecto`.
 
 **Author:** Homero Thompson del Lago del Terror
-**Version:** 6.2.0 (Design Systems Edition)
+**Version:** 6.2.0 (Design Systems + Tauri Desktop Edition)
 
 **Important:** This is a pure template repository. There is no executable code here—the wizard runtime is implemented in the Claude Code skill, not in this repo.
 
@@ -25,8 +25,14 @@ nuevo-proyecto-scaffold/
 │   ├── grpc/          # Protobuf definitions
 │   └── trpc/          # End-to-end type-safe
 ├── desktop/           # Desktop application templates
-│   └── tauri/         # Tauri v2 (Rust + Web frontend, 38 templates)
-├── frontend/          # Frontend templates (Next.js, React SPA, Vue 3, Angular 17+, jQuery)
+│   └── tauri/         # Tauri v2 (Rust + Web frontend, 74 templates)
+├── frontend/          # Frontend templates + Design Systems
+│   ├── nextjs/        # Next.js 15 App Router
+│   ├── react-spa/     # React + Vite
+│   ├── vue/           # Vue 3 Composition API
+│   ├── angular/       # Angular 17+ Standalone
+│   ├── jquery/        # jQuery + Bootstrap 5
+│   └── design-systems/ # 5 UI design systems (86 templates)
 ├── mobile/            # React Native + Flutter templates
 ├── edge/              # Cloudflare Workers + Deno Deploy
 ├── wasm/              # Rust-WASM + AssemblyScript
@@ -48,7 +54,7 @@ nuevo-proyecto-scaffold/
 - Templates are organized by technology stack and feature
 
 ### Wizard System (11 Phases)
-The wizard in `wizard/questions.yaml` defines 31 questions across phases:
+The wizard in `wizard/questions.yaml` defines 33 questions across phases:
 1. **Metadata** - project name, author, license
 2. **Scale & Compliance** - MVP → Netflix scale, GDPR/HIPAA/SOC2
 3. **Stack** - backend, frontend, mobile, **desktop (Tauri)**, API style, database, cache
@@ -57,7 +63,7 @@ The wizard in `wizard/questions.yaml` defines 31 questions across phases:
 6. **Security** - SAST → zero-trust (scale-dependent)
 7. **Infrastructure** - Vercel → Kubernetes, IaC
 8. **Observability** - logging → SLO monitoring
-9. **Developer Experience** - DevContainers, Storybook, MSW
+9. **Developer Experience** - DevContainers, Storybook, MSW, **Design System**
 10. **Advanced** - Edge computing, WASM, Blockchain
 11. **Extras** - email, storage, AI/LLM, payments
 
@@ -186,6 +192,71 @@ desktop/tauri/
 - `{{AUTHOR}}` - Author name
 - `{{APP_TITLE}}` - Window title
 - `{{BUNDLE_ID}}` - Bundle identifier (e.g., `com.example.app`)
+
+## Design Systems (86 templates)
+
+When `design_system` is selected in wizard Phase 9:
+
+```
+frontend/design-systems/
+├── README.md                 # Central documentation
+├── COMPARISON.md             # Detailed comparison guide
+├── index.ts.tmpl            # Design system selector
+├── design-tokens.ts.tmpl    # Shared design tokens
+├── preview-data.json.tmpl   # Wizard preview data
+│
+├── geist/                   # Vercel/Geist aesthetic (12 templates)
+│   ├── tailwind.config.geist.js.tmpl
+│   ├── globals.css.tmpl
+│   ├── components/react/    # Button, Card, Input, Modal, Navbar
+│   ├── components/vue/      # Button, Card, Input
+│   └── examples/LandingPage.tsx.tmpl
+│
+├── glassmorphism/           # Frosted glass effect (13 templates)
+│   ├── tailwind.config.glass.js.tmpl
+│   ├── globals.css.tmpl
+│   ├── components/react/    # GlassButton, GlassCard, GlassModal, etc.
+│   ├── components/vue/
+│   └── examples/LandingPage.tsx.tmpl
+│
+├── neumorphism/             # Soft UI (15 templates)
+│   ├── tailwind.config.neu.js.tmpl
+│   ├── globals.css.tmpl
+│   ├── components/react/    # NeuButton, NeuCard, NeuToggle, NeuSlider, etc.
+│   ├── components/vue/
+│   └── examples/LandingPage.tsx.tmpl
+│
+├── claymorphism/            # Clay/plasticine effect (15 templates)
+│   ├── tailwind.config.clay.js.tmpl
+│   ├── globals.css.tmpl
+│   ├── components/react/    # ClayButton, ClayCard, ClayAvatar, etc.
+│   ├── components/vue/
+│   └── examples/LandingPage.tsx.tmpl
+│
+├── neo-brutalism/           # Bold & chunky (16 templates)
+│   ├── tailwind.config.brutal.js.tmpl
+│   ├── globals.css.tmpl
+│   ├── components/react/    # BrutalButton, BrutalHeading, BrutalMarquee, etc.
+│   ├── components/vue/
+│   └── examples/LandingPage.tsx.tmpl
+│
+└── shared/                  # Shared utilities (10 templates)
+    ├── hooks/               # useDesignSystem, useTheme (React)
+    ├── composables/         # useDesignSystem, useTheme (Vue)
+    ├── context/             # DesignSystemProvider
+    ├── utils/               # cn(), animations
+    └── types/               # TypeScript interfaces
+```
+
+### Design System Options
+
+| System | Style | Best For | Accessibility |
+|--------|-------|----------|---------------|
+| **Geist** | Sharp minimalism, gradients | Tech products, SaaS | ⭐⭐⭐⭐⭐ |
+| **Glassmorphism** | Frosted glass, blur | Futuristic apps, dark mode | ⭐⭐⭐⭐ |
+| **Neumorphism** | Soft shadows, tactile | Calm UIs, settings | ⭐⭐⭐ |
+| **Claymorphism** | Organic shapes, playful | Consumer apps, kids | ⭐⭐⭐⭐ |
+| **Neo-Brutalism** | Bold colors, chunky | Creative agencies, portfolios | ⭐⭐⭐⭐⭐ |
 
 ## Key Files Reference
 
