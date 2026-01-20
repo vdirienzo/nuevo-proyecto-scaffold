@@ -1,0 +1,95 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
+
+import 'package:{{PROJECT_NAME}}/features/auth/data/auth_repository.dart';
+import 'package:{{PROJECT_NAME}}/features/auth/domain/auth_model.dart';
+import 'package:{{PROJECT_NAME}}/core/network/api_client.dart';
+import 'package:{{PROJECT_NAME}}/features/auth/data/auth_local_storage.dart';
+
+@GenerateMocks([ApiClient, AuthLocalStorage])
+import 'auth_test.mocks.dart';
+
+void main() {
+  late AuthRepository authRepository;
+  late MockApiClient mockApiClient;
+  late MockAuthLocalStorage mockLocalStorage;
+
+  setUp(() {
+    mockApiClient = MockApiClient();
+    mockLocalStorage = MockAuthLocalStorage();
+    authRepository = AuthRepository(
+      apiClient: mockApiClient,
+      localStorage: mockLocalStorage,
+    );
+  });
+
+  group('AuthRepository', () {
+    test('isAuthenticated returns true when token exists', () async {
+      // Arrange
+      when(mockLocalStorage.hasAccessToken()).thenAnswer((_) async => true);
+
+      // Act
+      final result = await authRepository.isAuthenticated();
+
+      // Assert
+      expect(result, true);
+      verify(mockLocalStorage.hasAccessToken()).called(1);
+    });
+
+    test('isAuthenticated returns false when no token exists', () async {
+      // Arrange
+      when(mockLocalStorage.hasAccessToken()).thenAnswer((_) async => false);
+
+      // Act
+      final result = await authRepository.isAuthenticated();
+
+      // Assert
+      expect(result, false);
+      verify(mockLocalStorage.hasAccessToken()).called(1);
+    });
+
+    test('logout clears all storage', () async {
+      // Arrange
+      when(mockLocalStorage.clearAll()).thenAnswer((_) async => {});
+
+      // Act
+      await authRepository.logout();
+
+      // Assert
+      verify(mockLocalStorage.clearAll()).called(1);
+    });
+  });
+
+  group('LoginRequest', () {
+    test('creates valid LoginRequest from JSON', () {
+      // Arrange
+      final json = {
+        'email': 'test@example.com',
+        'password': 'password123',
+      };
+
+      // Act
+      final request = LoginRequest.fromJson(json);
+
+      // Assert
+      expect(request.email, 'test@example.com');
+      expect(request.password, 'password123');
+    });
+
+    test('converts LoginRequest to JSON', () {
+      // Arrange
+      const request = LoginRequest(
+        email: 'test@example.com',
+        password: 'password123',
+      );
+
+      // Act
+      final json = request.toJson();
+
+      // Assert
+      expect(json['email'], 'test@example.com');
+      expect(json['password'], 'password123');
+    });
+  });
+}

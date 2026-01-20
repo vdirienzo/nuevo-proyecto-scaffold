@@ -1,0 +1,58 @@
+/**
+ * @fileoverview Chain selector component
+ * @author {{AUTHOR}}
+ */
+
+import React from 'react';
+import { supportedChains, chainMetadata } from '../config/chains';
+import { useEthers } from '../hooks/useEthers';
+
+/**
+ * Component props
+ */
+export interface ChainSelectorProps {
+  onChainChange?: (chainId: number) => void;
+  className?: string;
+}
+
+/**
+ * Chain selector component
+ */
+export const ChainSelector: React.FC<ChainSelectorProps> = ({
+  onChainChange,
+  className = '',
+}) => {
+  const { chainId, switchChain, isConnected } = useEthers();
+
+  const handleChainChange = async (newChainId: number) => {
+    try {
+      await switchChain(newChainId);
+      onChainChange?.(newChainId);
+    } catch (error) {
+      console.error('Failed to switch chain:', error);
+    }
+  };
+
+  if (!isConnected) {
+    return null;
+  }
+
+  return (
+    <div className={`chain-selector ${className}`}>
+      <select
+        value={chainId || ''}
+        onChange={(e) => handleChainChange(Number(e.target.value))}
+        className="chain-select"
+      >
+        {supportedChains.map((chain) => {
+          const metadata = chainMetadata[chain.id];
+          return (
+            <option key={chain.id} value={chain.id}>
+              {metadata?.icon} {metadata?.name || chain.name}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+};

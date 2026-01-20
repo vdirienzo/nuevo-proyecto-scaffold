@@ -1,0 +1,38 @@
+/**
+ * cors.ts - CORS middleware
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context, Next } from "oak";
+
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").filter(Boolean);
+
+export async function corsMiddleware(ctx: Context, next: Next) {
+  const origin = ctx.request.headers.get("Origin");
+
+  // Allow all origins in development, restrict in production
+  const allowOrigin = Deno.env.get("APP_ENV") === "development"
+    ? origin || "*"
+    : ALLOWED_ORIGINS.includes(origin || "") ? origin : ALLOWED_ORIGINS[0];
+
+  ctx.response.headers.set("Access-Control-Allow-Origin", allowOrigin || "*");
+  ctx.response.headers.set(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+  );
+  ctx.response.headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With",
+  );
+  ctx.response.headers.set("Access-Control-Allow-Credentials", "true");
+  ctx.response.headers.set("Access-Control-Max-Age", "86400");
+
+  // Handle preflight
+  if (ctx.request.method === "OPTIONS") {
+    ctx.response.status = 204;
+    return;
+  }
+
+  await next();
+}

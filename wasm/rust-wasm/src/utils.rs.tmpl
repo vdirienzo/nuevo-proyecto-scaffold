@@ -1,0 +1,98 @@
+/**
+ * utils.rs - Utility functions
+ *
+ * Common utility functions for WASM module.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if our code ever panics.
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+}
+
+#[wasm_bindgen]
+pub fn measure_performance<F>(f: F) -> f64
+where
+    F: FnOnce(),
+{
+    let start = js_sys::Date::now();
+    f();
+    js_sys::Date::now() - start
+}
+
+/// Convert bytes to hex string
+#[wasm_bindgen]
+pub fn bytes_to_hex(bytes: &[u8]) -> String {
+    bytes.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect()
+}
+
+/// Convert hex string to bytes
+#[wasm_bindgen]
+pub fn hex_to_bytes(hex: &str) -> Result<Vec<u8>, JsValue> {
+    let mut bytes = Vec::new();
+
+    if hex.len() % 2 != 0 {
+        return Err(JsValue::from_str("Invalid hex string length"));
+    }
+
+    for i in (0..hex.len()).step_by(2) {
+        let byte = u8::from_str_radix(&hex[i..i+2], 16)
+            .map_err(|e| JsValue::from_str(&format!("Invalid hex: {}", e)))?;
+        bytes.push(byte);
+    }
+
+    Ok(bytes)
+}
+
+/// Generate random bytes (uses Web Crypto API)
+#[wasm_bindgen]
+pub fn random_bytes(length: usize) -> Result<Vec<u8>, JsValue> {
+    let mut bytes = vec![0u8; length];
+    getrandom::getrandom(&mut bytes)
+        .map_err(|e| JsValue::from_str(&format!("Failed to generate random bytes: {}", e)))?;
+    Ok(bytes)
+}
+
+/// Base64 encode
+#[wasm_bindgen]
+pub fn base64_encode(data: &[u8]) -> String {
+    use js_sys::{Uint8Array, JSON};
+
+    let uint8_array = Uint8Array::from(data);
+    // Use btoa via JS
+    let window = web_sys::window().unwrap();
+    let btoa = js_sys::Reflect::get(&window, &JsValue::from_str("btoa")).unwrap();
+    let btoa_fn = btoa.dyn_ref::<js_sys::Function>().unwrap();
+
+    // Convert to string first
+    let string = String::from_utf8_lossy(data);
+    let result = btoa_fn.call1(&window, &JsValue::from_str(&string)).unwrap();
+
+    result.as_string().unwrap()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bytes_to_hex() {
+        let bytes = vec![0xde, 0xad, 0xbe, 0xef];
+        assert_eq!(bytes_to_hex(&bytes), "deadbeef");
+    }
+
+    #[test]
+    fn test_hex_to_bytes() {
+        let result = hex_to_bytes("deadbeef").unwrap();
+        assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
+    }
+}

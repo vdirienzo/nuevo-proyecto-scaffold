@@ -1,0 +1,127 @@
+import { ethers } from "hardhat";
+import * as fs from "fs";
+import * as path from "path";
+
+/**
+ * Deploy script for {{PROJECT_NAME}} contracts
+ * @author {{AUTHOR}}
+ */
+
+interface DeploymentInfo {
+  network: string;
+  chainId: number;
+  deployer: string;
+  timestamp: string;
+  contracts: {
+    [key: string]: {
+      address: string;
+      constructorArgs: any[];
+      blockNumber: number;
+    };
+  };
+}
+
+async function main() {
+  const [deployer] = await ethers.getSigners();
+  const network = await ethers.provider.getNetwork();
+
+  console.log("Deploying contracts with account:", deployer.address);
+  console.log("Account balance:", ethers.formatEther(await ethers.provider.getBalance(deployer.address)));
+  console.log("Network:", network.name);
+  console.log("Chain ID:", network.chainId);
+
+  const deploymentInfo: DeploymentInfo = {
+    network: network.name,
+    chainId: Number(network.chainId),
+    deployer: deployer.address,
+    timestamp: new Date().toISOString(),
+    contracts: {},
+  };
+
+  // Deploy Token
+  console.log("\n--- Deploying {{PROJECT_NAME}}Token ---");
+  const initialSupply = ethers.parseEther("100000000"); // 100 million tokens
+  const Token = await ethers.getContractFactory("{{PROJECT_NAME}}Token");
+  const token = await Token.deploy(initialSupply);
+  await token.waitForDeployment();
+  const tokenAddress = await token.getAddress();
+  const tokenDeployTx = token.deploymentTransaction();
+
+  console.log("{{PROJECT_NAME}}Token deployed to:", tokenAddress);
+  console.log("Transaction hash:", tokenDeployTx?.hash);
+
+  deploymentInfo.contracts.Token = {
+    address: tokenAddress,
+    constructorArgs: [initialSupply.toString()],
+    blockNumber: tokenDeployTx?.blockNumber || 0,
+  };
+
+  // Deploy NFT
+  console.log("\n--- Deploying {{PROJECT_NAME}}NFT ---");
+  const maxSupply = 10000;
+  const mintPrice = ethers.parseEther("0.05"); // 0.05 ETH
+  const NFT = await ethers.getContractFactory("{{PROJECT_NAME}}NFT");
+  const nft = await NFT.deploy(maxSupply, mintPrice);
+  await nft.waitForDeployment();
+  const nftAddress = await nft.getAddress();
+  const nftDeployTx = nft.deploymentTransaction();
+
+  console.log("{{PROJECT_NAME}}NFT deployed to:", nftAddress);
+  console.log("Transaction hash:", nftDeployTx?.hash);
+
+  deploymentInfo.contracts.NFT = {
+    address: nftAddress,
+    constructorArgs: [maxSupply, mintPrice.toString()],
+    blockNumber: nftDeployTx?.blockNumber || 0,
+  };
+
+  // Deploy Marketplace
+  console.log("\n--- Deploying {{PROJECT_NAME}}Marketplace ---");
+  const Marketplace = await ethers.getContractFactory("{{PROJECT_NAME}}Marketplace");
+  const marketplace = await Marketplace.deploy();
+  await marketplace.waitForDeployment();
+  const marketplaceAddress = await marketplace.getAddress();
+  const marketplaceDeployTx = marketplace.deploymentTransaction();
+
+  console.log("{{PROJECT_NAME}}Marketplace deployed to:", marketplaceAddress);
+  console.log("Transaction hash:", marketplaceDeployTx?.hash);
+
+  deploymentInfo.contracts.Marketplace = {
+    address: marketplaceAddress,
+    constructorArgs: [],
+    blockNumber: marketplaceDeployTx?.blockNumber || 0,
+  };
+
+  // Save deployment info
+  const deploymentsDir = path.join(__dirname, "..", "deployments");
+  if (!fs.existsSync(deploymentsDir)) {
+    fs.mkdirSync(deploymentsDir, { recursive: true });
+  }
+
+  const filename = `deployment-${network.name}-${Date.now()}.json`;
+  const filepath = path.join(deploymentsDir, filename);
+  fs.writeFileSync(filepath, JSON.stringify(deploymentInfo, null, 2));
+
+  // Also save as latest
+  const latestPath = path.join(deploymentsDir, `deployment-${network.name}-latest.json`);
+  fs.writeFileSync(latestPath, JSON.stringify(deploymentInfo, null, 2));
+
+  console.log("\n--- Deployment Complete ---");
+  console.log("Deployment info saved to:", filepath);
+  console.log("\nContract Addresses:");
+  console.log("  Token:", tokenAddress);
+  console.log("  NFT:", nftAddress);
+  console.log("  Marketplace:", marketplaceAddress);
+
+  console.log("\nVerification commands:");
+  console.log(`  npx hardhat verify --network ${network.name} ${tokenAddress} ${initialSupply.toString()}`);
+  console.log(`  npx hardhat verify --network ${network.name} ${nftAddress} ${maxSupply} ${mintPrice.toString()}`);
+  console.log(`  npx hardhat verify --network ${network.name} ${marketplaceAddress}`);
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

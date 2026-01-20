@@ -1,0 +1,52 @@
+{
+  "name": "{{PROJECT_NAME}}-worker",
+  "version": "1.0.0",
+  "description": "Cloudflare Workers edge functions for {{PROJECT_NAME}}",
+  "author": "{{AUTHOR}}",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:production": "wrangler deploy --env production",
+    "build": "tsc",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "lint:fix": "eslint src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "tail": "wrangler tail",
+    "tail:production": "wrangler tail --env production",
+    "kv:list": "wrangler kv:namespace list",
+    "kv:create": "wrangler kv:namespace create",
+    "d1:create": "wrangler d1 create {{PROJECT_NAME}}_production",
+    "d1:migrations:apply": "wrangler d1 migrations apply DB",
+    "d1:execute": "wrangler d1 execute DB --file",
+    "r2:create": "wrangler r2 bucket create",
+    "secret:put": "wrangler secret put",
+    "secret:list": "wrangler secret list"
+  },
+  "dependencies": {
+    "hono": "^4.0.0",
+    "jose": "^5.2.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.1.0",
+    "@cloudflare/workers-types": "^4.20240000.0",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.0",
+    "wrangler": "^3.24.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

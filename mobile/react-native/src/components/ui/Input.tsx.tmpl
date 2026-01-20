@@ -1,0 +1,39 @@
+/**
+ * Input Component
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React from 'react';
+import {StyleSheet} from 'react-native';
+import {TextInput, HelperText, TextInputProps} from 'react-native-paper';
+
+interface InputProps extends Omit<TextInputProps, 'theme'> {
+  error?: string;
+}
+
+const Input: React.FC<InputProps> = ({error, style, ...props}) => {
+  return (
+    <>
+      <TextInput
+        mode="outlined"
+        error={!!error}
+        style={[styles.input, style]}
+        {...props}
+      />
+      {error ? (
+        <HelperText type="error" visible={!!error}>
+          {error}
+        </HelperText>
+      ) : null}
+    </>
+  );
+};
+
+const styles = StyleSheet.create({
+  input: {
+    marginBottom: 4,
+  },
+});
+
+export default Input;

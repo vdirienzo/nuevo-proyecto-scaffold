@@ -1,0 +1,46 @@
+/**
+ * API Service
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import axios, {AxiosInstance, AxiosError, InternalAxiosRequestConfig} from 'axios';
+import {API_URL, API_TIMEOUT} from '@utils/constants';
+import {storage} from './storage';
+
+// Create axios instance
+export const api: AxiosInstance = axios.create({
+  baseURL: API_URL,
+  timeout: API_TIMEOUT,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor - Add auth token
+api.interceptors.request.use(
+  async (config: InternalAxiosRequestConfig) => {
+    const token = await storage.getToken();
+    if (token && config.headers) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error: AxiosError) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor - Handle errors
+api.interceptors.response.use(
+  response => response,
+  async (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      // Token expired or invalid - logout user
+      await storage.removeToken();
+      // TODO: Dispatch logout action or navigate to login
+    }
+
+    return Promise.reject(error);
+  }
+);

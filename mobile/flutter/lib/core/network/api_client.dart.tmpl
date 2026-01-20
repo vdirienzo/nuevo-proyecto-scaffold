@@ -1,0 +1,159 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:logger/logger.dart';
+
+import '../constants/api_constants.dart';
+import '../constants/app_constants.dart';
+import 'api_exceptions.dart';
+import 'api_interceptor.dart';
+
+final apiClientProvider = Provider<ApiClient>((ref) {
+  return ApiClient(
+    storage: const FlutterSecureStorage(),
+    logger: Logger(),
+  );
+});
+
+class ApiClient {
+  late final Dio _dio;
+  final FlutterSecureStorage _storage;
+  final Logger _logger;
+
+  ApiClient({
+    required FlutterSecureStorage storage,
+    required Logger logger,
+  })  : _storage = storage,
+        _logger = logger {
+    _dio = Dio(
+      BaseOptions(
+        baseUrl: ApiConstants.baseUrl,
+        connectTimeout: const Duration(
+          milliseconds: AppConstants.connectTimeout,
+        ),
+        receiveTimeout: const Duration(
+          milliseconds: AppConstants.receiveTimeout,
+        ),
+        sendTimeout: const Duration(
+          milliseconds: AppConstants.sendTimeout,
+        ),
+        validateStatus: (status) {
+          return status != null && status < 500;
+        },
+      ),
+    );
+
+    _dio.interceptors.add(
+      ApiInterceptor(
+        storage: _storage,
+        logger: _logger,
+      ),
+    );
+  }
+
+  Future<Response<T>> get<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await _dio.get<T>(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Response<T>> post<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await _dio.post<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Response<T>> put<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await _dio.put<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  Future<Response<T>> delete<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await _dio.delete<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      );
+    } on DioException catch (e) {
+      throw _handleError(e);
+    }
+  }
+
+  ApiException _handleError(DioException error) {
+    switch (error.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.receiveTimeout:
+        return NetworkException(message: 'Request timeout');
+      case DioExceptionType.badResponse:
+        return _handleStatusCode(error);
+      case DioExceptionType.cancel:
+        return ApiException(message: 'Request cancelled');
+      default:
+        return NetworkException(message: 'Network connection failed');
+    }
+  }
+
+  ApiException _handleStatusCode(DioException error) {
+    final statusCode = error.response?.statusCode;
+    final message = error.response?.data?['message'] ?? error.message;
+
+    switch (statusCode) {
+      case 401:
+        return UnauthorizedException(message: message);
+      case 403:
+        return ForbiddenException(message: message);
+      case 404:
+        return NotFoundException(message: message);
+      case 422:
+        return ValidationException(
+          message: message,
+          data: error.response?.data,
+        );
+      default:
+        return ServerException(message: message);
+    }
+  }
+}

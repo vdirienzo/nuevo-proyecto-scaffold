@@ -1,0 +1,58 @@
+/**
+ * useApi Hook
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import {useState, useCallback} from 'react';
+import {api} from '@services/api';
+import {AxiosRequestConfig} from 'axios';
+
+interface UseApiOptions<T> {
+  onSuccess?: (data: T) => void;
+  onError?: (error: Error) => void;
+}
+
+export const useApi = <T = any>(
+  options?: UseApiOptions<T>
+) => {
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const request = useCallback(
+    async (config: AxiosRequestConfig) => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await api.request<T>(config);
+        setData(response.data);
+        options?.onSuccess?.(response.data);
+        return response.data;
+      } catch (err) {
+        const error = err as Error;
+        setError(error);
+        options?.onError?.(error);
+        throw error;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [options]
+  );
+
+  const reset = useCallback(() => {
+    setData(null);
+    setError(null);
+    setIsLoading(false);
+  }, []);
+
+  return {
+    data,
+    error,
+    isLoading,
+    request,
+    reset,
+  };
+};

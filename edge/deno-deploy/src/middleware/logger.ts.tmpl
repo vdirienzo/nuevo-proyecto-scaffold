@@ -1,0 +1,44 @@
+/**
+ * logger.ts - Request logging middleware
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context, Next } from "oak";
+
+const LOG_LEVEL = Deno.env.get("LOG_LEVEL") || "INFO";
+
+export async function loggerMiddleware(ctx: Context, next: Next) {
+  const start = Date.now();
+  const { method, url } = ctx.request;
+
+  try {
+    await next();
+
+    const duration = Date.now() - start;
+    const status = ctx.response.status;
+
+    if (shouldLog("INFO")) {
+      console.log(
+        `${method} ${url.pathname} - ${status} - ${duration}ms`,
+      );
+    }
+  } catch (error) {
+    const duration = Date.now() - start;
+
+    if (shouldLog("ERROR")) {
+      console.error(
+        `${method} ${url.pathname} - ERROR - ${duration}ms - ${error.message}`,
+      );
+    }
+
+    throw error;
+  }
+}
+
+function shouldLog(level: string): boolean {
+  const levels = ["ERROR", "WARN", "INFO", "DEBUG"];
+  const currentLevel = levels.indexOf(LOG_LEVEL);
+  const targetLevel = levels.indexOf(level);
+  return targetLevel <= currentLevel;
+}

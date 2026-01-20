@@ -1,0 +1,50 @@
+# React Native Build Dockerfile
+# For CI/CD builds and testing
+
+FROM node:20-alpine AS base
+
+# Install dependencies for React Native
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    g++
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Type check
+FROM base AS typecheck
+RUN npm run type-check
+
+# Lint
+FROM base AS lint
+RUN npm run lint
+
+# Test
+FROM base AS test
+RUN npm test
+
+# Build (for web or testing)
+FROM base AS build
+RUN echo "Build step placeholder - customize for your needs"
+
+# Final stage - just the app
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app .
+
+EXPOSE 8081
+
+CMD ["npm", "start"]

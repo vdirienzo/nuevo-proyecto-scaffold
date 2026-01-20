@@ -1,0 +1,299 @@
+/**
+ * WebSocket handler for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+import { ResponseBuilder } from "../utils/response";
+import type { Env, WebSocketMessage } from "../types";
+
+/**
+ * WebSocket upgrade handler
+ */
+export async function websocketHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const upgradeHeader = c.req.header("Upgrade");
+
+  if (upgradeHeader !== "websocket") {
+    return ResponseBuilder.error("Expected Upgrade: websocket", 426);
+  }
+
+  // Create WebSocket pair
+  const pair = new WebSocketPair();
+  const [client, server] = Object.values(pair);
+
+  // Handle WebSocket connection
+  handleWebSocketConnection(server, c.env);
+
+  return new Response(null, {
+    status: 101,
+    webSocket: client
+  });
+}
+
+/**
+ * Handle WebSocket connection
+ */
+function handleWebSocketConnection(ws: WebSocket, env: Env): void {
+  ws.accept();
+
+  // Send welcome message
+  ws.send(
+    JSON.stringify({
+      type: "connected",
+      payload: { message: "Connected to {{PROJECT_NAME}}" },
+      timestamp: Date.now()
+    })
+  );
+
+  // Handle incoming messages
+  ws.addEventListener("message", (event) => {
+    handleWebSocketMessage(ws, event.data, env);
+  });
+
+  // Handle errors
+  ws.addEventListener("error", (event) => {
+    console.error("WebSocket error:", event);
+  });
+
+  // Handle close
+  ws.addEventListener("close", (event) => {
+    console.log("WebSocket closed:", event.code, event.reason);
+  });
+}
+
+/**
+ * Handle WebSocket message
+ */
+async function handleWebSocketMessage(ws: WebSocket, data: string | ArrayBuffer, env: Env): Promise<void> {
+  try {
+    const message = typeof data === "string" ? JSON.parse(data) : null;
+
+    if (!message || typeof message.type !== "string") {
+      sendError(ws, "Invalid message format");
+      return;
+    }
+
+    switch (message.type) {
+      case "ping":
+        sendMessage(ws, "pong", { timestamp: Date.now() });
+        break;
+
+      case "echo":
+        sendMessage(ws, "echo", message.payload);
+        break;
+
+      case "broadcast":
+        // In production, use Durable Objects for broadcasting
+        sendMessage(ws, "broadcast", message.payload);
+        break;
+
+      case "subscribe":
+        // Handle subscription logic
+        sendMessage(ws, "subscribed", { channel: message.payload.channel });
+        break;
+
+      default:
+        sendError(ws, `Unknown message type: ${message.type}`);
+    }
+  } catch (error) {
+    console.error("Error handling WebSocket message:", error);
+    sendError(ws, "Internal error");
+  }
+}
+
+/**
+ * Send message through WebSocket
+ */
+function sendMessage(ws: WebSocket, type: string, payload: unknown): void {
+  const message: WebSocketMessage = {
+    type,
+    payload,
+    timestamp: Date.now()
+  };
+
+  ws.send(JSON.stringify(message));
+}
+
+/**
+ * Send error message
+ */
+function sendError(ws: WebSocket, error: string): void {
+  sendMessage(ws, "error", { error });
+}
+
+/**
+ * WebSocket with Durable Objects handler
+ */
+export async function websocketWithDOHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const upgradeHeader = c.req.header("Upgrade");
+
+  if (upgradeHeader !== "websocket") {
+    return ResponseBuilder.error("Expected Upgrade: websocket", 426);
+  }
+
+  // Get room ID from query
+  const roomId = c.req.query("room") ?? "default";
+
+  // Get Durable Object
+  const id = c.env.CHAT_ROOM.idFromName(roomId);
+  const stub = c.env.CHAT_ROOM.get(id);
+
+  // Forward WebSocket upgrade to Durable Object
+  return await stub.fetch(c.req.raw);
+}
+
+/**
+ * Chat Room Durable Object
+ */
+export class ChatRoom {
+  private state: DurableObjectState;
+  private env: Env;
+  private sessions: Set<WebSocket>;
+
+  constructor(state: DurableObjectState, env: Env) {
+    this.state = state;
+    this.env = env;
+    this.sessions = new Set();
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    const upgradeHeader = request.headers.get("Upgrade");
+
+    if (upgradeHeader !== "websocket") {
+      return new Response("Expected Upgrade: websocket", { status: 426 });
+    }
+
+    const pair = new WebSocketPair();
+    const [client, server] = Object.values(pair);
+
+    this.handleSession(server);
+
+    return new Response(null, {
+      status: 101,
+      webSocket: client
+    });
+  }
+
+  handleSession(ws: WebSocket): void {
+    ws.accept();
+    this.sessions.add(ws);
+
+    // Send current room info
+    ws.send(
+      JSON.stringify({
+        type: "room_info",
+        payload: {
+          users: this.sessions.size,
+          room: this.state.id.toString()
+        },
+        timestamp: Date.now()
+      })
+    );
+
+    // Broadcast join event
+    this.broadcast({
+      type: "user_joined",
+      payload: { users: this.sessions.size },
+      timestamp: Date.now()
+    }, ws);
+
+    ws.addEventListener("message", async (event) => {
+      try {
+        const message = JSON.parse(event.data as string);
+
+        switch (message.type) {
+          case "message":
+            // Broadcast message to all clients
+            this.broadcast({
+              type: "message",
+              payload: message.payload,
+              timestamp: Date.now()
+            });
+            break;
+
+          case "ping":
+            ws.send(JSON.stringify({ type: "pong", timestamp: Date.now() }));
+            break;
+        }
+      } catch (error) {
+        console.error("Error handling message:", error);
+      }
+    });
+
+    ws.addEventListener("close", () => {
+      this.sessions.delete(ws);
+
+      // Broadcast leave event
+      this.broadcast({
+        type: "user_left",
+        payload: { users: this.sessions.size },
+        timestamp: Date.now()
+      });
+    });
+
+    ws.addEventListener("error", (error) => {
+      console.error("WebSocket error:", error);
+      this.sessions.delete(ws);
+    });
+  }
+
+  broadcast(message: WebSocketMessage, exclude?: WebSocket): void {
+    const serialized = JSON.stringify(message);
+
+    this.sessions.forEach((ws) => {
+      if (ws !== exclude && ws.readyState === WebSocket.READY_STATE_OPEN) {
+        try {
+          ws.send(serialized);
+        } catch (error) {
+          console.error("Error broadcasting:", error);
+          this.sessions.delete(ws);
+        }
+      }
+    });
+  }
+}
+
+/**
+ * Counter Durable Object (example)
+ */
+export class Counter {
+  private state: DurableObjectState;
+  private count: number;
+
+  constructor(state: DurableObjectState) {
+    this.state = state;
+    this.count = 0;
+  }
+
+  async fetch(request: Request): Promise<Response> {
+    // Initialize from storage
+    const stored = await this.state.storage.get<number>("count");
+    this.count = stored ?? 0;
+
+    const url = new URL(request.url);
+
+    switch (url.pathname) {
+      case "/increment":
+        this.count++;
+        await this.state.storage.put("count", this.count);
+        return Response.json({ count: this.count });
+
+      case "/decrement":
+        this.count--;
+        await this.state.storage.put("count", this.count);
+        return Response.json({ count: this.count });
+
+      case "/get":
+        return Response.json({ count: this.count });
+
+      case "/reset":
+        this.count = 0;
+        await this.state.storage.put("count", 0);
+        return Response.json({ count: this.count });
+
+      default:
+        return new Response("Not Found", { status: 404 });
+    }
+  }
+}

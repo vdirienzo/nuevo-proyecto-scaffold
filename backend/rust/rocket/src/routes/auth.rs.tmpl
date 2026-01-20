@@ -1,0 +1,64 @@
+/*!
+ * Authentication routes
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use rocket::{http::Status, serde::json::Json, State};
+use validator::Validate;
+
+use crate::{
+    config::Config,
+    db::Database,
+    error::AppError,
+    models::user::{CreateUserRequest, LoginRequest, LoginResponse},
+    services::auth_service::AuthService,
+};
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/register",
+    tag = "auth",
+    request_body = CreateUserRequest,
+    responses(
+        (status = 201, description = "User registered successfully", body = LoginResponse),
+        (status = 400, description = "Validation error"),
+        (status = 409, description = "User already exists")
+    )
+)]
+#[post("/auth/register", data = "<request>")]
+pub async fn register(
+    db: &State<Database>,
+    config: &State<Config>,
+    request: Json<CreateUserRequest>,
+) -> Result<(Status, Json<LoginResponse>), AppError> {
+    request.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+
+    let response = AuthService::register(db.pool(), &config.jwt, request.into_inner()).await?;
+
+    Ok((Status::Created, Json(response)))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/login",
+    tag = "auth",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = LoginResponse),
+        (status = 400, description = "Validation error"),
+        (status = 401, description = "Invalid credentials")
+    )
+)]
+#[post("/auth/login", data = "<request>")]
+pub async fn login(
+    db: &State<Database>,
+    config: &State<Config>,
+    request: Json<LoginRequest>,
+) -> Result<Json<LoginResponse>, AppError> {
+    request.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+
+    let response = AuthService::login(db.pool(), &config.jwt, request.into_inner()).await?;
+
+    Ok(Json(response))
+}

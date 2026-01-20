@@ -1,0 +1,290 @@
+/**
+ * wasm-node.js - Node.js WASM Integration
+ *
+ * Examples of using WebAssembly modules in Node.js applications.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { readFile } from 'fs/promises';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Load WASM from file (raw approach)
+ */
+async function loadWasmFromFile(filePath) {
+  try {
+    const buffer = await readFile(filePath);
+    const module = await WebAssembly.instantiate(buffer, {
+      env: {
+        abort: (msg, file, line, column) => {
+          console.error('WASM abort:', { msg, file, line, column });
+        },
+      },
+    });
+
+    return module.instance.exports;
+  } catch (error) {
+    console.error('Error loading WASM:', error);
+    throw error;
+  }
+}
+
+/**
+ * Load WASM using wasm-bindgen (Rust)
+ */
+async function loadRustWasm() {
+  try {
+    // Adjust path to your Rust WASM package
+    const wasmPath = join(__dirname, '../../rust-wasm/pkg/{{PROJECT_NAME}}_wasm.js');
+    const wasm = await import(wasmPath);
+
+    // Initialize if needed
+    if (typeof wasm.default === 'function') {
+      await wasm.default();
+    }
+
+    return wasm;
+  } catch (error) {
+    console.error('Error loading Rust WASM:', error);
+    throw error;
+  }
+}
+
+/**
+ * Load WASM using AssemblyScript loader
+ */
+async function loadAssemblyScriptWasm() {
+  try {
+    const { instantiate } = await import('@assemblyscript/loader');
+    const wasmPath = join(__dirname, '../../assemblyscript/build/release.wasm');
+    const buffer = await readFile(wasmPath);
+
+    const module = await instantiate(buffer);
+    return module.exports;
+  } catch (error) {
+    console.error('Error loading AssemblyScript WASM:', error);
+    throw error;
+  }
+}
+
+/**
+ * Example: Hash computation
+ */
+async function hashExample(wasm) {
+  console.log('\n=== Hash Example ===');
+
+  const text = 'Hello, WebAssembly from Node.js!';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+
+  const hash = wasm.sha256_hex(data);
+
+  console.log('Input:', text);
+  console.log('SHA-256:', hash);
+}
+
+/**
+ * Example: Email validation
+ */
+async function validationExample(wasm) {
+  console.log('\n=== Validation Example ===');
+
+  const emails = [
+    'valid@example.com',
+    'user+tag@domain.co.uk',
+    'invalid@',
+    '@invalid.com',
+    'not-an-email',
+  ];
+
+  emails.forEach((email) => {
+    const isValid = wasm.validate_email(email);
+    console.log(`${email}: ${isValid ? '✅' : '❌'}`);
+  });
+}
+
+/**
+ * Example: Password strength checking
+ */
+async function passwordExample(wasm) {
+  console.log('\n=== Password Strength Example ===');
+
+  const passwords = [
+    'weak',
+    'password123',
+    'StrongPass123',
+    'VeryStr0ng!Pass',
+  ];
+
+  const labels = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
+
+  passwords.forEach((password) => {
+    const strength = wasm.password_strength(password);
+    console.log(`"${password}": ${labels[strength]} (${strength}/4)`);
+  });
+}
+
+/**
+ * Example: Performance benchmark
+ */
+async function benchmarkExample(wasm) {
+  console.log('\n=== Performance Benchmark ===');
+
+  const iterations = 100000;
+  const encoder = new TextEncoder();
+  const testData = encoder.encode('benchmark test data');
+
+  // Benchmark hash function
+  console.time('WASM SHA-256 x ' + iterations);
+  for (let i = 0; i < iterations; i++) {
+    wasm.sha256_hex(testData);
+  }
+  console.timeEnd('WASM SHA-256 x ' + iterations);
+
+  // Benchmark email validation
+  console.time('WASM Email validation x ' + iterations);
+  for (let i = 0; i < iterations; i++) {
+    wasm.validate_email('test@example.com');
+  }
+  console.timeEnd('WASM Email validation x ' + iterations);
+}
+
+/**
+ * Example: Batch processing
+ */
+async function batchProcessingExample(wasm) {
+  console.log('\n=== Batch Processing Example ===');
+
+  // Generate batch of emails to validate
+  const emailBatch = [];
+  for (let i = 0; i < 1000; i++) {
+    emailBatch.push(`user${i}@example.com`);
+  }
+
+  console.time('Validate 1000 emails');
+  const results = emailBatch.map((email) => ({
+    email,
+    valid: wasm.validate_email(email),
+  }));
+  console.timeEnd('Validate 1000 emails');
+
+  const validCount = results.filter((r) => r.valid).length;
+  console.log(`Valid emails: ${validCount}/${emailBatch.length}`);
+}
+
+/**
+ * Example: Stream processing
+ */
+async function streamProcessingExample(wasm) {
+  console.log('\n=== Stream Processing Example ===');
+
+  // Simulate processing chunks of data
+  const chunks = [
+    'chunk 1 data',
+    'chunk 2 data',
+    'chunk 3 data',
+    'chunk 4 data',
+    'chunk 5 data',
+  ];
+
+  console.log('Processing chunks...');
+  const encoder = new TextEncoder();
+
+  for (let i = 0; i < chunks.length; i++) {
+    const data = encoder.encode(chunks[i]);
+    const hash = wasm.sha256_hex(data);
+    console.log(`Chunk ${i + 1}: ${hash.substring(0, 16)}...`);
+  }
+}
+
+/**
+ * Example: AssemblyScript functions
+ */
+async function assemblyScriptExample(wasm) {
+  console.log('\n=== AssemblyScript Example ===');
+
+  // Math operations
+  console.log('Math operations:');
+  console.log('add(5, 3):', wasm.add(5, 3));
+  console.log('multiply(4, 7):', wasm.multiply(4, 7));
+  console.log('power(2, 10):', wasm.power(2, 10));
+  console.log('sqrt(144):', wasm.sqrt(144));
+  console.log('fibonacci(15):', Number(wasm.fibonacci(15)));
+
+  // String operations
+  console.log('\nString operations:');
+  const text = wasm.__newString('hello world');
+  const reversed = wasm.reverseString(text);
+  console.log('reverseString("hello world"):', wasm.__getString(reversed));
+
+  const isPalindrome = wasm.isPalindrome(wasm.__newString('racecar'));
+  console.log('isPalindrome("racecar"):', isPalindrome === 1);
+
+  // Array operations
+  console.log('\nArray operations:');
+  const arr = new Int32Array([1, 2, 3, 4, 5]);
+  const arrPtr = wasm.__newArray(wasm.Int32Array_ID, arr);
+  console.log('sumArray([1,2,3,4,5]):', wasm.sumArray(arrPtr));
+  console.log('maxArray([1,2,3,4,5]):', wasm.maxArray(arrPtr));
+}
+
+/**
+ * Main function
+ */
+async function main() {
+  console.log('{{PROJECT_NAME}} - Node.js WASM Integration');
+  console.log('='.repeat(50));
+
+  try {
+    // Load Rust WASM module
+    console.log('\nLoading Rust WASM module...');
+    const rustWasm = await loadRustWasm();
+    console.log('✅ Rust WASM loaded');
+
+    // Run Rust examples
+    await hashExample(rustWasm);
+    await validationExample(rustWasm);
+    await passwordExample(rustWasm);
+    await benchmarkExample(rustWasm);
+    await batchProcessingExample(rustWasm);
+    await streamProcessingExample(rustWasm);
+
+    // Load and test AssemblyScript module
+    console.log('\n' + '='.repeat(50));
+    console.log('\nLoading AssemblyScript WASM module...');
+    const asWasm = await loadAssemblyScriptWasm();
+    console.log('✅ AssemblyScript WASM loaded');
+
+    await assemblyScriptExample(asWasm);
+
+    console.log('\n' + '='.repeat(50));
+    console.log('\n✅ All examples completed successfully');
+  } catch (error) {
+    console.error('\n❌ Error:', error.message);
+    process.exit(1);
+  }
+}
+
+// Run if executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}
+
+// Export functions for use as library
+export {
+  loadWasmFromFile,
+  loadRustWasm,
+  loadAssemblyScriptWasm,
+  hashExample,
+  validationExample,
+  passwordExample,
+  benchmarkExample,
+  batchProcessingExample,
+  streamProcessingExample,
+  assemblyScriptExample,
+};

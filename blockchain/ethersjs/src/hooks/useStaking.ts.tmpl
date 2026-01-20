@@ -1,0 +1,101 @@
+/**
+ * @fileoverview React hook for staking data
+ * @author {{AUTHOR}}
+ */
+
+import { useState, useEffect } from 'react';
+import { createStakingService, StakeInfo, StakingInfo } from '../services/staking-service';
+
+/**
+ * Hook options
+ */
+export interface UseStakingOptions {
+  stakingAddress: string;
+  userAddress: string | null;
+  chainId: number;
+  refreshInterval?: number;
+}
+
+/**
+ * Hook return type
+ */
+export interface UseStakingReturn {
+  stakingInfo: StakingInfo | null;
+  userStake: StakeInfo | null;
+  apr: number | null;
+  timeUntilWithdraw: bigint | null;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+}
+
+/**
+ * React hook for staking data
+ */
+export function useStaking(options: UseStakingOptions): UseStakingReturn {
+  const { stakingAddress, userAddress, chainId, refreshInterval } = options;
+
+  const [state, setState] = useState<{
+    stakingInfo: StakingInfo | null;
+    userStake: StakeInfo | null;
+    apr: number | null;
+    timeUntilWithdraw: bigint | null;
+    isLoading: boolean;
+    error: Error | null;
+  }>({
+    stakingInfo: null,
+    userStake: null,
+    apr: null,
+    timeUntilWithdraw: null,
+    isLoading: false,
+    error: null,
+  });
+
+  const fetchStakingData = async () => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const service = createStakingService(stakingAddress, chainId);
+
+      const stakingInfo = await service.getStakingInfo();
+      const apr = await service.calculateAPR();
+
+      let userStake: StakeInfo | null = null;
+      let timeUntilWithdraw: bigint | null = null;
+
+      if (userAddress) {
+        userStake = await service.getStakeInfo(userAddress);
+        timeUntilWithdraw = await service.getTimeUntilWithdraw(userAddress);
+      }
+
+      setState({
+        stakingInfo,
+        userStake,
+        apr,
+        timeUntilWithdraw,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error : new Error('Failed to fetch staking data'),
+      }));
+    }
+  };
+
+  useEffect(() => {
+    fetchStakingData();
+
+    if (refreshInterval) {
+      const interval = setInterval(fetchStakingData, refreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [stakingAddress, userAddress, chainId, refreshInterval]);
+
+  return {
+    ...state,
+    refetch: fetchStakingData,
+  };
+}

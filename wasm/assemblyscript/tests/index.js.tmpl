@@ -1,0 +1,193 @@
+/**
+ * index.js - AssemblyScript WASM Tests
+ *
+ * Tests for {{PROJECT_NAME}} AssemblyScript module.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { readFile } from 'fs/promises';
+import { instantiate } from '@assemblyscript/loader';
+
+async function runTests() {
+  console.log('Loading WASM module...\n');
+
+  const wasmModule = await instantiate(
+    await readFile('./build/release.wasm')
+  );
+
+  const { exports } = wasmModule;
+
+  let passed = 0;
+  let failed = 0;
+
+  function test(name, fn) {
+    try {
+      fn();
+      console.log(`✅ ${name}`);
+      passed++;
+    } catch (error) {
+      console.log(`❌ ${name}`);
+      console.log(`   Error: ${error.message}`);
+      failed++;
+    }
+  }
+
+  function assert(condition, message) {
+    if (!condition) {
+      throw new Error(message || 'Assertion failed');
+    }
+  }
+
+  function assertEquals(actual, expected, message) {
+    if (actual !== expected) {
+      throw new Error(
+        message || `Expected ${expected}, got ${actual}`
+      );
+    }
+  }
+
+  // Basic function tests
+  console.log('Basic Functions:');
+  test('add(2, 3) = 5', () => {
+    assertEquals(exports.add(2, 3), 5);
+  });
+
+  test('multiply(4, 5) = 20', () => {
+    assertEquals(exports.multiply(4, 5), 20);
+  });
+
+  test('isPrime(7) = true', () => {
+    assertEquals(exports.isPrime(7), 1);
+  });
+
+  test('isPrime(8) = false', () => {
+    assertEquals(exports.isPrime(8), 0);
+  });
+
+  test('factorial(5) = 120', () => {
+    assertEquals(Number(exports.factorial(5)), 120);
+  });
+
+  console.log('\nMath Functions:');
+  test('power(2, 3) = 8', () => {
+    assertEquals(exports.power(2, 3), 8);
+  });
+
+  test('sqrt(16) ≈ 4', () => {
+    const result = exports.sqrt(16);
+    assert(Math.abs(result - 4) < 0.0001);
+  });
+
+  test('gcd(48, 18) = 6', () => {
+    assertEquals(exports.gcd(48, 18), 6);
+  });
+
+  test('lcm(12, 15) = 60', () => {
+    assertEquals(exports.lcm(12, 15), 60);
+  });
+
+  test('fibonacci(10) = 55', () => {
+    assertEquals(Number(exports.fibonacci(10)), 55);
+  });
+
+  test('isEven(4) = true', () => {
+    assertEquals(exports.isEven(4), 1);
+  });
+
+  test('isOdd(5) = true', () => {
+    assertEquals(exports.isOdd(5), 1);
+  });
+
+  test('clamp(5, 0, 10) = 5', () => {
+    assertEquals(exports.clamp(5, 0, 10), 5);
+  });
+
+  test('clamp(-5, 0, 10) = 0', () => {
+    assertEquals(exports.clamp(-5, 0, 10), 0);
+  });
+
+  test('distance(0, 0, 3, 4) = 5', () => {
+    assertEquals(exports.distance(0, 0, 3, 4), 5);
+  });
+
+  console.log('\nString Functions:');
+  test('reverseString("hello")', () => {
+    const input = exports.__newString('hello');
+    const result = exports.reverseString(input);
+    const resultStr = exports.__getString(result);
+    assertEquals(resultStr, 'olleh');
+  });
+
+  test('isPalindrome("racecar") = true', () => {
+    const input = exports.__newString('racecar');
+    assertEquals(exports.isPalindrome(input), 1);
+  });
+
+  test('countWords("hello world test")', () => {
+    const input = exports.__newString('hello world test');
+    assertEquals(exports.countWords(input), 3);
+  });
+
+  test('titleCase("hello world")', () => {
+    const input = exports.__newString('hello world');
+    const result = exports.titleCase(input);
+    const resultStr = exports.__getString(result);
+    assertEquals(resultStr, 'Hello World');
+  });
+
+  test('truncate("long text", 5)', () => {
+    const input = exports.__newString('long text here');
+    const result = exports.truncate(input, 8);
+    const resultStr = exports.__getString(result);
+    assertEquals(resultStr, 'long...');
+  });
+
+  console.log('\nArray Operations:');
+  test('sumArray([1, 2, 3, 4, 5]) = 15', () => {
+    const arr = new Int32Array([1, 2, 3, 4, 5]);
+    const ptr = exports.__newArray(exports.Int32Array_ID, arr);
+    assertEquals(exports.sumArray(ptr), 15);
+  });
+
+  test('maxArray([1, 5, 3, 9, 2]) = 9', () => {
+    const arr = new Int32Array([1, 5, 3, 9, 2]);
+    const ptr = exports.__newArray(exports.Int32Array_ID, arr);
+    assertEquals(exports.maxArray(ptr), 9);
+  });
+
+  test('binarySearch([1, 3, 5, 7, 9], 5) = 2', () => {
+    const arr = new Int32Array([1, 3, 5, 7, 9]);
+    const ptr = exports.__newArray(exports.Int32Array_ID, arr);
+    assertEquals(exports.binarySearch(ptr, 5), 2);
+  });
+
+  // Performance test
+  console.log('\nPerformance Tests:');
+  const iterations = 100000;
+
+  console.time('  isPrime() x ' + iterations);
+  for (let i = 0; i < iterations; i++) {
+    exports.isPrime(97);
+  }
+  console.timeEnd('  isPrime() x ' + iterations);
+
+  console.time('  fibonacci() x ' + iterations);
+  for (let i = 0; i < iterations; i++) {
+    exports.fibonacci(20);
+  }
+  console.timeEnd('  fibonacci() x ' + iterations);
+
+  // Summary
+  console.log('\n' + '='.repeat(50));
+  console.log(`Tests passed: ${passed}`);
+  console.log(`Tests failed: ${failed}`);
+  console.log('='.repeat(50));
+
+  process.exit(failed > 0 ? 1 : 0);
+}
+
+runTests().catch(error => {
+  console.error('Test error:', error);
+  process.exit(1);
+});

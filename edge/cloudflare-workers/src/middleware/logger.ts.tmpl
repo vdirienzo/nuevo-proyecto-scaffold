@@ -1,0 +1,284 @@
+/**
+ * Logging middleware for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+
+/**
+ * Log levels
+ */
+export enum LogLevel {
+  DEBUG = 0,
+  INFO = 1,
+  WARN = 2,
+  ERROR = 3
+}
+
+/**
+ * Logger class
+ */
+export class Logger {
+  private level: LogLevel;
+  private context: string;
+
+  constructor(level: LogLevel = LogLevel.INFO, context = "{{PROJECT_NAME}}") {
+    this.level = level;
+    this.context = context;
+  }
+
+  /**
+   * Set log level from string
+   */
+  static fromString(level: string): LogLevel {
+    switch (level.toLowerCase()) {
+      case "debug":
+        return LogLevel.DEBUG;
+      case "info":
+        return LogLevel.INFO;
+      case "warn":
+        return LogLevel.WARN;
+      case "error":
+        return LogLevel.ERROR;
+      default:
+        return LogLevel.INFO;
+    }
+  }
+
+  /**
+   * Format log message
+   */
+  private format(level: string, message: string, meta?: Record<string, unknown>): string {
+    const timestamp = new Date().toISOString();
+    const data = meta ? ` ${JSON.stringify(meta)}` : "";
+    return `[${timestamp}] [${level}] [${this.context}] ${message}${data}`;
+  }
+
+  /**
+   * Log debug message
+   */
+  debug(message: string, meta?: Record<string, unknown>): void {
+    if (this.level <= LogLevel.DEBUG) {
+      console.debug(this.format("DEBUG", message, meta));
+    }
+  }
+
+  /**
+   * Log info message
+   */
+  info(message: string, meta?: Record<string, unknown>): void {
+    if (this.level <= LogLevel.INFO) {
+      console.info(this.format("INFO", message, meta));
+    }
+  }
+
+  /**
+   * Log warning message
+   */
+  warn(message: string, meta?: Record<string, unknown>): void {
+    if (this.level <= LogLevel.WARN) {
+      console.warn(this.format("WARN", message, meta));
+    }
+  }
+
+  /**
+   * Log error message
+   */
+  error(message: string, error?: Error | unknown, meta?: Record<string, unknown>): void {
+    if (this.level <= LogLevel.ERROR) {
+      const errorMeta = error instanceof Error
+        ? { ...meta, error: error.message, stack: error.stack }
+        : { ...meta, error };
+      console.error(this.format("ERROR", message, errorMeta));
+    }
+  }
+
+  /**
+   * Create child logger with additional context
+   */
+  child(context: string): Logger {
+    return new Logger(this.level, `${this.context}:${context}`);
+  }
+}
+
+/**
+ * Request logging middleware
+ */
+export function loggerMiddleware(logger: Logger) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const start = Date.now();
+    const { method, url } = c.req;
+
+    logger.info(`→ ${method} ${url}`);
+
+    await next();
+
+    const duration = Date.now() - start;
+    const status = c.res.status;
+
+    logger.info(`← ${method} ${url} ${status} ${duration}ms`);
+  };
+}
+
+/**
+ * Error logging middleware
+ */
+export function errorLoggerMiddleware(logger: Logger) {
+  return async (c: Context, next: () => Promise<void>) => {
+    try {
+      await next();
+    } catch (error) {
+      const { method, url } = c.req;
+      logger.error(`Error handling ${method} ${url}`, error);
+      throw error;
+    }
+  };
+}
+
+/**
+ * Analytics logging middleware
+ */
+export function analyticsMiddleware(analytics?: AnalyticsEngineDataset) {
+  return async (c: Context, next: () => Promise<void>) => {
+    if (!analytics) {
+      return next();
+    }
+
+    const start = Date.now();
+
+    await next();
+
+    const duration = Date.now() - start;
+    const { method, url } = c.req;
+    const status = c.res.status;
+
+    // Write to Analytics Engine
+    analytics.writeDataPoint({
+      blobs: [method, url, status.toString()],
+      doubles: [duration],
+      indexes: [method]
+    });
+  };
+}
+
+/**
+ * Structured logging service
+ */
+export class StructuredLogger {
+  private logger: Logger;
+
+  constructor(logger: Logger) {
+    this.logger = logger;
+  }
+
+  /**
+   * Log HTTP request
+   */
+  logRequest(req: Request, duration: number, status: number): void {
+    this.logger.info("HTTP Request", {
+      method: req.method,
+      url: req.url,
+      status,
+      duration,
+      userAgent: req.headers.get("User-Agent") ?? undefined,
+      referer: req.headers.get("Referer") ?? undefined,
+      ip: req.headers.get("CF-Connecting-IP") ?? undefined
+    });
+  }
+
+  /**
+   * Log authentication event
+   */
+  logAuth(event: "login" | "logout" | "register", userId: string, success: boolean): void {
+    this.logger.info(`Auth: ${event}`, {
+      event,
+      userId,
+      success
+    });
+  }
+
+  /**
+   * Log database query
+   */
+  logQuery(query: string, duration: number, error?: Error): void {
+    if (error) {
+      this.logger.error("Database Query Failed", error, { query, duration });
+    } else {
+      this.logger.debug("Database Query", { query, duration });
+    }
+  }
+
+  /**
+   * Log cache hit/miss
+   */
+  logCache(key: string, hit: boolean): void {
+    this.logger.debug(`Cache ${hit ? "HIT" : "MISS"}`, { key });
+  }
+
+  /**
+   * Log rate limit
+   */
+  logRateLimit(key: string, allowed: boolean, remaining: number): void {
+    this.logger.info("Rate Limit Check", {
+      key,
+      allowed,
+      remaining
+    });
+  }
+
+  /**
+   * Log external API call
+   */
+  logExternalAPI(service: string, endpoint: string, duration: number, status: number): void {
+    this.logger.info(`External API: ${service}`, {
+      service,
+      endpoint,
+      status,
+      duration
+    });
+  }
+}
+
+/**
+ * Request ID middleware
+ */
+export function requestIdMiddleware() {
+  return async (c: Context, next: () => Promise<void>) => {
+    const requestId = crypto.randomUUID();
+    c.set("requestId", requestId);
+    c.header("X-Request-ID", requestId);
+    await next();
+  };
+}
+
+/**
+ * Performance monitoring middleware
+ */
+export function performanceMiddleware(logger: Logger) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const start = performance.now();
+    const { method, url } = c.req;
+
+    await next();
+
+    const duration = performance.now() - start;
+
+    // Log slow requests
+    if (duration > 1000) {
+      logger.warn("Slow request detected", {
+        method,
+        url,
+        duration: `${duration.toFixed(2)}ms`
+      });
+    }
+  };
+}
+
+/**
+ * Create logger from environment
+ */
+export function createLogger(env: { LOG_LEVEL?: string }): Logger {
+  const level = Logger.fromString(env.LOG_LEVEL ?? "info");
+  return new Logger(level);
+}

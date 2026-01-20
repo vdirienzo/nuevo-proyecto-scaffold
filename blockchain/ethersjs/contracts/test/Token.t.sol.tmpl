@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Test, console2} from "forge-std/Test.sol";
+import {Token} from "../src/Token.sol";
+
+/**
+ * @title Token Test
+ * @author {{AUTHOR}}
+ * @notice Foundry tests for Token contract
+ */
+contract TokenTest is Test {
+    Token public token;
+    address public owner;
+    address public user1;
+    address public user2;
+
+    uint256 constant MAX_SUPPLY = 1_000_000_000 * 1e18;
+    uint256 constant INITIAL_SUPPLY = 100_000_000 * 1e18;
+
+    event TokensMinted(address indexed to, uint256 amount);
+    event TokensBurned(address indexed from, uint256 amount);
+
+    function setUp() public {
+        owner = address(this);
+        user1 = makeAddr("user1");
+        user2 = makeAddr("user2");
+
+        token = new Token("Test Token", "TEST", MAX_SUPPLY, INITIAL_SUPPLY);
+    }
+
+    function test_InitialState() public view {
+        assertEq(token.name(), "Test Token");
+        assertEq(token.symbol(), "TEST");
+        assertEq(token.MAX_SUPPLY(), MAX_SUPPLY);
+        assertEq(token.totalSupply(), INITIAL_SUPPLY);
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY);
+    }
+
+    function test_Mint() public {
+        uint256 mintAmount = 1000 * 1e18;
+
+        vm.expectEmit(true, false, false, true);
+        emit TokensMinted(user1, mintAmount);
+
+        token.mint(user1, mintAmount);
+
+        assertEq(token.balanceOf(user1), mintAmount);
+        assertEq(token.totalSupply(), INITIAL_SUPPLY + mintAmount);
+    }
+
+    function test_MintRevertsIfExceedsMaxSupply() public {
+        uint256 exceedAmount = MAX_SUPPLY - INITIAL_SUPPLY + 1;
+
+        vm.expectRevert("Exceeds max supply");
+        token.mint(user1, exceedAmount);
+    }
+
+    function test_MintRevertsIfNotOwner() public {
+        vm.prank(user1);
+        vm.expectRevert();
+        token.mint(user2, 1000 * 1e18);
+    }
+
+    function test_Burn() public {
+        uint256 burnAmount = 1000 * 1e18;
+
+        vm.expectEmit(true, false, false, true);
+        emit TokensBurned(owner, burnAmount);
+
+        token.burn(burnAmount);
+
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY - burnAmount);
+        assertEq(token.totalSupply(), INITIAL_SUPPLY - burnAmount);
+    }
+
+    function test_BurnFrom() public {
+        uint256 burnAmount = 1000 * 1e18;
+
+        // Approve user1 to burn
+        token.approve(user1, burnAmount);
+
+        vm.prank(user1);
+        token.burnFrom(owner, burnAmount);
+
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY - burnAmount);
+        assertEq(token.totalSupply(), INITIAL_SUPPLY - burnAmount);
+    }
+
+    function test_Transfer() public {
+        uint256 transferAmount = 1000 * 1e18;
+
+        token.transfer(user1, transferAmount);
+
+        assertEq(token.balanceOf(user1), transferAmount);
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY - transferAmount);
+    }
+
+    function test_Approve() public {
+        uint256 approveAmount = 1000 * 1e18;
+
+        token.approve(user1, approveAmount);
+
+        assertEq(token.allowance(owner, user1), approveAmount);
+    }
+
+    function test_TransferFrom() public {
+        uint256 transferAmount = 1000 * 1e18;
+
+        token.approve(user1, transferAmount);
+
+        vm.prank(user1);
+        token.transferFrom(owner, user2, transferAmount);
+
+        assertEq(token.balanceOf(user2), transferAmount);
+        assertEq(token.balanceOf(owner), INITIAL_SUPPLY - transferAmount);
+    }
+
+    function test_Permit() public {
+        uint256 privateKey = 0xA11CE;
+        address alice = vm.addr(privateKey);
+
+        token.transfer(alice, 1000 * 1e18);
+
+        uint256 permitAmount = 500 * 1e18;
+        uint256 deadline = block.timestamp + 1 days;
+
+        bytes32 permitHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                token.DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256(
+                            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                        ),
+                        alice,
+                        user1,
+                        permitAmount,
+                        token.nonces(alice),
+                        deadline
+                    )
+                )
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, permitHash);
+
+        token.permit(alice, user1, permitAmount, deadline, v, r, s);
+
+        assertEq(token.allowance(alice, user1), permitAmount);
+    }
+
+    function testFuzz_Mint(uint256 amount) public {
+        amount = bound(amount, 1, MAX_SUPPLY - INITIAL_SUPPLY);
+
+        token.mint(user1, amount);
+
+        assertEq(token.balanceOf(user1), amount);
+    }
+
+    function testFuzz_Transfer(uint256 amount) public {
+        amount = bound(amount, 1, INITIAL_SUPPLY);
+
+        token.transfer(user1, amount);
+
+        assertEq(token.balanceOf(user1), amount);
+    }
+}

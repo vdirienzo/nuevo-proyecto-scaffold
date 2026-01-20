@@ -1,0 +1,170 @@
+/**
+ * useWeb3 Hook for {{PROJECT_NAME}}
+ * React hook for Web3 provider management
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { useState, useEffect, useCallback } from "react";
+import Web3 from "web3";
+import { web3Provider } from "../services/web3-provider";
+import { getNetworkConfig } from "../config/networks";
+
+export interface Web3State {
+  web3: Web3 | null;
+  isInitialized: boolean;
+  chainId: number | null;
+  networkName: string | null;
+  blockNumber: number | null;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+export function useWeb3() {
+  const [state, setState] = useState<Web3State>({
+    web3: null,
+    isInitialized: false,
+    chainId: null,
+    networkName: null,
+    blockNumber: null,
+    isLoading: false,
+    error: null,
+  });
+
+  const initialize = useCallback(async (provider?: any) => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      let web3Instance: Web3;
+
+      if (provider) {
+        web3Instance = await web3Provider.initialize(provider);
+      } else {
+        web3Instance = await web3Provider.initializeWithMetaMask();
+      }
+
+      const chainId = await web3Provider.getChainId();
+      const blockNumber = await web3Provider.getBlockNumber();
+      const networkConfig = getNetworkConfig(chainId);
+
+      setState({
+        web3: web3Instance,
+        isInitialized: true,
+        chainId,
+        networkName: networkConfig?.name || null,
+        blockNumber,
+        isLoading: false,
+        error: null,
+      });
+
+      return web3Instance;
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error as Error,
+      }));
+      throw error;
+    }
+  }, []);
+
+  const switchNetwork = useCallback(async (chainId: number) => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      await web3Provider.switchNetwork(chainId);
+
+      const blockNumber = await web3Provider.getBlockNumber();
+      const networkConfig = getNetworkConfig(chainId);
+
+      setState((prev) => ({
+        ...prev,
+        chainId,
+        networkName: networkConfig?.name || null,
+        blockNumber,
+        isLoading: false,
+      }));
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error as Error,
+      }));
+      throw error;
+    }
+  }, []);
+
+  const disconnect = useCallback(async () => {
+    await web3Provider.disconnect();
+    setState({
+      web3: null,
+      isInitialized: false,
+      chainId: null,
+      networkName: null,
+      blockNumber: null,
+      isLoading: false,
+      error: null,
+    });
+  }, []);
+
+  const refreshBlockNumber = useCallback(async () => {
+    if (!state.isInitialized) return;
+
+    try {
+      const blockNumber = await web3Provider.getBlockNumber();
+      setState((prev) => ({ ...prev, blockNumber }));
+    } catch (error) {
+      console.error("Failed to refresh block number:", error);
+    }
+  }, [state.isInitialized]);
+
+  // Subscribe to provider events
+  useEffect(() => {
+    if (!state.isInitialized) return;
+
+    const handleChainChanged = (chainIdHex: string) => {
+      const chainId = parseInt(chainIdHex, 16);
+      const networkConfig = getNetworkConfig(chainId);
+
+      setState((prev) => ({
+        ...prev,
+        chainId,
+        networkName: networkConfig?.name || null,
+      }));
+    };
+
+    const handleDisconnect = () => {
+      setState({
+        web3: null,
+        isInitialized: false,
+        chainId: null,
+        networkName: null,
+        blockNumber: null,
+        isLoading: false,
+        error: null,
+      });
+    };
+
+    web3Provider.subscribeToEvents({
+      onChainChanged: handleChainChanged,
+      onDisconnect: handleDisconnect,
+    });
+  }, [state.isInitialized]);
+
+  // Auto-refresh block number
+  useEffect(() => {
+    if (!state.isInitialized) return;
+
+    const interval = setInterval(refreshBlockNumber, 15000); // Every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [state.isInitialized, refreshBlockNumber]);
+
+  return {
+    ...state,
+    initialize,
+    switchNetwork,
+    disconnect,
+    refreshBlockNumber,
+  };
+}

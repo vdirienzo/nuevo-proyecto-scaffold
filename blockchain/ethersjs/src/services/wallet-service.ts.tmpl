@@ -1,0 +1,220 @@
+/**
+ * @fileoverview Wallet connection and management service
+ * @author {{AUTHOR}}
+ */
+
+import { ethers, BrowserProvider } from 'ethers';
+import { createBrowserProvider, NetworkMonitor } from '../providers/ethers-provider';
+import { isChainSupported } from '../config/chains';
+
+/**
+ * Wallet connection result
+ */
+export interface WalletConnection {
+  address: string;
+  chainId: number;
+  balance: bigint;
+  ensName: string | null;
+}
+
+/**
+ * Wallet service for managing wallet connections
+ */
+export class WalletService {
+  private provider: BrowserProvider | null = null;
+  private monitor: NetworkMonitor | null = null;
+
+  /**
+   * Check if wallet is available
+   */
+  isWalletAvailable(): boolean {
+    return typeof window !== 'undefined' && !!window.ethereum;
+  }
+
+  /**
+   * Connect wallet
+   */
+  async connect(): Promise<WalletConnection> {
+    if (!this.isWalletAvailable()) {
+      throw new Error('No Ethereum wallet found. Please install MetaMask or another wallet.');
+    }
+
+    try {
+      this.provider = createBrowserProvider();
+
+      // Request account access
+      await window.ethereum!.request({ method: 'eth_requestAccounts' });
+
+      const signer = await this.provider.getSigner();
+      const address = await signer.getAddress();
+      const network = await this.provider.getNetwork();
+      const chainId = Number(network.chainId);
+      const balance = await this.provider.getBalance(address);
+
+      // Check if chain is supported
+      if (!isChainSupported(chainId)) {
+        console.warn(`Connected to unsupported chain: ${chainId}`);
+      }
+
+      // Try to resolve ENS name (mainnet only)
+      let ensName: string | null = null;
+      if (chainId === 1) {
+        try {
+          ensName = await this.provider.lookupAddress(address);
+        } catch {
+          // ENS lookup failed, ignore
+        }
+      }
+
+      return { address, chainId, balance, ensName };
+    } catch (error) {
+      throw this.handleError(error, 'Failed to connect wallet');
+    }
+  }
+
+  /**
+   * Disconnect wallet
+   */
+  disconnect(): void {
+    this.provider = null;
+    this.monitor?.removeAllListeners();
+    this.monitor = null;
+  }
+
+  /**
+   * Get current account
+   */
+  async getAccount(): Promise<string | null> {
+    if (!this.provider) return null;
+
+    try {
+      const signer = await this.provider.getSigner();
+      return await signer.getAddress();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get current chain ID
+   */
+  async getChainId(): Promise<number | null> {
+    if (!this.provider) return null;
+
+    try {
+      const network = await this.provider.getNetwork();
+      return Number(network.chainId);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get account balance
+   */
+  async getBalance(address?: string): Promise<bigint> {
+    if (!this.provider) throw new Error('Wallet not connected');
+
+    const addr = address || (await this.getAccount());
+    if (!addr) throw new Error('No address provided');
+
+    return await this.provider.getBalance(addr);
+  }
+
+  /**
+   * Switch to different chain
+   */
+  async switchChain(chainId: number): Promise<void> {
+    if (!window.ethereum) throw new Error('No wallet available');
+
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: ethers.toBeHex(chainId) }],
+      });
+    } catch (error: unknown) {
+      // Chain not added to wallet, try to add it
+      if ((error as { code?: number }).code === 4902) {
+        throw new Error('Chain not configured in wallet. Please add it manually.');
+      }
+      throw this.handleError(error, 'Failed to switch chain');
+    }
+  }
+
+  /**
+   * Sign message
+   */
+  async signMessage(message: string): Promise<string> {
+    if (!this.provider) throw new Error('Wallet not connected');
+
+    try {
+      const signer = await this.provider.getSigner();
+      return await signer.signMessage(message);
+    } catch (error) {
+      throw this.handleError(error, 'Failed to sign message');
+    }
+  }
+
+  /**
+   * Verify message signature
+   */
+  verifyMessage(message: string, signature: string): string {
+    return ethers.verifyMessage(message, signature);
+  }
+
+  /**
+   * Send transaction
+   */
+  async sendTransaction(tx: ethers.TransactionRequest): Promise<ethers.TransactionResponse> {
+    if (!this.provider) throw new Error('Wallet not connected');
+
+    try {
+      const signer = await this.provider.getSigner();
+      return await signer.sendTransaction(tx);
+    } catch (error) {
+      throw this.handleError(error, 'Failed to send transaction');
+    }
+  }
+
+  /**
+   * Setup network monitoring
+   */
+  setupMonitoring(callbacks: {
+    onChainChanged?: (chainId: number) => void;
+    onAccountsChanged?: (accounts: string[]) => void;
+    onDisconnect?: () => void;
+  }): void {
+    this.monitor = new NetworkMonitor();
+
+    if (callbacks.onChainChanged) {
+      this.monitor.onChainChanged(callbacks.onChainChanged);
+    }
+
+    if (callbacks.onAccountsChanged) {
+      this.monitor.onAccountsChanged(callbacks.onAccountsChanged);
+    }
+
+    if (callbacks.onDisconnect) {
+      this.monitor.onDisconnect(callbacks.onDisconnect);
+    }
+  }
+
+  /**
+   * Error handler
+   */
+  private handleError(error: unknown, context: string): Error {
+    if (error instanceof Error) {
+      // User rejected request
+      if (error.message.includes('user rejected')) {
+        return new Error('User rejected the request');
+      }
+      return new Error(`${context}: ${error.message}`);
+    }
+    return new Error(`${context}: Unknown error`);
+  }
+}
+
+/**
+ * Singleton instance
+ */
+export const walletService = new WalletService();

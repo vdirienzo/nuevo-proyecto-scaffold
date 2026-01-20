@@ -1,0 +1,54 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/constants/app_constants.dart';
+
+final authLocalStorageProvider = Provider<AuthLocalStorage>((ref) {
+  return AuthLocalStorage(storage: const FlutterSecureStorage());
+});
+
+class AuthLocalStorage {
+  final FlutterSecureStorage _storage;
+
+  AuthLocalStorage({required FlutterSecureStorage storage})
+      : _storage = storage;
+
+  Future<void> saveAccessToken(String token) async {
+    await _storage.write(key: AppConstants.accessTokenKey, value: token);
+  }
+
+  Future<String?> getAccessToken() async {
+    return await _storage.read(key: AppConstants.accessTokenKey);
+  }
+
+  Future<void> saveRefreshToken(String token) async {
+    await _storage.write(key: AppConstants.refreshTokenKey, value: token);
+  }
+
+  Future<String?> getRefreshToken() async {
+    return await _storage.read(key: AppConstants.refreshTokenKey);
+  }
+
+  Future<void> saveUserId(int userId) async {
+    await _storage.write(
+      key: AppConstants.userIdKey,
+      value: userId.toString(),
+    );
+  }
+
+  Future<int?> getUserId() async {
+    final userId = await _storage.read(key: AppConstants.userIdKey);
+    return userId != null ? int.tryParse(userId) : null;
+  }
+
+  Future<void> clearAll() async {
+    await _storage.delete(key: AppConstants.accessTokenKey);
+    await _storage.delete(key: AppConstants.refreshTokenKey);
+    await _storage.delete(key: AppConstants.userIdKey);
+  }
+
+  Future<bool> hasAccessToken() async {
+    final token = await getAccessToken();
+    return token != null && token.isNotEmpty;
+  }
+}

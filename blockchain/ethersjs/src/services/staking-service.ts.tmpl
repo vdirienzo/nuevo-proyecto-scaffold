@@ -1,0 +1,200 @@
+/**
+ * @fileoverview Staking service
+ * @author {{AUTHOR}}
+ */
+
+import { ContractTransactionResponse } from 'ethers';
+import { ContractService, TxOptions } from './contract-service';
+import { STAKING_ABI } from '../config/abis';
+
+/**
+ * Stake information
+ */
+export interface StakeInfo {
+  amount: bigint;
+  rewards: bigint;
+  stakedAt: bigint;
+  canWithdraw: boolean;
+}
+
+/**
+ * Staking contract information
+ */
+export interface StakingInfo {
+  stakingToken: string;
+  rewardToken: string;
+  rewardRate: bigint;
+  totalStaked: bigint;
+  minStakeAmount: bigint;
+  lockPeriod: bigint;
+}
+
+/**
+ * Staking service
+ */
+export class StakingService extends ContractService {
+  constructor(stakingAddress: string, chainId: number) {
+    super(stakingAddress, STAKING_ABI, chainId);
+  }
+
+  /**
+   * Get staking contract information
+   */
+  async getStakingInfo(): Promise<StakingInfo> {
+    const [stakingToken, rewardToken, rewardRate, totalStaked, minStakeAmount, lockPeriod] =
+      await Promise.all([
+        this.call<string>('stakingToken'),
+        this.call<string>('rewardToken'),
+        this.call<bigint>('rewardRate'),
+        this.call<bigint>('totalStaked'),
+        this.call<bigint>('minStakeAmount'),
+        this.call<bigint>('lockPeriod'),
+      ]);
+
+    return {
+      stakingToken,
+      rewardToken,
+      rewardRate,
+      totalStaked,
+      minStakeAmount,
+      lockPeriod,
+    };
+  }
+
+  /**
+   * Get user stake information
+   */
+  async getStakeInfo(address: string): Promise<StakeInfo> {
+    const [amount, rewards, stakedAt, canWithdraw] = await this.call<
+      [bigint, bigint, bigint, boolean]
+    >('getStakeInfo', address);
+
+    return { amount, rewards, stakedAt, canWithdraw };
+  }
+
+  /**
+   * Get earned rewards for address
+   */
+  async earned(address: string): Promise<bigint> {
+    return await this.call<bigint>('earned', address);
+  }
+
+  /**
+   * Get reward per token
+   */
+  async rewardPerToken(): Promise<bigint> {
+    return await this.call<bigint>('rewardPerToken');
+  }
+
+  /**
+   * Stake tokens
+   */
+  async stake(amount: bigint, options?: TxOptions): Promise<ContractTransactionResponse> {
+    return await this.send('stake', [amount], options);
+  }
+
+  /**
+   * Withdraw staked tokens
+   */
+  async withdraw(amount: bigint, options?: TxOptions): Promise<ContractTransactionResponse> {
+    return await this.send('withdraw', [amount], options);
+  }
+
+  /**
+   * Claim rewards
+   */
+  async claimReward(options?: TxOptions): Promise<ContractTransactionResponse> {
+    return await this.send('claimReward', [], options);
+  }
+
+  /**
+   * Exit (withdraw all and claim rewards)
+   */
+  async exit(options?: TxOptions): Promise<ContractTransactionResponse> {
+    return await this.send('exit', [], options);
+  }
+
+  /**
+   * Calculate APR (Annual Percentage Rate)
+   */
+  async calculateAPR(): Promise<number> {
+    const info = await this.getStakingInfo();
+
+    if (info.totalStaked === 0n) return 0;
+
+    // APR = (rewardRate * seconds per year * 100) / totalStaked
+    const secondsPerYear = 365n * 24n * 60n * 60n;
+    const annualRewards = info.rewardRate * secondsPerYear;
+    const apr = (Number(annualRewards) / Number(info.totalStaked)) * 100;
+
+    return apr;
+  }
+
+  /**
+   * Get time until can withdraw
+   */
+  async getTimeUntilWithdraw(address: string): Promise<bigint> {
+    const stakeInfo = await this.getStakeInfo(address);
+    const info = await this.getStakingInfo();
+
+    if (stakeInfo.canWithdraw) return 0n;
+
+    const unlockTime = stakeInfo.stakedAt + info.lockPeriod;
+    const now = BigInt(Math.floor(Date.now() / 1000));
+
+    return unlockTime > now ? unlockTime - now : 0n;
+  }
+
+  /**
+   * Check if user can stake amount
+   */
+  async canStake(address: string, amount: bigint): Promise<{ canStake: boolean; reason?: string }> {
+    const info = await this.getStakingInfo();
+
+    if (amount < info.minStakeAmount) {
+      return {
+        canStake: false,
+        reason: `Amount below minimum stake of ${info.minStakeAmount}`,
+      };
+    }
+
+    // Check if user has sufficient token balance (requires token address)
+    // This would need to be implemented with ERC20Service
+
+    return { canStake: true };
+  }
+
+  /**
+   * Listen to stake events
+   */
+  onStaked(callback: (user: string, amount: bigint) => void): void {
+    this.on('Staked', (user: string, amount: bigint) => {
+      callback(user, amount);
+    });
+  }
+
+  /**
+   * Listen to withdraw events
+   */
+  onWithdrawn(callback: (user: string, amount: bigint) => void): void {
+    this.on('Withdrawn', (user: string, amount: bigint) => {
+      callback(user, amount);
+    });
+  }
+
+  /**
+   * Listen to reward paid events
+   */
+  onRewardPaid(callback: (user: string, reward: bigint) => void): void {
+    this.on('RewardPaid', (user: string, reward: bigint) => {
+      callback(user, reward);
+    });
+  }
+}
+
+/**
+ * Create staking service instance
+ */
+export function createStakingService(stakingAddress: string, chainId: number): StakingService {
+  return new StakingService(stakingAddress, chainId);
+}

@@ -1,0 +1,41 @@
+/**
+ * app.ts - Application setup with Oak framework
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { Application } from "oak";
+import { router } from "./router.ts";
+import { corsMiddleware } from "./middleware/cors.ts";
+import { loggerMiddleware } from "./middleware/logger.ts";
+import { errorHandlerMiddleware } from "./middleware/error-handler.ts";
+import { authMiddleware } from "./middleware/auth.ts";
+
+const app = new Application();
+
+// Global error handler
+app.addEventListener("error", (event) => {
+  console.error("Unhandled error:", event.error);
+});
+
+// Middleware stack
+app.use(errorHandlerMiddleware);
+app.use(loggerMiddleware);
+app.use(corsMiddleware);
+
+// Public routes (no auth required)
+app.use(router.routes());
+app.use(router.allowedMethods());
+
+// Setup cron jobs
+Deno.cron("cleanup", "0 0 * * *", async () => {
+  console.log("Running daily cleanup job");
+  // Add cleanup logic here
+});
+
+Deno.cron("health-check", "*/5 * * * *", async () => {
+  console.log("Health check ping");
+  // Add health monitoring logic
+});
+
+export { app };

@@ -1,0 +1,289 @@
+# {{PROJECT_NAME}} - React Native Mobile App
+
+A production-ready React Native mobile application built with TypeScript, Redux Toolkit, and React Navigation.
+
+**Author:** {{AUTHOR}}
+
+## Features
+
+- **React Navigation 6** - Stack and bottom tab navigation
+- **Redux Toolkit** - Type-safe state management
+- **TypeScript** - Full type safety with strict mode
+- **React Native Paper** - Material Design components
+- **Axios** - HTTP client with interceptors
+- **AsyncStorage** - Secure local data persistence
+- **Jest** - Unit and integration testing
+- **Dark/Light Theme** - Automatic theme switching
+- **Push Notifications** - Setup ready (implementation required)
+
+## Prerequisites
+
+- Node.js 18+
+- React Native CLI
+- iOS: Xcode 14+, CocoaPods
+- Android: Android Studio, JDK 11+
+
+## Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. iOS Setup
+
+```bash
+cd ios
+pod install
+cd ..
+```
+
+### 3. Environment Variables
+
+Copy `.env.example` to `.env` and configure:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your API configuration:
+
+```env
+API_URL=https://your-api.com/api
+API_TIMEOUT=30000
+```
+
+## Running the App
+
+### Development
+
+```bash
+# iOS
+npm run ios
+
+# Android
+npm run android
+
+# Metro bundler only
+npm start
+```
+
+### Production Build
+
+#### iOS
+
+```bash
+# Open in Xcode
+open ios/{{PROJECT_NAME}}.xcworkspace
+
+# Then: Product > Archive
+```
+
+#### Android
+
+```bash
+cd android
+./gradlew assembleRelease
+
+# APK at: android/app/build/outputs/apk/release/
+```
+
+## Project Structure
+
+```
+src/
+├── navigation/          # Navigation configuration
+│   ├── AuthNavigator    # Authentication screens
+│   └── MainNavigator    # Main app tabs
+├── screens/             # Screen components
+│   ├── auth/           # Login, Register, etc.
+│   ├── home/           # Home screen
+│   ├── profile/        # User profile
+│   └── settings/       # App settings
+├── components/          # Reusable components
+│   ├── ui/             # UI primitives (Button, Input, etc.)
+│   └── layout/         # Layout components
+├── hooks/              # Custom React hooks
+│   ├── useAuth         # Authentication hook
+│   ├── useApi          # API calls hook
+│   └── useStorage      # AsyncStorage hook
+├── services/           # API and external services
+│   ├── api             # Axios instance
+│   ├── auth            # Auth API calls
+│   └── storage         # AsyncStorage wrapper
+├── store/              # Redux store
+│   ├── authSlice       # Authentication state
+│   └── userSlice       # User data state
+├── types/              # TypeScript type definitions
+├── utils/              # Utility functions
+│   ├── constants       # App constants
+│   └── helpers         # Helper functions
+└── theme/              # Theme configuration
+    ├── colors          # Color palette
+    └── typography      # Font styles
+```
+
+## Available Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm start` | Start Metro bundler |
+| `npm run ios` | Run on iOS simulator |
+| `npm run android` | Run on Android emulator |
+| `npm test` | Run tests |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run test:coverage` | Run tests with coverage |
+| `npm run lint` | Lint code |
+| `npm run lint:fix` | Fix linting issues |
+| `npm run type-check` | TypeScript type checking |
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Watch mode
+npm run test:watch
+
+# Coverage report
+npm run test:coverage
+```
+
+## State Management
+
+Uses Redux Toolkit with TypeScript:
+
+```typescript
+// Using the auth hook
+const {user, login, logout} = useAuth();
+
+// Direct Redux access
+const user = useSelector((state: RootState) => state.auth.user);
+const dispatch = useDispatch<AppDispatch>();
+```
+
+## API Integration
+
+Configure API endpoints in `src/services/auth.ts`:
+
+```typescript
+export const authService = {
+  login: async (credentials) => {
+    const response = await api.post('/auth/login', credentials);
+    return response.data;
+  },
+};
+```
+
+## Navigation
+
+Add screens to navigators:
+
+```typescript
+// src/navigation/MainNavigator.tsx
+<Tab.Screen name="NewScreen" component={NewScreen} />
+```
+
+## Theming
+
+Customize colors in `src/theme/colors.ts`:
+
+```typescript
+export const colors = {
+  light: {
+    primary: '#6200EE',
+    // ...
+  },
+  dark: {
+    primary: '#BB86FC',
+    // ...
+  },
+};
+```
+
+## Push Notifications
+
+Setup push notifications (Firebase Cloud Messaging or similar):
+
+1. Install notification library:
+```bash
+npm install @react-native-firebase/messaging
+```
+
+2. Configure in `App.tsx`
+3. Add notification service in `src/services/`
+
+## Security
+
+- **Token Storage**: Secure tokens with AsyncStorage
+- **HTTPS Only**: Configure API to use HTTPS in production
+- **Input Validation**: All forms validate input
+- **Error Handling**: Comprehensive error handling
+
+## Troubleshooting
+
+### iOS
+
+```bash
+# Clean build
+cd ios
+rm -rf build
+pod deintegrate && pod install
+
+# Reset simulator
+xcrun simctl erase all
+```
+
+### Android
+
+```bash
+# Clean build
+cd android
+./gradlew clean
+
+# Clear cache
+rm -rf ~/.gradle/caches/
+```
+
+### Metro Bundler
+
+```bash
+# Reset cache
+npm start -- --reset-cache
+
+# Kill port 8081
+lsof -ti:8081 | xargs kill
+```
+
+## CI/CD
+
+GitHub Actions workflow included for:
+- Linting
+- Type checking
+- Tests
+- Build validation
+
+## Contributing
+
+1. Create feature branch: `git checkout -b feature/my-feature`
+2. Commit changes: `git commit -m 'feat: add feature'`
+3. Push branch: `git push origin feature/my-feature`
+4. Create Pull Request
+
+## License
+
+MIT
+
+## Resources
+
+- [React Native Docs](https://reactnative.dev/)
+- [React Navigation](https://reactnavigation.org/)
+- [Redux Toolkit](https://redux-toolkit.js.org/)
+- [React Native Paper](https://reactnativepaper.com/)
+- [TypeScript](https://www.typescriptlang.org/)
+
+---
+
+**Built with ❤️ by {{AUTHOR}}**

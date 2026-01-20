@@ -1,0 +1,46 @@
+[package]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+edition = "2021"
+authors = ["{{AUTHOR}}"]
+
+[dependencies]
+# Web framework
+rocket = { version = "0.5", features = ["json", "uuid"] }
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono"] }
+
+# Authentication
+jsonwebtoken = "9.2"
+argon2 = "0.5"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Validation
+validator = { version = "0.18", features = ["derive"] }
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Configuration
+dotenvy = "0.15"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+uuid = { version = "1.7", features = ["serde", "v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+tokio = { version = "1.36", features = ["full"] }
+
+# OpenAPI documentation
+utoipa = { version = "4.2", features = ["rocket_extras", "uuid", "chrono"] }
+utoipa-swagger-ui = { version = "6.0", features = ["rocket"] }
+
+[dev-dependencies]
+rocket-test = "0.5"

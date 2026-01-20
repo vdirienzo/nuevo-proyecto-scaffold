@@ -1,0 +1,139 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../../core/constants/app_constants.dart';
+import '../../../core/router/routes.dart';
+import '../../../core/utils/extensions.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../../shared/widgets/app_card.dart';
+
+class HomeScreen extends ConsumerWidget {
+  const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authProvider);
+    final user = authState.user;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Home'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.person),
+            onPressed: () => context.push(Routes.profile),
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(authProvider.notifier).refreshUser();
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(AppConstants.defaultPadding),
+          children: [
+            AppCard(
+              child: Padding(
+                padding: const EdgeInsets.all(AppConstants.defaultPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Welcome back!',
+                      style: context.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: AppConstants.defaultPadding / 2),
+                    Text(
+                      user?.username ?? 'User',
+                      style: context.textTheme.titleLarge?.copyWith(
+                        color: context.colorScheme.primary,
+                      ),
+                    ),
+                    if (user?.email != null) ...[
+                      const SizedBox(height: AppConstants.defaultPadding / 4),
+                      Text(
+                        user!.email,
+                        style: context.textTheme.bodyMedium?.copyWith(
+                          color: context.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppConstants.defaultPadding),
+            AppCard(
+              child: ListTile(
+                leading: Icon(
+                  Icons.info_outline,
+                  color: context.colorScheme.primary,
+                ),
+                title: const Text('About'),
+                subtitle: const Text('Learn more about {{PROJECT_NAME}}'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  _showAboutDialog(context);
+                },
+              ),
+            ),
+            const SizedBox(height: AppConstants.defaultPadding),
+            AppCard(
+              child: ListTile(
+                leading: Icon(
+                  Icons.settings_outlined,
+                  color: context.colorScheme.primary,
+                ),
+                title: const Text('Settings'),
+                subtitle: const Text('App preferences'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  context.showSnackbar('Settings screen coming soon');
+                },
+              ),
+            ),
+            const SizedBox(height: AppConstants.defaultPadding),
+            AppCard(
+              child: ListTile(
+                leading: Icon(
+                  Icons.dark_mode_outlined,
+                  color: context.colorScheme.primary,
+                ),
+                title: const Text('Theme'),
+                subtitle: const Text('Toggle dark mode'),
+                trailing: Switch(
+                  value: context.theme.brightness == Brightness.dark,
+                  onChanged: (value) {
+                    // Theme toggle handled by theme provider
+                    ref.read(themeModeProvider.notifier).toggleTheme();
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAboutDialog(BuildContext context) {
+    showAboutDialog(
+      context: context,
+      applicationName: '{{PROJECT_NAME}}',
+      applicationVersion: AppConstants.appVersion,
+      applicationLegalese: '© 2024 {{AUTHOR}}',
+      children: [
+        const SizedBox(height: AppConstants.defaultPadding),
+        const Text('A modern Flutter application built with:'),
+        const SizedBox(height: AppConstants.defaultPadding / 2),
+        const Text('• Flutter & Dart'),
+        const Text('• Riverpod for state management'),
+        const Text('• GoRouter for navigation'),
+        const Text('• Material 3 design'),
+      ],
+    );
+  }
+}

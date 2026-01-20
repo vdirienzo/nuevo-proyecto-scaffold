@@ -1,0 +1,159 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+
+/**
+ * @title {{PROJECT_NAME}} NFT
+ * @dev ERC721 NFT with URI storage and burnable functionality
+ * @author {{AUTHOR}}
+ */
+contract {{PROJECT_NAME}}NFT is ERC721, ERC721URIStorage, ERC721Burnable, Ownable {
+    using Counters for Counters.Counter;
+
+    Counters.Counter private _tokenIdCounter;
+    uint256 public maxSupply;
+    uint256 public mintPrice;
+
+    event NFTMinted(address indexed to, uint256 indexed tokenId, string tokenURI);
+    event MintPriceUpdated(uint256 oldPrice, uint256 newPrice);
+    event MaxSupplyUpdated(uint256 oldMaxSupply, uint256 newMaxSupply);
+
+    /**
+     * @dev Constructor
+     * @param _maxSupply Maximum number of NFTs that can be minted
+     * @param _mintPrice Price to mint an NFT (in wei)
+     */
+    constructor(
+        uint256 _maxSupply,
+        uint256 _mintPrice
+    ) ERC721("{{PROJECT_NAME}} NFT", "{{PROJECT_NAME}}NFT") Ownable(msg.sender) {
+        maxSupply = _maxSupply;
+        mintPrice = _mintPrice;
+    }
+
+    /**
+     * @dev Mint a new NFT
+     * @param to Address to receive the NFT
+     * @param uri Metadata URI for the NFT
+     */
+    function mint(address to, string memory uri) external payable {
+        require(_tokenIdCounter.current() < maxSupply, "Max supply reached");
+        require(msg.value >= mintPrice, "Insufficient payment");
+
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, uri);
+
+        emit NFTMinted(to, tokenId, uri);
+
+        // Refund excess payment
+        if (msg.value > mintPrice) {
+            payable(msg.sender).transfer(msg.value - mintPrice);
+        }
+    }
+
+    /**
+     * @dev Mint NFT for free (only owner)
+     * @param to Address to receive the NFT
+     * @param uri Metadata URI for the NFT
+     */
+    function ownerMint(address to, string memory uri) external onlyOwner {
+        require(_tokenIdCounter.current() < maxSupply, "Max supply reached");
+
+        uint256 tokenId = _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+
+        _safeMint(to, uri);
+        _setTokenURI(tokenId, uri);
+
+        emit NFTMinted(to, tokenId, uri);
+    }
+
+    /**
+     * @dev Batch mint NFTs (only owner)
+     * @param recipients Array of addresses to receive NFTs
+     * @param uris Array of metadata URIs
+     */
+    function batchMint(address[] memory recipients, string[] memory uris) external onlyOwner {
+        require(recipients.length == uris.length, "Arrays length mismatch");
+        require(_tokenIdCounter.current() + recipients.length <= maxSupply, "Would exceed max supply");
+
+        for (uint256 i = 0; i < recipients.length; i++) {
+            uint256 tokenId = _tokenIdCounter.current();
+            _tokenIdCounter.increment();
+
+            _safeMint(recipients[i], tokenId);
+            _setTokenURI(tokenId, uris[i]);
+
+            emit NFTMinted(recipients[i], tokenId, uris[i]);
+        }
+    }
+
+    /**
+     * @dev Update mint price (only owner)
+     * @param newPrice New mint price in wei
+     */
+    function setMintPrice(uint256 newPrice) external onlyOwner {
+        uint256 oldPrice = mintPrice;
+        mintPrice = newPrice;
+        emit MintPriceUpdated(oldPrice, newPrice);
+    }
+
+    /**
+     * @dev Update max supply (only owner, can only increase)
+     * @param newMaxSupply New maximum supply
+     */
+    function setMaxSupply(uint256 newMaxSupply) external onlyOwner {
+        require(newMaxSupply > maxSupply, "Can only increase max supply");
+        uint256 oldMaxSupply = maxSupply;
+        maxSupply = newMaxSupply;
+        emit MaxSupplyUpdated(oldMaxSupply, newMaxSupply);
+    }
+
+    /**
+     * @dev Get total number of minted NFTs
+     */
+    function totalMinted() external view returns (uint256) {
+        return _tokenIdCounter.current();
+    }
+
+    /**
+     * @dev Withdraw contract balance (only owner)
+     */
+    function withdraw() external onlyOwner {
+        uint256 balance = address(this).balance;
+        require(balance > 0, "No balance to withdraw");
+        payable(owner()).transfer(balance);
+    }
+
+    /**
+     * @dev Required override for tokenURI
+     */
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    /**
+     * @dev Required override for supportsInterface
+     */
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+}

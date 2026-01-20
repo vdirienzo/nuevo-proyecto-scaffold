@@ -1,0 +1,79 @@
+/**
+ * seed.ts - Database seeding script
+ *
+ * Author: {{AUTHOR}}
+ *
+ * Run with: deno run --allow-net --allow-env scripts/seed.ts
+ */
+
+import { load } from "@std/dotenv";
+import { Pool } from "postgres";
+import { hashPassword } from "../src/utils/crypto.ts";
+
+await load({ export: true });
+
+const pool = new Pool(Deno.env.get("DATABASE_URL")!, 3, true);
+
+async function seed() {
+  console.log("🌱 Seeding database...\n");
+
+  const client = await pool.connect();
+
+  try {
+    // Create test users
+    console.log("Creating test users...");
+    const passwordHash = await hashPassword("password123");
+
+    const users = [
+      { email: "admin@example.com", name: "Admin User", passwordHash },
+      { email: "user@example.com", name: "Test User", passwordHash },
+    ];
+
+    for (const user of users) {
+      await client.queryObject(
+        `INSERT INTO users (email, name, password_hash)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (email) DO NOTHING`,
+        [user.email, user.name, user.passwordHash],
+      );
+      console.log(`  ✅ ${user.email}`);
+    }
+
+    // Get first user for items
+    const result = await client.queryObject<{ id: string }>(
+      "SELECT id FROM users LIMIT 1",
+    );
+    const userId = result.rows[0]?.id;
+
+    if (userId) {
+      // Create test items
+      console.log("\nCreating test items...");
+      const items = [
+        { name: "Item 1", description: "First test item", status: "active" },
+        { name: "Item 2", description: "Second test item", status: "active" },
+        { name: "Item 3", description: "Third test item", status: "inactive" },
+      ];
+
+      for (const item of items) {
+        await client.queryObject(
+          `INSERT INTO items (name, description, status, user_id)
+           VALUES ($1, $2, $3, $4)`,
+          [item.name, item.description, item.status, userId],
+        );
+        console.log(`  ✅ ${item.name}`);
+      }
+    }
+
+    console.log("\n✅ Seeding completed");
+  } catch (error) {
+    console.error("❌ Seeding failed:", error);
+    throw error;
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+if (import.meta.main) {
+  await seed();
+}

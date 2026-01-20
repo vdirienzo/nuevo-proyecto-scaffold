@@ -1,0 +1,249 @@
+/**
+ * Authentication middleware for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+import { jwtVerify, SignJWT } from "jose";
+import type { JWTPayload, User } from "../types";
+import { ResponseBuilder } from "../utils/response";
+
+/**
+ * JWT utilities
+ */
+export class JWTService {
+  private secret: Uint8Array;
+  private issuer: string;
+
+  constructor(secret: string, issuer = "{{PROJECT_NAME}}") {
+    this.secret = new TextEncoder().encode(secret);
+    this.issuer = issuer;
+  }
+
+  /**
+   * Create JWT token
+   */
+  async createToken(user: User, expiresIn = "7d"): Promise<string> {
+    const jwt = new SignJWT({
+      sub: user.id,
+      email: user.email,
+      role: user.role
+    })
+      .setProtectedHeader({ alg: "HS256" })
+      .setIssuedAt()
+      .setIssuer(this.issuer)
+      .setExpirationTime(expiresIn);
+
+    return await jwt.sign(this.secret);
+  }
+
+  /**
+   * Verify JWT token
+   */
+  async verifyToken(token: string): Promise<JWTPayload | null> {
+    try {
+      const { payload } = await jwtVerify(token, this.secret, {
+        issuer: this.issuer
+      });
+
+      return {
+        sub: payload.sub as string,
+        email: payload.email as string,
+        role: payload.role as string,
+        iat: payload.iat as number,
+        exp: payload.exp as number
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Decode token without verification (for debugging)
+   */
+  decodeToken(token: string): JWTPayload | null {
+    try {
+      const parts = token.split(".");
+      if (parts.length !== 3) return null;
+
+      const payload = JSON.parse(atob(parts[1] ?? ""));
+      return payload as JWTPayload;
+    } catch {
+      return null;
+    }
+  }
+}
+
+/**
+ * Extract token from Authorization header
+ */
+export function extractToken(authHeader: string | null): string | null {
+  if (!authHeader) return null;
+
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2 || parts[0] !== "Bearer") {
+    return null;
+  }
+
+  return parts[1] ?? null;
+}
+
+/**
+ * Authentication middleware
+ */
+export function authMiddleware(jwtService: JWTService) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const authHeader = c.req.header("Authorization");
+    const token = extractToken(authHeader);
+
+    if (!token) {
+      return ResponseBuilder.unauthorized("No token provided");
+    }
+
+    const payload = await jwtService.verifyToken(token);
+    if (!payload) {
+      return ResponseBuilder.unauthorized("Invalid token");
+    }
+
+    // Attach user info to context
+    c.set("user", {
+      id: payload.sub,
+      email: payload.email,
+      role: payload.role
+    });
+
+    await next();
+  };
+}
+
+/**
+ * Optional authentication middleware
+ */
+export function optionalAuthMiddleware(jwtService: JWTService) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const authHeader = c.req.header("Authorization");
+    const token = extractToken(authHeader);
+
+    if (token) {
+      const payload = await jwtService.verifyToken(token);
+      if (payload) {
+        c.set("user", {
+          id: payload.sub,
+          email: payload.email,
+          role: payload.role
+        });
+      }
+    }
+
+    await next();
+  };
+}
+
+/**
+ * Role-based access control middleware
+ */
+export function requireRole(...roles: string[]) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const user = c.get("user") as { role: string } | undefined;
+
+    if (!user) {
+      return ResponseBuilder.unauthorized("Not authenticated");
+    }
+
+    if (!roles.includes(user.role)) {
+      return ResponseBuilder.forbidden("Insufficient permissions");
+    }
+
+    await next();
+  };
+}
+
+/**
+ * API key authentication middleware
+ */
+export function apiKeyMiddleware(validApiKey: string) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const apiKey = c.req.header("X-API-Key");
+
+    if (!apiKey || apiKey !== validApiKey) {
+      return ResponseBuilder.unauthorized("Invalid API key");
+    }
+
+    await next();
+  };
+}
+
+/**
+ * Basic authentication middleware
+ */
+export function basicAuthMiddleware(validUsername: string, validPassword: string) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const authHeader = c.req.header("Authorization");
+
+    if (!authHeader || !authHeader.startsWith("Basic ")) {
+      return c.text("Unauthorized", 401, {
+        "WWW-Authenticate": 'Basic realm="{{PROJECT_NAME}}"'
+      });
+    }
+
+    try {
+      const credentials = atob(authHeader.slice(6));
+      const [username, password] = credentials.split(":");
+
+      if (username !== validUsername || password !== validPassword) {
+        return c.text("Unauthorized", 401, {
+          "WWW-Authenticate": 'Basic realm="{{PROJECT_NAME}}"'
+        });
+      }
+
+      await next();
+    } catch {
+      return c.text("Unauthorized", 401, {
+        "WWW-Authenticate": 'Basic realm="{{PROJECT_NAME}}"'
+      });
+    }
+  };
+}
+
+/**
+ * Webhook signature verification middleware
+ */
+export function webhookSignatureMiddleware(secret: string) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const signature = c.req.header("X-Signature");
+    if (!signature) {
+      return ResponseBuilder.unauthorized("No signature provided");
+    }
+
+    const body = await c.req.text();
+    const expectedSignature = await generateWebhookSignature(body, secret);
+
+    if (signature !== expectedSignature) {
+      return ResponseBuilder.unauthorized("Invalid signature");
+    }
+
+    await next();
+  };
+}
+
+/**
+ * Generate webhook signature
+ */
+async function generateWebhookSignature(payload: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const messageData = encoder.encode(payload);
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyData,
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, messageData);
+  const hashArray = Array.from(new Uint8Array(signature));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}

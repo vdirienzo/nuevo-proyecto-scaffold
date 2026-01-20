@@ -1,0 +1,49 @@
+/**
+ * useAuth Hook
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import {useDispatch, useSelector} from 'react-redux';
+import {RootState, AppDispatch} from '@store/index';
+import {login as loginAction, register as registerAction, logout as logoutAction} from '@store/authSlice';
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export const useAuth = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const {user, isLoading, error, isAuthenticated} = useSelector(
+    (state: RootState) => state.auth
+  );
+
+  const login = async (credentials: LoginCredentials) => {
+    await dispatch(loginAction(credentials)).unwrap();
+  };
+
+  const register = async (data: RegisterData) => {
+    await dispatch(registerAction(data)).unwrap();
+  };
+
+  const logout = async () => {
+    await dispatch(logoutAction()).unwrap();
+  };
+
+  return {
+    user,
+    isLoading,
+    error,
+    isAuthenticated,
+    login,
+    register,
+    logout,
+  };
+};

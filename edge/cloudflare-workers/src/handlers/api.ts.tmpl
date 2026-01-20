@@ -1,0 +1,250 @@
+/**
+ * API handlers for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+import { ResponseBuilder } from "../utils/response";
+import { validateBody, schemas } from "../utils/validation";
+import { D1Service, UserRepository } from "../services/d1-database";
+import type { Env, User } from "../types";
+
+/**
+ * Health check handler
+ */
+export async function healthHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  return ResponseBuilder.success({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    version: "1.0.0"
+  });
+}
+
+/**
+ * Get all users
+ */
+export async function getUsersHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  // Get pagination params
+  const page = parseInt(c.req.query("page") ?? "1");
+  const limit = parseInt(c.req.query("limit") ?? "20");
+  const offset = (page - 1) * limit;
+
+  try {
+    const [users, total] = await Promise.all([
+      userRepo.list({ limit, offset }),
+      userRepo.count()
+    ]);
+
+    return ResponseBuilder.success({
+      users,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to fetch users");
+  }
+}
+
+/**
+ * Get user by ID
+ */
+export async function getUserHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const id = c.req.param("id");
+  if (!id) {
+    return ResponseBuilder.error("User ID required", 400);
+  }
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    const user = await userRepo.findById(id);
+    if (!user) {
+      return ResponseBuilder.notFound("User not found");
+    }
+
+    return ResponseBuilder.success(user);
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to fetch user");
+  }
+}
+
+/**
+ * Create user
+ */
+export async function createUserHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const validation = await validateBody(c.req.raw, schemas.userCreate);
+
+  if (!validation.success) {
+    return ResponseBuilder.validationError(validation.errors);
+  }
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    // Check if user already exists
+    const existing = await userRepo.findByEmail(validation.data.email);
+    if (existing) {
+      return ResponseBuilder.error("User already exists", 409);
+    }
+
+    const user = await userRepo.create({
+      email: validation.data.email,
+      name: validation.data.name,
+      role: "user"
+    });
+
+    return ResponseBuilder.success(user, 201);
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to create user");
+  }
+}
+
+/**
+ * Update user
+ */
+export async function updateUserHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const id = c.req.param("id");
+  if (!id) {
+    return ResponseBuilder.error("User ID required", 400);
+  }
+
+  const validation = await validateBody(c.req.raw, schemas.userUpdate);
+
+  if (!validation.success) {
+    return ResponseBuilder.validationError(validation.errors);
+  }
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    const user = await userRepo.update(id, validation.data);
+    if (!user) {
+      return ResponseBuilder.notFound("User not found");
+    }
+
+    return ResponseBuilder.success(user);
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to update user");
+  }
+}
+
+/**
+ * Delete user
+ */
+export async function deleteUserHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const id = c.req.param("id");
+  if (!id) {
+    return ResponseBuilder.error("User ID required", 400);
+  }
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    const deleted = await userRepo.delete(id);
+    if (!deleted) {
+      return ResponseBuilder.notFound("User not found");
+    }
+
+    return ResponseBuilder.noContent();
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to delete user");
+  }
+}
+
+/**
+ * Search users
+ */
+export async function searchUsersHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const query = c.req.query("q");
+  if (!query) {
+    return ResponseBuilder.error("Search query required", 400);
+  }
+
+  const limit = parseInt(c.req.query("limit") ?? "20");
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    const users = await userRepo.search(query, limit);
+    return ResponseBuilder.success({ users, query });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to search users");
+  }
+}
+
+/**
+ * Get current user
+ */
+export async function getCurrentUserHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const user = c.get("user") as User | undefined;
+
+  if (!user) {
+    return ResponseBuilder.unauthorized("Not authenticated");
+  }
+
+  return ResponseBuilder.success(user);
+}
+
+/**
+ * Example: Upload file to R2
+ */
+export async function uploadFileHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const formData = await c.req.formData();
+  const file = formData.get("file") as File | null;
+
+  if (!file) {
+    return ResponseBuilder.error("No file provided", 400);
+  }
+
+  // Validate file
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  if (file.size > maxSize) {
+    return ResponseBuilder.error("File too large", 400);
+  }
+
+  try {
+    const key = `uploads/${crypto.randomUUID()}-${file.name}`;
+    await c.env.UPLOADS.put(key, await file.arrayBuffer(), {
+      httpMetadata: {
+        contentType: file.type
+      },
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: new Date().toISOString()
+      }
+    });
+
+    return ResponseBuilder.success({
+      key,
+      url: `/uploads/${key}`,
+      size: file.size,
+      type: file.type
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to upload file");
+  }
+}
+
+/**
+ * Example: Get analytics
+ */
+export async function analyticsHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  // This is a placeholder - actual implementation depends on your analytics setup
+  return ResponseBuilder.success({
+    message: "Analytics endpoint",
+    note: "Implement based on your Analytics Engine queries"
+  });
+}

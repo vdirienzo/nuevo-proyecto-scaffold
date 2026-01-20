@@ -1,0 +1,40 @@
+/**
+ * index.ts - Global type definitions
+ *
+ * Author: {{AUTHOR}}
+ */
+
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface Item {
+  id: string;
+  name: string;
+  description?: string;
+  status: "active" | "inactive";
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface PaginationParams {
+  page: number;
+  pageSize: number;
+}
+
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pages: number;
+}
+
+export type AppState = {
+  userId?: string;
+  email?: string;
+};

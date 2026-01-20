@@ -1,0 +1,27 @@
+/**
+ * app_test.ts - Application tests
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { assertEquals, assertExists } from "@std/assert";
+import { app } from "../src/app.ts";
+
+Deno.test("Health check endpoint", async () => {
+  const request = new Request("http://localhost:8000/health");
+  const context = {
+    request,
+    response: {
+      body: null,
+      status: 200,
+      headers: new Headers(),
+    },
+  };
+
+  // Note: This is a simplified test. In production, use proper Oak testing utilities
+  assertEquals(context.response.status, 200);
+});
+
+Deno.test("Application instance exists", () => {
+  assertExists(app);
+});

@@ -1,0 +1,119 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {Script, console2} from "forge-std/Script.sol";
+import {Token} from "../src/Token.sol";
+import {NFT} from "../src/NFT.sol";
+import {Staking} from "../src/Staking.sol";
+import {Governance} from "../src/Governance.sol";
+import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+
+/**
+ * @title Deploy Script
+ * @author {{AUTHOR}}
+ * @notice Foundry deployment script for all contracts
+ */
+contract DeployScript is Script {
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        address deployer = vm.addr(deployerPrivateKey);
+
+        console2.log("Deploying contracts with:", deployer);
+        console2.log("Balance:", deployer.balance);
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        // 1. Deploy Token
+        Token token = new Token(
+            "{{PROJECT_NAME}} Token",
+            "{{PROJECT_NAME}}",
+            1_000_000_000 * 1e18, // 1B max supply
+            100_000_000 * 1e18 // 100M initial supply
+        );
+        console2.log("Token deployed at:", address(token));
+
+        // 2. Deploy NFT
+        NFT nft = new NFT(
+            "{{PROJECT_NAME}} NFT",
+            "{{PROJECT_NAME}}NFT",
+            "ipfs://QmYourBaseURI/", // Update with actual IPFS hash
+            10000, // Max supply
+            0.01 ether // Mint price
+        );
+        console2.log("NFT deployed at:", address(nft));
+
+        // 3. Deploy Staking
+        Staking staking = new Staking(
+            address(token), // Staking token
+            address(token), // Reward token (same)
+            1e18 / 86400, // 1 token per day per staked token
+            100 * 1e18, // Min stake: 100 tokens
+            7 days // Lock period
+        );
+        console2.log("Staking deployed at:", address(staking));
+
+        // Transfer reward tokens to staking contract
+        token.transfer(address(staking), 10_000_000 * 1e18); // 10M for rewards
+
+        // 4. Deploy Timelock
+        address[] memory proposers = new address[](1);
+        address[] memory executors = new address[](1);
+        proposers[0] = address(0); // Will be set to governor
+        executors[0] = address(0); // Anyone can execute
+
+        TimelockController timelock = new TimelockController(
+            2 days, // Min delay
+            proposers,
+            executors,
+            deployer // Admin (should renounce after setup)
+        );
+        console2.log("Timelock deployed at:", address(timelock));
+
+        // 5. Deploy Governance
+        Governance governor = new Governance(
+            token,
+            timelock,
+            1, // 1 block voting delay
+            50400, // ~7 days voting period (assuming 12s blocks)
+            1000 * 1e18, // 1000 tokens to propose
+            4 // 4% quorum
+        );
+        console2.log("Governor deployed at:", address(governor));
+
+        // Grant proposer role to governor
+        timelock.grantRole(timelock.PROPOSER_ROLE(), address(governor));
+        timelock.grantRole(timelock.CANCELLER_ROLE(), address(governor));
+
+        vm.stopBroadcast();
+
+        // Log deployment info
+        console2.log("\n=== Deployment Summary ===");
+        console2.log("Token:", address(token));
+        console2.log("NFT:", address(nft));
+        console2.log("Staking:", address(staking));
+        console2.log("Timelock:", address(timelock));
+        console2.log("Governor:", address(governor));
+        console2.log("=========================\n");
+
+        // Save to file
+        string memory deploymentInfo = string.concat(
+            "TOKEN_CONTRACT_ADDRESS=",
+            vm.toString(address(token)),
+            "\n",
+            "NFT_CONTRACT_ADDRESS=",
+            vm.toString(address(nft)),
+            "\n",
+            "STAKING_CONTRACT_ADDRESS=",
+            vm.toString(address(staking)),
+            "\n",
+            "GOVERNANCE_CONTRACT_ADDRESS=",
+            vm.toString(address(governor)),
+            "\n",
+            "TIMELOCK_CONTRACT_ADDRESS=",
+            vm.toString(address(timelock))
+        );
+
+        vm.writeFile(".env.deployed", deploymentInfo);
+        console2.log("Deployment addresses saved to .env.deployed");
+    }
+}

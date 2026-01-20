@@ -1,0 +1,17 @@
+/**
+ * _middleware.ts - Fresh middleware
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { MiddlewareHandlerContext } from "fresh/server.ts";
+
+export async function handler(req: Request, ctx: MiddlewareHandlerContext) {
+  // Add custom headers
+  const resp = await ctx.next();
+  resp.headers.set("X-Powered-By", "{{PROJECT_NAME}}");
+  resp.headers.set("X-Frame-Options", "DENY");
+  resp.headers.set("X-Content-Type-Options", "nosniff");
+
+  return resp;
+}

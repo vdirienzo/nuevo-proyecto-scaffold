@@ -1,0 +1,63 @@
+class ApiException implements Exception {
+  final String message;
+  final int? statusCode;
+  final dynamic data;
+
+  ApiException({
+    required this.message,
+    this.statusCode,
+    this.data,
+  });
+
+  @override
+  String toString() => 'ApiException: $message (Status: $statusCode)';
+}
+
+class NetworkException extends ApiException {
+  NetworkException({String? message})
+      : super(
+          message: message ?? 'Network connection failed',
+          statusCode: null,
+        );
+}
+
+class UnauthorizedException extends ApiException {
+  UnauthorizedException({String? message})
+      : super(
+          message: message ?? 'Unauthorized access',
+          statusCode: 401,
+        );
+}
+
+class ForbiddenException extends ApiException {
+  ForbiddenException({String? message})
+      : super(
+          message: message ?? 'Access forbidden',
+          statusCode: 403,
+        );
+}
+
+class NotFoundException extends ApiException {
+  NotFoundException({String? message})
+      : super(
+          message: message ?? 'Resource not found',
+          statusCode: 404,
+        );
+}
+
+class ValidationException extends ApiException {
+  ValidationException({String? message, dynamic data})
+      : super(
+          message: message ?? 'Validation failed',
+          statusCode: 422,
+          data: data,
+        );
+}
+
+class ServerException extends ApiException {
+  ServerException({String? message})
+      : super(
+          message: message ?? 'Internal server error',
+          statusCode: 500,
+        );
+}

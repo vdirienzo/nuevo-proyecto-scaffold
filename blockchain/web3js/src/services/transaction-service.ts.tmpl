@@ -1,0 +1,366 @@
+/**
+ * Transaction Service for {{PROJECT_NAME}}
+ * Manages transaction operations and tracking
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { TransactionReceipt, Transaction } from "web3";
+import { web3Provider } from "./web3-provider";
+
+export interface TransactionDetails {
+  hash: string;
+  from: string;
+  to: string | null;
+  value: string;
+  gasPrice: string;
+  gasUsed?: string;
+  blockNumber?: number;
+  confirmations?: number;
+  status?: boolean;
+  timestamp?: number;
+}
+
+export interface GasEstimation {
+  gasLimit: bigint;
+  gasPrice: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  totalCost: bigint;
+  totalCostFormatted: string;
+}
+
+export class TransactionService {
+  /**
+   * Get transaction by hash
+   */
+  async getTransaction(hash: string): Promise<Transaction | null> {
+    const web3 = web3Provider.getWeb3();
+    return await web3.eth.getTransaction(hash);
+  }
+
+  /**
+   * Get transaction receipt
+   */
+  async getTransactionReceipt(hash: string): Promise<TransactionReceipt | null> {
+    const web3 = web3Provider.getWeb3();
+    return await web3.eth.getTransactionReceipt(hash);
+  }
+
+  /**
+   * Get transaction details
+   */
+  async getTransactionDetails(hash: string): Promise<TransactionDetails> {
+    const web3 = web3Provider.getWeb3();
+
+    const [tx, receipt] = await Promise.all([
+      this.getTransaction(hash),
+      this.getTransactionReceipt(hash),
+    ]);
+
+    if (!tx) {
+      throw new Error(`Transaction ${hash} not found`);
+    }
+
+    const currentBlock = await web3.eth.getBlockNumber();
+    const confirmations = receipt?.blockNumber
+      ? Number(currentBlock) - Number(receipt.blockNumber)
+      : 0;
+
+    let timestamp: number | undefined;
+    if (receipt?.blockNumber) {
+      const block = await web3.eth.getBlock(receipt.blockNumber);
+      timestamp = Number(block.timestamp);
+    }
+
+    return {
+      hash: tx.hash as string,
+      from: tx.from as string,
+      to: tx.to as string | null,
+      value: tx.value?.toString() || "0",
+      gasPrice: tx.gasPrice?.toString() || "0",
+      gasUsed: receipt?.gasUsed?.toString(),
+      blockNumber: receipt?.blockNumber ? Number(receipt.blockNumber) : undefined,
+      confirmations,
+      status: receipt?.status ? true : false,
+      timestamp,
+    };
+  }
+
+  /**
+   * Wait for transaction confirmation
+   */
+  async waitForTransaction(
+    hash: string,
+    confirmations: number = 1,
+    timeout: number = 120000
+  ): Promise<TransactionReceipt> {
+    const web3 = web3Provider.getWeb3();
+    const startTime = Date.now();
+
+    while (true) {
+      const receipt = await web3.eth.getTransactionReceipt(hash);
+
+      if (receipt) {
+        const currentBlock = await web3.eth.getBlockNumber();
+        const txConfirmations = Number(currentBlock) - Number(receipt.blockNumber);
+
+        if (txConfirmations >= confirmations) {
+          return receipt;
+        }
+      }
+
+      if (Date.now() - startTime > timeout) {
+        throw new Error(`Transaction ${hash} not confirmed within ${timeout}ms`);
+      }
+
+      // Wait 2 seconds before checking again
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+
+  /**
+   * Estimate gas for a transaction
+   */
+  async estimateGas(transaction: any): Promise<GasEstimation> {
+    const web3 = web3Provider.getWeb3();
+
+    const gasLimit = await web3.eth.estimateGas(transaction);
+    const gasPrice = await web3.eth.getGasPrice();
+
+    const totalCost = gasLimit * gasPrice;
+    const totalCostFormatted = web3.utils.fromWei(totalCost, "ether");
+
+    const estimation: GasEstimation = {
+      gasLimit,
+      gasPrice,
+      totalCost,
+      totalCostFormatted,
+    };
+
+    // Try to get EIP-1559 gas prices
+    try {
+      const block = await web3.eth.getBlock("latest");
+      if (block.baseFeePerGas) {
+        const maxPriorityFeePerGas = await web3.eth.getMaxPriorityFeePerGas();
+        const maxFeePerGas = block.baseFeePerGas * 2n + maxPriorityFeePerGas;
+
+        estimation.maxFeePerGas = maxFeePerGas;
+        estimation.maxPriorityFeePerGas = maxPriorityFeePerGas;
+      }
+    } catch (error) {
+      // EIP-1559 not supported, use legacy gas price
+    }
+
+    return estimation;
+  }
+
+  /**
+   * Send native currency (ETH/MATIC/BNB)
+   */
+  async sendNative(
+    from: string,
+    to: string,
+    amount: string,
+    gasLimit?: bigint
+  ): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+
+    const transaction: any = {
+      from,
+      to,
+      value: amount,
+    };
+
+    if (gasLimit) {
+      transaction.gas = gasLimit;
+    }
+
+    const receipt = await web3.eth.sendTransaction(transaction);
+    return receipt.transactionHash as string;
+  }
+
+  /**
+   * Send native currency with formatted amount (in ETH units)
+   */
+  async sendNativeFormatted(
+    from: string,
+    to: string,
+    amount: string,
+    gasLimit?: bigint
+  ): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+    const amountWei = web3.utils.toWei(amount, "ether");
+    return this.sendNative(from, to, amountWei, gasLimit);
+  }
+
+  /**
+   * Check if transaction is pending
+   */
+  async isPending(hash: string): Promise<boolean> {
+    const receipt = await this.getTransactionReceipt(hash);
+    return receipt === null;
+  }
+
+  /**
+   * Check if transaction was successful
+   */
+  async isSuccessful(hash: string): Promise<boolean> {
+    const receipt = await this.getTransactionReceipt(hash);
+    return receipt?.status === true;
+  }
+
+  /**
+   * Get current gas price
+   */
+  async getGasPrice(): Promise<bigint> {
+    const web3 = web3Provider.getWeb3();
+    return await web3.eth.getGasPrice();
+  }
+
+  /**
+   * Get gas price formatted in Gwei
+   */
+  async getGasPriceGwei(): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+    const gasPrice = await this.getGasPrice();
+    return web3.utils.fromWei(gasPrice, "gwei");
+  }
+
+  /**
+   * Get EIP-1559 gas fees
+   */
+  async getEIP1559GasFees(): Promise<{
+    baseFee: bigint;
+    maxPriorityFee: bigint;
+    maxFee: bigint;
+  } | null> {
+    try {
+      const web3 = web3Provider.getWeb3();
+      const block = await web3.eth.getBlock("latest");
+
+      if (!block.baseFeePerGas) {
+        return null; // EIP-1559 not supported
+      }
+
+      const maxPriorityFee = await web3.eth.getMaxPriorityFeePerGas();
+      const maxFee = block.baseFeePerGas * 2n + maxPriorityFee;
+
+      return {
+        baseFee: block.baseFeePerGas,
+        maxPriorityFee,
+        maxFee,
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /**
+   * Cancel or speed up a transaction (replace with higher gas)
+   */
+  async replaceTransaction(
+    originalTxHash: string,
+    from: string,
+    newGasPrice: bigint,
+    cancel: boolean = false
+  ): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+    const originalTx = await this.getTransaction(originalTxHash);
+
+    if (!originalTx) {
+      throw new Error("Original transaction not found");
+    }
+
+    const nonce = originalTx.nonce;
+
+    const newTx: any = {
+      from,
+      nonce,
+      gasPrice: newGasPrice,
+    };
+
+    if (cancel) {
+      // Send 0 ETH to self to cancel
+      newTx.to = from;
+      newTx.value = "0";
+    } else {
+      // Speed up: copy original transaction details
+      newTx.to = originalTx.to;
+      newTx.value = originalTx.value;
+      newTx.data = originalTx.data;
+    }
+
+    const receipt = await web3.eth.sendTransaction(newTx);
+    return receipt.transactionHash as string;
+  }
+
+  /**
+   * Get transaction history for an address
+   */
+  async getTransactionHistory(
+    address: string,
+    startBlock: number,
+    endBlock: number | "latest" = "latest"
+  ): Promise<TransactionDetails[]> {
+    const web3 = web3Provider.getWeb3();
+    const transactions: TransactionDetails[] = [];
+
+    const start = startBlock;
+    const end = endBlock === "latest" ? Number(await web3.eth.getBlockNumber()) : endBlock;
+
+    for (let blockNumber = start; blockNumber <= end; blockNumber++) {
+      const block = await web3.eth.getBlock(blockNumber, true);
+
+      if (block && block.transactions) {
+        for (const tx of block.transactions) {
+          const transaction = tx as Transaction;
+          if (
+            transaction.from?.toLowerCase() === address.toLowerCase() ||
+            transaction.to?.toLowerCase() === address.toLowerCase()
+          ) {
+            const details = await this.getTransactionDetails(transaction.hash as string);
+            transactions.push(details);
+          }
+        }
+      }
+    }
+
+    return transactions;
+  }
+
+  /**
+   * Decode transaction input data
+   */
+  decodeInput(input: string, abi: any[]): any {
+    const web3 = web3Provider.getWeb3();
+
+    // Remove 0x prefix and get method signature
+    const methodSignature = input.slice(0, 10);
+
+    // Find matching method in ABI
+    const method = abi.find((item) => {
+      if (item.type !== "function") return false;
+      const signature = web3.eth.abi.encodeFunctionSignature(item);
+      return signature === methodSignature;
+    });
+
+    if (!method) {
+      throw new Error("Method not found in ABI");
+    }
+
+    // Decode parameters
+    const params = web3.eth.abi.decodeParameters(
+      method.inputs || [],
+      "0x" + input.slice(10)
+    );
+
+    return {
+      method: method.name,
+      params,
+    };
+  }
+}
+
+// Export singleton instance
+export const transactionService = new TransactionService();

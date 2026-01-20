@@ -1,0 +1,183 @@
+/**
+ * @fileoverview Base contract service
+ * @author {{AUTHOR}}
+ */
+
+import { ethers, Contract, InterfaceAbi, ContractTransactionResponse } from 'ethers';
+import { getProvider, getSigner } from '../providers/ethers-provider';
+
+/**
+ * Transaction options
+ */
+export interface TxOptions {
+  gasLimit?: bigint;
+  gasPrice?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  value?: bigint;
+}
+
+/**
+ * Contract service base class
+ */
+export class ContractService {
+  protected contract: Contract;
+  protected chainId: number;
+
+  constructor(address: string, abi: InterfaceAbi, chainId: number) {
+    this.chainId = chainId;
+    const provider = getProvider(chainId);
+    this.contract = new Contract(address, abi, provider);
+  }
+
+  /**
+   * Get contract with signer for write operations
+   */
+  protected async getSignedContract(): Promise<Contract> {
+    const signer = await getSigner();
+    return this.contract.connect(signer);
+  }
+
+  /**
+   * Execute read-only contract call
+   */
+  protected async call<T>(method: string, ...args: unknown[]): Promise<T> {
+    try {
+      return await this.contract[method](...args);
+    } catch (error) {
+      throw this.handleError(error, `Failed to call ${method}`);
+    }
+  }
+
+  /**
+   * Execute write contract transaction
+   */
+  protected async send(
+    method: string,
+    args: unknown[],
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    try {
+      const signedContract = await this.getSignedContract();
+      const tx = await signedContract[method](...args, options || {});
+      return tx;
+    } catch (error) {
+      throw this.handleError(error, `Failed to send transaction ${method}`);
+    }
+  }
+
+  /**
+   * Wait for transaction confirmation
+   */
+  async waitForTransaction(
+    tx: ContractTransactionResponse,
+    confirmations: number = 1
+  ): Promise<ethers.ContractTransactionReceipt | null> {
+    try {
+      return await tx.wait(confirmations);
+    } catch (error) {
+      throw this.handleError(error, 'Transaction failed');
+    }
+  }
+
+  /**
+   * Estimate gas for transaction
+   */
+  async estimateGas(method: string, ...args: unknown[]): Promise<bigint> {
+    try {
+      const signedContract = await this.getSignedContract();
+      return await signedContract[method].estimateGas(...args);
+    } catch (error) {
+      throw this.handleError(error, `Failed to estimate gas for ${method}`);
+    }
+  }
+
+  /**
+   * Get contract address
+   */
+  get address(): string {
+    return this.contract.target as string;
+  }
+
+  /**
+   * Listen to contract events
+   */
+  on(eventName: string, callback: (...args: unknown[]) => void): void {
+    this.contract.on(eventName, callback);
+  }
+
+  /**
+   * Remove event listener
+   */
+  off(eventName: string, callback: (...args: unknown[]) => void): void {
+    this.contract.off(eventName, callback);
+  }
+
+  /**
+   * Remove all listeners
+   */
+  removeAllListeners(eventName?: string): void {
+    this.contract.removeAllListeners(eventName);
+  }
+
+  /**
+   * Query historical events
+   */
+  async queryEvents<T>(
+    eventName: string,
+    fromBlock: number | string = 0,
+    toBlock: number | string = 'latest'
+  ): Promise<T[]> {
+    try {
+      const filter = this.contract.filters[eventName]();
+      const events = await this.contract.queryFilter(filter, fromBlock, toBlock);
+      return events as unknown as T[];
+    } catch (error) {
+      throw this.handleError(error, `Failed to query events ${eventName}`);
+    }
+  }
+
+  /**
+   * Error handler
+   */
+  protected handleError(error: unknown, context: string): Error {
+    if (error instanceof Error) {
+      // Parse contract revert reason
+      const match = error.message.match(/reason="([^"]+)"/);
+      if (match) {
+        return new Error(`${context}: ${match[1]}`);
+      }
+      return new Error(`${context}: ${error.message}`);
+    }
+    return new Error(`${context}: Unknown error`);
+  }
+
+  /**
+   * Parse transaction logs
+   */
+  protected parseLogs(receipt: ethers.ContractTransactionReceipt, eventName: string): unknown[] {
+    return receipt.logs
+      .map((log) => {
+        try {
+          return this.contract.interface.parseLog({
+            topics: [...log.topics],
+            data: log.data,
+          });
+        } catch {
+          return null;
+        }
+      })
+      .filter((parsed) => parsed && parsed.name === eventName);
+  }
+}
+
+/**
+ * Create contract instance
+ */
+export function createContract(
+  address: string,
+  abi: InterfaceAbi,
+  chainId: number
+): ContractService {
+  return new ContractService(address, abi, chainId);
+}

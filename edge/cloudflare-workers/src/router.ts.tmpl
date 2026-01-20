@@ -1,0 +1,178 @@
+/**
+ * Router configuration for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { Hono } from "hono";
+import type { Env } from "./types";
+
+// Middleware
+import { createEnvCorsMiddleware } from "./middleware/cors";
+import { authMiddleware, requireRole, JWTService } from "./middleware/auth";
+import { rateLimitMiddleware, createRateLimiter } from "./middleware/rate-limit";
+import { loggerMiddleware, createLogger, requestIdMiddleware } from "./middleware/logger";
+
+// Handlers
+import {
+  healthHandler,
+  getUsersHandler,
+  getUserHandler,
+  createUserHandler,
+  updateUserHandler,
+  deleteUserHandler,
+  searchUsersHandler,
+  getCurrentUserHandler,
+  uploadFileHandler,
+  analyticsHandler
+} from "./handlers/api";
+
+import {
+  registerHandler,
+  loginHandler,
+  logoutHandler,
+  refreshTokenHandler,
+  requestPasswordResetHandler,
+  resetPasswordHandler,
+  verifyEmailHandler,
+  changePasswordHandler
+} from "./handlers/auth";
+
+import {
+  serveStaticHandler,
+  serveImageHandler,
+  listDirectoryHandler,
+  generateDownloadLinkHandler,
+  downloadWithTokenHandler,
+  proxyAssetHandler
+} from "./handlers/static";
+
+import {
+  websocketHandler,
+  websocketWithDOHandler
+} from "./handlers/websocket";
+
+/**
+ * Create and configure router
+ */
+export function createRouter(): Hono<{ Bindings: Env }> {
+  const app = new Hono<{ Bindings: Env }>();
+
+  // Global middleware
+  app.use("*", async (c, next) => {
+    const logger = createLogger(c.env);
+    c.set("logger", logger);
+    return loggerMiddleware(logger)(c, next);
+  });
+
+  app.use("*", requestIdMiddleware());
+  app.use("*", (c, next) => createEnvCorsMiddleware(c.env)(c, next));
+
+  // Health check (no auth required)
+  app.get("/health", healthHandler);
+
+  // Authentication routes (no auth required)
+  app.post("/auth/register", registerHandler);
+  app.post("/auth/login", loginHandler);
+  app.post("/auth/logout", logoutHandler);
+  app.post("/auth/password/request-reset", requestPasswordResetHandler);
+  app.post("/auth/password/reset", resetPasswordHandler);
+  app.get("/auth/verify", verifyEmailHandler);
+
+  // Protected authentication routes
+  app.use("/auth/me", async (c, next) => {
+    const jwtService = new JWTService(c.env.JWT_SECRET);
+    return authMiddleware(jwtService)(c, next);
+  });
+  app.get("/auth/me", getCurrentUserHandler);
+
+  app.use("/auth/refresh", async (c, next) => {
+    const jwtService = new JWTService(c.env.JWT_SECRET);
+    return authMiddleware(jwtService)(c, next);
+  });
+  app.post("/auth/refresh", refreshTokenHandler);
+
+  app.use("/auth/password/change", async (c, next) => {
+    const jwtService = new JWTService(c.env.JWT_SECRET);
+    return authMiddleware(jwtService)(c, next);
+  });
+  app.post("/auth/password/change", changePasswordHandler);
+
+  // API routes with rate limiting and auth
+  const apiRouter = new Hono<{ Bindings: Env }>();
+
+  // Rate limiting for API routes
+  apiRouter.use("*", async (c, next) => {
+    const rateLimiter = createRateLimiter(c.env.RATE_LIMIT, c.env);
+    return rateLimitMiddleware(rateLimiter)(c, next);
+  });
+
+  // JWT authentication for API routes
+  apiRouter.use("*", async (c, next) => {
+    const jwtService = new JWTService(c.env.JWT_SECRET);
+    return authMiddleware(jwtService)(c, next);
+  });
+
+  // User routes
+  apiRouter.get("/users", getUsersHandler);
+  apiRouter.get("/users/search", searchUsersHandler);
+  apiRouter.get("/users/:id", getUserHandler);
+  apiRouter.post("/users", createUserHandler);
+  apiRouter.put("/users/:id", updateUserHandler);
+
+  // Admin only routes
+  apiRouter.use("/users/:id", async (c, next) => {
+    if (c.req.method === "DELETE") {
+      return requireRole("admin")(c, next);
+    }
+    return next();
+  });
+  apiRouter.delete("/users/:id", deleteUserHandler);
+
+  // File upload
+  apiRouter.post("/upload", uploadFileHandler);
+
+  // Analytics
+  apiRouter.get("/analytics", analyticsHandler);
+
+  app.route("/api/v1", apiRouter);
+
+  // Static assets routes (no auth required)
+  app.get("/static/:path{.+}", serveStaticHandler);
+  app.get("/images/:path{.+}", serveImageHandler);
+  app.get("/assets/list", listDirectoryHandler);
+  app.get("/assets/download-link", generateDownloadLinkHandler);
+  app.get("/download/:token", downloadWithTokenHandler);
+  app.get("/proxy", proxyAssetHandler);
+
+  // WebSocket routes
+  app.get("/ws", websocketHandler);
+  app.get("/ws/room", websocketWithDOHandler);
+
+  // 404 handler
+  app.notFound((c) => {
+    return c.json(
+      {
+        success: false,
+        error: "Not Found",
+        path: c.req.path
+      },
+      404
+    );
+  });
+
+  // Error handler
+  app.onError((err, c) => {
+    console.error("Error:", err);
+    return c.json(
+      {
+        success: false,
+        error: "Internal Server Error",
+        message: err.message
+      },
+      500
+    );
+  });
+
+  return app;
+}

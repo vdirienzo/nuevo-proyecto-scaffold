@@ -1,0 +1,22 @@
+/**
+ * Button Component
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React from 'react';
+import {Button as PaperButton, ButtonProps} from 'react-native-paper';
+
+interface CustomButtonProps extends ButtonProps {
+  children: string;
+}
+
+const Button: React.FC<CustomButtonProps> = ({children, ...props}) => {
+  return (
+    <PaperButton mode="contained" {...props}>
+      {children}
+    </PaperButton>
+  );
+};
+
+export default Button;

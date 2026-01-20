@@ -1,0 +1,185 @@
+/**
+ * WasmProvider.tsx - React Context Provider for WASM
+ *
+ * Provides WASM module to entire React application via Context API.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useWasm, UseWasmResult, WasmModule } from './useWasm';
+
+interface WasmContextValue extends UseWasmResult {
+  isReady: boolean;
+}
+
+const WasmContext = createContext<WasmContextValue | undefined>(undefined);
+
+interface WasmProviderProps {
+  children: ReactNode;
+  wasmPath?: string;
+  fallback?: ReactNode;
+  errorFallback?: (error: Error) => ReactNode;
+}
+
+/**
+ * Provider component that loads WASM and makes it available to children
+ *
+ * @example
+ * ```tsx
+ * function App() {
+ *   return (
+ *     <WasmProvider fallback={<div>Loading WASM...</div>}>
+ *       <MyApp />
+ *     </WasmProvider>
+ *   );
+ * }
+ * ```
+ */
+export function WasmProvider({
+  children,
+  wasmPath,
+  fallback = <div>Loading WebAssembly module...</div>,
+  errorFallback,
+}: WasmProviderProps) {
+  const wasmState = useWasm(wasmPath);
+  const { loading, error, wasm } = wasmState;
+
+  if (loading) {
+    return <>{fallback}</>;
+  }
+
+  if (error) {
+    if (errorFallback) {
+      return <>{errorFallback(error)}</>;
+    }
+    return (
+      <div style={{ padding: '20px', color: 'red' }}>
+        <h3>WASM Loading Error</h3>
+        <p>{error.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <WasmContext.Provider value={{ ...wasmState, isReady: !!wasm }}>
+      {children}
+    </WasmContext.Provider>
+  );
+}
+
+/**
+ * Hook to access WASM context
+ *
+ * @throws Error if used outside WasmProvider
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { wasm, isReady } = useWasmContext();
+ *
+ *   const handleClick = () => {
+ *     if (wasm) {
+ *       const hash = wasm.sha256_hex(data);
+ *       console.log(hash);
+ *     }
+ *   };
+ *
+ *   return <button onClick={handleClick}>Hash</button>;
+ * }
+ * ```
+ */
+export function useWasmContext(): WasmContextValue {
+  const context = useContext(WasmContext);
+
+  if (context === undefined) {
+    throw new Error('useWasmContext must be used within WasmProvider');
+  }
+
+  return context;
+}
+
+/**
+ * HOC to inject WASM into component props
+ */
+export function withWasm<P extends { wasm?: WasmModule }>(
+  Component: React.ComponentType<P>
+) {
+  return function WasmComponent(props: Omit<P, 'wasm'>) {
+    const { wasm } = useWasmContext();
+
+    return <Component {...(props as P)} wasm={wasm || undefined} />;
+  };
+}
+
+/**
+ * Example usage component
+ */
+export function WasmExample() {
+  const { wasm, isReady } = useWasmContext();
+  const [result, setResult] = React.useState<string>('');
+
+  const handleHash = () => {
+    if (!wasm) return;
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode('Hello WASM!');
+    const hash = wasm.sha256_hex(data);
+    setResult(hash);
+  };
+
+  const handleValidateEmail = () => {
+    if (!wasm) return;
+
+    const email = 'test@example.com';
+    const isValid = wasm.validate_email(email);
+    setResult(`Email ${email} is ${isValid ? 'valid' : 'invalid'}`);
+  };
+
+  if (!isReady) {
+    return <div>WASM not ready</div>;
+  }
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h2>WASM Example</h2>
+
+      <div style={{ marginBottom: '20px' }}>
+        <button
+          onClick={handleHash}
+          style={{
+            padding: '10px 20px',
+            marginRight: '10px',
+            cursor: 'pointer',
+          }}
+        >
+          Calculate Hash
+        </button>
+
+        <button
+          onClick={handleValidateEmail}
+          style={{
+            padding: '10px 20px',
+            cursor: 'pointer',
+          }}
+        >
+          Validate Email
+        </button>
+      </div>
+
+      {result && (
+        <div
+          style={{
+            padding: '15px',
+            background: '#f0f0f0',
+            borderRadius: '4px',
+            fontFamily: 'monospace',
+            wordBreak: 'break-all',
+          }}
+        >
+          {result}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,229 @@
+/**
+ * useWasm.ts - React Hook for WASM Integration
+ *
+ * Custom React hook for loading and using WebAssembly modules.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+
+export interface WasmModule {
+  // Add your WASM function signatures here
+  sha256_hex: (data: Uint8Array) => string;
+  validate_email: (email: string) => boolean;
+  password_strength: (password: string) => number;
+  grayscale: (imageData: Uint8Array) => Uint8Array;
+  blur_image: (imageData: Uint8Array, sigma: number) => Uint8Array;
+  rotate_image: (imageData: Uint8Array, degrees: number) => Uint8Array;
+  // ... add more functions as needed
+}
+
+export interface UseWasmResult {
+  wasm: WasmModule | null;
+  loading: boolean;
+  error: Error | null;
+}
+
+/**
+ * Hook for loading WASM module
+ *
+ * @param wasmPath - Path to the WASM file or module
+ * @returns Object with wasm module, loading state, and error
+ *
+ * @example
+ * ```tsx
+ * function MyComponent() {
+ *   const { wasm, loading, error } = useWasm();
+ *
+ *   if (loading) return <div>Loading WASM...</div>;
+ *   if (error) return <div>Error: {error.message}</div>;
+ *
+ *   const handleHash = () => {
+ *     const data = new TextEncoder().encode('hello');
+ *     const hash = wasm.sha256_hex(data);
+ *     console.log(hash);
+ *   };
+ *
+ *   return <button onClick={handleHash}>Hash Text</button>;
+ * }
+ * ```
+ */
+export function useWasm(wasmPath?: string): UseWasmResult {
+  const [wasm, setWasm] = useState<WasmModule | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadWasm() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Dynamic import based on path or default
+        let wasmModule: any;
+
+        if (wasmPath) {
+          // Load from specific path
+          const response = await fetch(wasmPath);
+          const buffer = await response.arrayBuffer();
+          const module = await WebAssembly.instantiate(buffer);
+          wasmModule = module.instance.exports;
+        } else {
+          // Load from default package (adjust path as needed)
+          wasmModule = await import('{{PROJECT_NAME}}-wasm');
+          await wasmModule.default(); // Initialize if needed
+        }
+
+        if (mounted) {
+          setWasm(wasmModule as WasmModule);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err : new Error('Failed to load WASM'));
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadWasm();
+
+    return () => {
+      mounted = false;
+    };
+  }, [wasmPath]);
+
+  return { wasm, loading, error };
+}
+
+/**
+ * Hook for WASM hash operations
+ */
+export function useWasmHash() {
+  const { wasm, loading, error } = useWasm();
+
+  const hash = useCallback(
+    (text: string): string | null => {
+      if (!wasm) return null;
+
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      return wasm.sha256_hex(data);
+    },
+    [wasm]
+  );
+
+  return { hash, loading, error };
+}
+
+/**
+ * Hook for WASM validation operations
+ */
+export function useWasmValidation() {
+  const { wasm, loading, error } = useWasm();
+
+  const validateEmail = useCallback(
+    (email: string): boolean => {
+      if (!wasm) return false;
+      return wasm.validate_email(email);
+    },
+    [wasm]
+  );
+
+  const checkPasswordStrength = useCallback(
+    (password: string): number => {
+      if (!wasm) return 0;
+      return wasm.password_strength(password);
+    },
+    [wasm]
+  );
+
+  return {
+    validateEmail,
+    checkPasswordStrength,
+    loading,
+    error,
+  };
+}
+
+/**
+ * Hook for WASM image processing
+ */
+export function useWasmImage() {
+  const { wasm, loading, error } = useWasm();
+
+  const processImage = useCallback(
+    async (
+      file: File,
+      operation: 'grayscale' | 'blur' | 'rotate',
+      params?: { sigma?: number; degrees?: number }
+    ): Promise<Blob | null> => {
+      if (!wasm) return null;
+
+      try {
+        // Read file as ArrayBuffer
+        const buffer = await file.arrayBuffer();
+        const imageData = new Uint8Array(buffer);
+
+        // Process based on operation
+        let processed: Uint8Array;
+
+        switch (operation) {
+          case 'grayscale':
+            processed = wasm.grayscale(imageData);
+            break;
+          case 'blur':
+            processed = wasm.blur_image(imageData, params?.sigma || 3.0);
+            break;
+          case 'rotate':
+            processed = wasm.rotate_image(imageData, params?.degrees || 90);
+            break;
+          default:
+            throw new Error(`Unknown operation: ${operation}`);
+        }
+
+        // Convert to Blob
+        return new Blob([processed], { type: 'image/png' });
+      } catch (err) {
+        console.error('Image processing error:', err);
+        return null;
+      }
+    },
+    [wasm]
+  );
+
+  return { processImage, loading, error };
+}
+
+/**
+ * Hook for performance measurement
+ */
+export function useWasmPerformance() {
+  const { wasm, loading } = useWasm();
+  const [results, setResults] = useState<Record<string, number>>({});
+
+  const benchmark = useCallback(
+    (name: string, fn: () => void, iterations: number = 10000) => {
+      if (!wasm) return;
+
+      const start = performance.now();
+      for (let i = 0; i < iterations; i++) {
+        fn();
+      }
+      const duration = performance.now() - start;
+
+      setResults((prev) => ({
+        ...prev,
+        [name]: duration,
+      }));
+    },
+    [wasm]
+  );
+
+  return { benchmark, results, loading };
+}

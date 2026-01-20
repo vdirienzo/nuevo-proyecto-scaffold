@@ -1,0 +1,233 @@
+/**
+ * Web3 Provider Service for {{PROJECT_NAME}}
+ * Manages Web3 connection and provider initialization
+ *
+ * @author {{AUTHOR}}
+ */
+
+import Web3 from "web3";
+import { getNetworkConfig, isNetworkSupported } from "../config/networks";
+
+export class Web3ProviderService {
+  private static instance: Web3ProviderService;
+  private web3: Web3 | null = null;
+  private provider: any = null;
+
+  private constructor() {}
+
+  static getInstance(): Web3ProviderService {
+    if (!Web3ProviderService.instance) {
+      Web3ProviderService.instance = new Web3ProviderService();
+    }
+    return Web3ProviderService.instance;
+  }
+
+  /**
+   * Initialize Web3 with a provider
+   */
+  async initialize(provider: any): Promise<Web3> {
+    this.provider = provider;
+    this.web3 = new Web3(provider);
+    return this.web3;
+  }
+
+  /**
+   * Initialize Web3 with MetaMask
+   */
+  async initializeWithMetaMask(): Promise<Web3> {
+    if (typeof window === "undefined" || !window.ethereum) {
+      throw new Error("MetaMask not detected. Please install MetaMask.");
+    }
+
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    return this.initialize(window.ethereum);
+  }
+
+  /**
+   * Initialize Web3 with WalletConnect
+   */
+  async initializeWithWalletConnect(): Promise<Web3> {
+    const WalletConnectProvider = require("@walletconnect/web3-provider").default;
+
+    const provider = new WalletConnectProvider({
+      rpc: {
+        1: getNetworkConfig(1)?.rpcUrl || "",
+        137: getNetworkConfig(137)?.rpcUrl || "",
+        56: getNetworkConfig(56)?.rpcUrl || "",
+      },
+      projectId: process.env.WALLETCONNECT_PROJECT_ID,
+    });
+
+    await provider.enable();
+    return this.initialize(provider);
+  }
+
+  /**
+   * Initialize Web3 with custom RPC URL
+   */
+  initializeWithRPC(rpcUrl: string): Web3 {
+    const provider = new Web3.providers.HttpProvider(rpcUrl);
+    this.provider = provider;
+    this.web3 = new Web3(provider);
+    return this.web3;
+  }
+
+  /**
+   * Get current Web3 instance
+   */
+  getWeb3(): Web3 {
+    if (!this.web3) {
+      throw new Error("Web3 not initialized. Call initialize() first.");
+    }
+    return this.web3;
+  }
+
+  /**
+   * Get current provider
+   */
+  getProvider(): any {
+    return this.provider;
+  }
+
+  /**
+   * Check if Web3 is initialized
+   */
+  isInitialized(): boolean {
+    return this.web3 !== null;
+  }
+
+  /**
+   * Get current chain ID
+   */
+  async getChainId(): Promise<number> {
+    const web3 = this.getWeb3();
+    const chainId = await web3.eth.getChainId();
+    return Number(chainId);
+  }
+
+  /**
+   * Get current block number
+   */
+  async getBlockNumber(): Promise<number> {
+    const web3 = this.getWeb3();
+    return Number(await web3.eth.getBlockNumber());
+  }
+
+  /**
+   * Get gas price
+   */
+  async getGasPrice(): Promise<bigint> {
+    const web3 = this.getWeb3();
+    return await web3.eth.getGasPrice();
+  }
+
+  /**
+   * Estimate gas for a transaction
+   */
+  async estimateGas(transaction: any): Promise<bigint> {
+    const web3 = this.getWeb3();
+    return await web3.eth.estimateGas(transaction);
+  }
+
+  /**
+   * Check if connected to supported network
+   */
+  async isSupportedNetwork(): Promise<boolean> {
+    const chainId = await this.getChainId();
+    return isNetworkSupported(chainId);
+  }
+
+  /**
+   * Request network switch (MetaMask)
+   */
+  async switchNetwork(chainId: number): Promise<void> {
+    if (!this.provider || !this.provider.request) {
+      throw new Error("Provider does not support network switching");
+    }
+
+    const chainIdHex = `0x${chainId.toString(16)}`;
+
+    try {
+      await this.provider.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: chainIdHex }],
+      });
+    } catch (error: any) {
+      // Chain not added to MetaMask
+      if (error.code === 4902) {
+        const network = getNetworkConfig(chainId);
+        if (!network) {
+          throw new Error(`Network with chain ID ${chainId} not configured`);
+        }
+
+        await this.provider.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: chainIdHex,
+              chainName: network.name,
+              nativeCurrency: network.nativeCurrency,
+              rpcUrls: [network.rpcUrl],
+              blockExplorerUrls: network.blockExplorer ? [network.blockExplorer] : [],
+            },
+          ],
+        });
+      } else {
+        throw error;
+      }
+    }
+  }
+
+  /**
+   * Subscribe to provider events
+   */
+  subscribeToEvents(callbacks: {
+    onAccountsChanged?: (accounts: string[]) => void;
+    onChainChanged?: (chainId: string) => void;
+    onConnect?: (connectInfo: { chainId: string }) => void;
+    onDisconnect?: (error: { code: number; message: string }) => void;
+  }): void {
+    if (!this.provider || !this.provider.on) {
+      console.warn("Provider does not support event subscription");
+      return;
+    }
+
+    if (callbacks.onAccountsChanged) {
+      this.provider.on("accountsChanged", callbacks.onAccountsChanged);
+    }
+
+    if (callbacks.onChainChanged) {
+      this.provider.on("chainChanged", callbacks.onChainChanged);
+    }
+
+    if (callbacks.onConnect) {
+      this.provider.on("connect", callbacks.onConnect);
+    }
+
+    if (callbacks.onDisconnect) {
+      this.provider.on("disconnect", callbacks.onDisconnect);
+    }
+  }
+
+  /**
+   * Disconnect and clean up
+   */
+  async disconnect(): Promise<void> {
+    if (this.provider && this.provider.disconnect) {
+      await this.provider.disconnect();
+    }
+
+    this.web3 = null;
+    this.provider = null;
+  }
+}
+
+// Export singleton instance
+export const web3Provider = Web3ProviderService.getInstance();
+
+// Extend Window interface for TypeScript
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}

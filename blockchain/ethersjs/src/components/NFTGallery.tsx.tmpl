@@ -1,0 +1,95 @@
+/**
+ * @fileoverview NFT gallery component
+ * @author {{AUTHOR}}
+ */
+
+import React from 'react';
+import { useEthers } from '../hooks/useEthers';
+import { useNFT } from '../hooks/useNFT';
+
+/**
+ * Component props
+ */
+export interface NFTGalleryProps {
+  nftAddress: string;
+  chainId: number;
+  onNFTClick?: (tokenId: bigint) => void;
+  className?: string;
+}
+
+/**
+ * NFT gallery component
+ */
+export const NFTGallery: React.FC<NFTGalleryProps> = ({
+  nftAddress,
+  chainId,
+  onNFTClick,
+  className = '',
+}) => {
+  const { account, isConnected } = useEthers();
+  const { nfts, isLoading, error, refetch } = useNFT({
+    nftAddress,
+    ownerAddress: account,
+    chainId,
+  });
+
+  if (!isConnected) {
+    return <div className={className}>Please connect wallet</div>;
+  }
+
+  if (isLoading) {
+    return <div className={className}>Loading NFTs...</div>;
+  }
+
+  if (error) {
+    return <div className={className}>Error: {error.message}</div>;
+  }
+
+  if (nfts.length === 0) {
+    return <div className={className}>No NFTs found</div>;
+  }
+
+  return (
+    <div className={`nft-gallery ${className}`}>
+      <div className="gallery-header">
+        <h3>Your NFTs ({nfts.length})</h3>
+        <button onClick={refetch} className="refresh-button">
+          Refresh
+        </button>
+      </div>
+
+      <div className="nft-grid">
+        {nfts.map((nft) => (
+          <div
+            key={nft.tokenId.toString()}
+            className="nft-card"
+            onClick={() => onNFTClick?.(nft.tokenId)}
+          >
+            {nft.metadata?.image && (
+              <img
+                src={nft.metadata.image.replace('ipfs://', 'https://ipfs.io/ipfs/')}
+                alt={nft.metadata.name || `NFT #${nft.tokenId}`}
+                className="nft-image"
+              />
+            )}
+            <div className="nft-info">
+              <h4>{nft.metadata?.name || `NFT #${nft.tokenId}`}</h4>
+              {nft.metadata?.description && (
+                <p className="nft-description">{nft.metadata.description}</p>
+              )}
+              {nft.metadata?.attributes && (
+                <div className="nft-attributes">
+                  {nft.metadata.attributes.map((attr, i) => (
+                    <span key={i} className="attribute">
+                      {attr.trait_type}: {attr.value}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};

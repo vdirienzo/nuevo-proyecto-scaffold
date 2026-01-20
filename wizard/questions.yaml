@@ -1,6 +1,6 @@
 # Wizard Configuration for nuevo-proyecto
 # Author: Homero Thompson del Lago del Terror
-# Version: 3.0.0 - State of the Art Edition
+# Version: 4.0.0 - Next Generation Edition
 # Last Updated: 2026-01-19
 
 phases:
@@ -159,6 +159,12 @@ phases:
           - value: go
             label: "Go (Gin/Echo)"
             description: "High performance, low memory, microservices"
+          - value: rust-actix
+            label: "Rust (Actix-web)"
+            description: "Maximum performance, memory-safe, async runtime"
+          - value: rust-rocket
+            label: "Rust (Rocket)"
+            description: "Type-safe routing, ergonomic, async-first"
           - value: none
             label: "API-less (BaaS direct)"
             description: "Frontend direct to Supabase/Firebase"
@@ -196,8 +202,11 @@ phases:
             label: "No mobile app"
             description: "Web only"
           - value: react-native
-            label: "React Native (Expo)"
-            description: "Cross-platform, shared logic with web"
+            label: "React Native"
+            description: "Cross-platform, TypeScript, Redux Toolkit"
+          - value: flutter
+            label: "Flutter"
+            description: "Dart, Riverpod, Material 3, high performance"
           - value: pwa
             label: "PWA"
             description: "Installable web app"
@@ -711,7 +720,58 @@ phases:
             description: "Automatic PR reviewers"
 
   # ============================================
-  # PHASE 10: Additional Features
+  # PHASE 10: Advanced Technologies
+  # ============================================
+  - id: advanced
+    title: "Advanced Technologies"
+    questions:
+      - id: edge_computing
+        type: select
+        prompt: "Edge computing platform (optional)"
+        required: false
+        options:
+          - value: none
+            label: "No edge computing"
+            description: "Traditional server deployment"
+          - value: cloudflare-workers
+            label: "Cloudflare Workers"
+            description: "KV, D1, R2, Durable Objects, global edge"
+          - value: deno-deploy
+            label: "Deno Deploy"
+            description: "Deno KV, Fresh framework, global deployment"
+
+      - id: wasm_modules
+        type: select
+        prompt: "WebAssembly modules (optional)"
+        required: false
+        options:
+          - value: none
+            label: "No WASM"
+            description: "Standard JavaScript only"
+          - value: rust-wasm
+            label: "Rust → WASM"
+            description: "wasm-pack, wasm-bindgen, maximum performance"
+          - value: assemblyscript
+            label: "AssemblyScript → WASM"
+            description: "TypeScript-like syntax, easier learning curve"
+
+      - id: blockchain_integration
+        type: select
+        prompt: "Blockchain integration (optional)"
+        required: false
+        options:
+          - value: none
+            label: "No blockchain"
+            description: "Traditional web application"
+          - value: web3js
+            label: "Web3.js"
+            description: "Ethereum, Hardhat, ERC-20/721, MetaMask"
+          - value: ethersjs
+            label: "Ethers.js"
+            description: "Foundry, wagmi, RainbowKit, modern DX"
+
+  # ============================================
+  # PHASE 11: Additional Features
   # ============================================
   - id: extras
     title: "Additional Features"

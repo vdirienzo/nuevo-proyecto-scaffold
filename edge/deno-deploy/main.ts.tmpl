@@ -1,0 +1,20 @@
+/**
+ * main.ts - Entry point for {{PROJECT_NAME}}
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { load } from "@std/dotenv";
+import { app } from "./src/app.ts";
+
+// Load environment variables
+await load({ export: true });
+
+const PORT = parseInt(Deno.env.get("PORT") || "8000");
+
+console.log(`🚀 {{PROJECT_NAME}} starting on port ${PORT}...`);
+
+// Start server
+await app.listen({ port: PORT });
+
+console.log(`✅ Server running at http://localhost:${PORT}`);

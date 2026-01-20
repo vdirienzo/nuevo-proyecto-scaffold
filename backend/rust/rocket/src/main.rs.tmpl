@@ -1,0 +1,111 @@
+/*!
+ * {{PROJECT_NAME}} - Main Application Entry Point (Rocket)
+ *
+ * Author: {{AUTHOR}}
+ */
+
+#[macro_use]
+extern crate rocket;
+
+mod config;
+mod db;
+mod error;
+mod guards;
+mod models;
+mod routes;
+mod services;
+
+use rocket::{fairing::AdHoc, Build, Rocket};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::{
+    config::Config,
+    db::Database,
+    routes::{auth, health, users},
+};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        health::health_check,
+        auth::login,
+        auth::register,
+        users::get_users,
+        users::get_user,
+        users::update_user,
+    ),
+    components(
+        schemas(
+            models::user::User,
+            models::user::UserResponse,
+            models::user::CreateUserRequest,
+            models::user::UpdateUserRequest,
+            models::response::ApiResponse,
+            models::response::ErrorResponse,
+        )
+    ),
+    tags(
+        (name = "health", description = "Health check endpoints"),
+        (name = "auth", description = "Authentication endpoints"),
+        (name = "users", description = "User management endpoints")
+    )
+)]
+struct ApiDoc;
+
+#[launch]
+async fn rocket() -> Rocket<Build> {
+    // Load environment variables
+    dotenvy::dotenv().ok();
+
+    // Initialize tracing
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info,{{PROJECT_NAME}}=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    tracing::info!("Starting {{PROJECT_NAME}} with Rocket");
+
+    // Load configuration
+    let config = Config::from_env().expect("Failed to load configuration");
+
+    // Initialize database
+    let db = Database::new(&config.database.url)
+        .await
+        .expect("Failed to connect to database");
+
+    // Run migrations
+    db.run_migrations()
+        .await
+        .expect("Failed to run migrations");
+
+    tracing::info!("Database connected and migrations applied");
+
+    rocket::build()
+        .manage(db)
+        .manage(config)
+        .mount(
+            "/api/v1",
+            routes![
+                health::health_check,
+                auth::login,
+                auth::register,
+                users::get_users,
+                users::get_user,
+                users::update_user,
+            ],
+        )
+        .mount(
+            "/",
+            SwaggerUi::new("/swagger-ui/<_..>").url("/api-docs/openapi.json", ApiDoc::openapi()),
+        )
+        .attach(AdHoc::on_liftoff("Startup", |_| {
+            Box::pin(async {
+                tracing::info!("Rocket has launched!");
+            })
+        }))
+}

@@ -1,0 +1,159 @@
+/**
+ * image.rs - Image processing operations
+ *
+ * High-performance image manipulation using the image crate.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use wasm_bindgen::prelude::*;
+use image::{DynamicImage, ImageFormat, ImageError};
+use std::io::Cursor;
+
+/// Image processing errors
+#[derive(Debug)]
+pub enum ImageProcessingError {
+    DecodeError(String),
+    EncodeError(String),
+    ProcessingError(String),
+}
+
+impl From<ImageError> for ImageProcessingError {
+    fn from(err: ImageError) -> Self {
+        ImageProcessingError::ProcessingError(err.to_string())
+    }
+}
+
+impl From<ImageProcessingError> for JsValue {
+    fn from(err: ImageProcessingError) -> Self {
+        JsValue::from_str(&format!("{:?}", err))
+    }
+}
+
+/// Resize image to specified dimensions
+#[wasm_bindgen]
+pub fn resize_image(
+    image_data: &[u8],
+    width: u32,
+    height: u32,
+    preserve_aspect: bool,
+) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+
+    let resized = if preserve_aspect {
+        img.resize(width, height, image::imageops::FilterType::Lanczos3)
+    } else {
+        img.resize_exact(width, height, image::imageops::FilterType::Lanczos3)
+    };
+
+    encode_image(&resized, ImageFormat::Png)
+}
+
+/// Convert image to grayscale
+#[wasm_bindgen]
+pub fn grayscale(image_data: &[u8]) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+    let gray = img.grayscale();
+    encode_image(&gray, ImageFormat::Png)
+}
+
+/// Blur image
+#[wasm_bindgen]
+pub fn blur_image(image_data: &[u8], sigma: f32) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+    let blurred = img.blur(sigma);
+    encode_image(&blurred, ImageFormat::Png)
+}
+
+/// Adjust brightness (-100 to 100)
+#[wasm_bindgen]
+pub fn adjust_brightness(image_data: &[u8], value: i32) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+    let adjusted = img.brighten(value);
+    encode_image(&adjusted, ImageFormat::Png)
+}
+
+/// Adjust contrast
+#[wasm_bindgen]
+pub fn adjust_contrast(image_data: &[u8], contrast: f32) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+    let adjusted = img.adjust_contrast(contrast);
+    encode_image(&adjusted, ImageFormat::Png)
+}
+
+/// Rotate image (90, 180, or 270 degrees)
+#[wasm_bindgen]
+pub fn rotate_image(image_data: &[u8], degrees: u32) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+
+    let rotated = match degrees {
+        90 => img.rotate90(),
+        180 => img.rotate180(),
+        270 => img.rotate270(),
+        _ => return Err(JsValue::from_str("Rotation must be 90, 180, or 270 degrees")),
+    };
+
+    encode_image(&rotated, ImageFormat::Png)
+}
+
+/// Flip image horizontally
+#[wasm_bindgen]
+pub fn flip_horizontal(image_data: &[u8]) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+    let flipped = img.fliph();
+    encode_image(&flipped, ImageFormat::Png)
+}
+
+/// Flip image vertically
+#[wasm_bindgen]
+pub fn flip_vertical(image_data: &[u8]) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+    let flipped = img.flipv();
+    encode_image(&flipped, ImageFormat::Png)
+}
+
+/// Get image dimensions
+#[wasm_bindgen]
+pub fn get_dimensions(image_data: &[u8]) -> Result<JsValue, JsValue> {
+    let img = load_image(image_data)?;
+    let (width, height) = (img.width(), img.height());
+
+    let result = js_sys::Object::new();
+    js_sys::Reflect::set(&result, &"width".into(), &JsValue::from(width))?;
+    js_sys::Reflect::set(&result, &"height".into(), &JsValue::from(height))?;
+
+    Ok(result.into())
+}
+
+/// Create thumbnail (max dimension)
+#[wasm_bindgen]
+pub fn create_thumbnail(image_data: &[u8], max_size: u32) -> Result<Vec<u8>, JsValue> {
+    let img = load_image(image_data)?;
+    let thumbnail = img.thumbnail(max_size, max_size);
+    encode_image(&thumbnail, ImageFormat::Png)
+}
+
+// Helper functions
+
+fn load_image(data: &[u8]) -> Result<DynamicImage, ImageProcessingError> {
+    image::load_from_memory(data)
+        .map_err(|e| ImageProcessingError::DecodeError(e.to_string()))
+}
+
+fn encode_image(img: &DynamicImage, format: ImageFormat) -> Result<Vec<u8>, JsValue> {
+    let mut buffer = Vec::new();
+    let mut cursor = Cursor::new(&mut buffer);
+
+    img.write_to(&mut cursor, format)
+        .map_err(|e| JsValue::from_str(&format!("Encoding error: {}", e)))?;
+
+    Ok(buffer)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Note: Tests require actual image data
+    // In a real implementation, you would include test images
+}

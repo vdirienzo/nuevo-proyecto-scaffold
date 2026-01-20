@@ -1,0 +1,63 @@
+/**
+ * Main Tab Navigator
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React from 'react';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+import HomeScreen from '@screens/home/HomeScreen';
+import ProfileScreen from '@screens/profile/ProfileScreen';
+import SettingsScreen from '@screens/settings/SettingsScreen';
+import {MainTabParamList} from './types';
+import {useTheme} from 'react-native-paper';
+
+const Tab = createBottomTabNavigator<MainTabParamList>();
+
+const MainNavigator = (): JSX.Element => {
+  const theme = useTheme();
+
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: true,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.onSurfaceDisabled,
+        tabBarStyle: {
+          backgroundColor: theme.colors.surface,
+        },
+      }}>
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          tabBarIcon: ({color, size}) => (
+            <Icon name="home" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarIcon: ({color, size}) => (
+            <Icon name="account" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarIcon: ({color, size}) => (
+            <Icon name="cog" size={size} color={color} />
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+export default MainNavigator;

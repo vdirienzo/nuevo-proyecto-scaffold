@@ -1,0 +1,259 @@
+import { expect } from "chai";
+import { ethers } from "hardhat";
+import { {{PROJECT_NAME}}NFT } from "../typechain-types";
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+
+/**
+ * Tests for {{PROJECT_NAME}}NFT contract
+ * @author {{AUTHOR}}
+ */
+
+describe("{{PROJECT_NAME}}NFT", function () {
+  let nft: {{PROJECT_NAME}}NFT;
+  let owner: SignerWithAddress;
+  let user1: SignerWithAddress;
+  let user2: SignerWithAddress;
+
+  const MAX_SUPPLY = 10000;
+  const MINT_PRICE = ethers.parseEther("0.05");
+  const TOKEN_URI = "ipfs://QmExample123456789";
+
+  beforeEach(async function () {
+    [owner, user1, user2] = await ethers.getSigners();
+
+    const NFT = await ethers.getContractFactory("{{PROJECT_NAME}}NFT");
+    nft = await NFT.deploy(MAX_SUPPLY, MINT_PRICE);
+    await nft.waitForDeployment();
+  });
+
+  describe("Deployment", function () {
+    it("Should set correct name and symbol", async function () {
+      expect(await nft.name()).to.equal("{{PROJECT_NAME}} NFT");
+      expect(await nft.symbol()).to.equal("{{PROJECT_NAME}}NFT");
+    });
+
+    it("Should set correct max supply", async function () {
+      expect(await nft.maxSupply()).to.equal(MAX_SUPPLY);
+    });
+
+    it("Should set correct mint price", async function () {
+      expect(await nft.mintPrice()).to.equal(MINT_PRICE);
+    });
+
+    it("Should start with zero minted", async function () {
+      expect(await nft.totalMinted()).to.equal(0);
+    });
+  });
+
+  describe("Minting", function () {
+    it("Should mint NFT with correct payment", async function () {
+      await nft.connect(user1).mint(user1.address, TOKEN_URI, {
+        value: MINT_PRICE,
+      });
+
+      expect(await nft.balanceOf(user1.address)).to.equal(1);
+      expect(await nft.ownerOf(0)).to.equal(user1.address);
+      expect(await nft.tokenURI(0)).to.equal(TOKEN_URI);
+    });
+
+    it("Should emit NFTMinted event", async function () {
+      await expect(
+        nft.connect(user1).mint(user1.address, TOKEN_URI, { value: MINT_PRICE })
+      )
+        .to.emit(nft, "NFTMinted")
+        .withArgs(user1.address, 0, TOKEN_URI);
+    });
+
+    it("Should increment total minted", async function () {
+      await nft.connect(user1).mint(user1.address, TOKEN_URI, { value: MINT_PRICE });
+      expect(await nft.totalMinted()).to.equal(1);
+
+      await nft.connect(user2).mint(user2.address, TOKEN_URI, { value: MINT_PRICE });
+      expect(await nft.totalMinted()).to.equal(2);
+    });
+
+    it("Should refund excess payment", async function () {
+      const excessPayment = MINT_PRICE + ethers.parseEther("0.1");
+      const initialBalance = await ethers.provider.getBalance(user1.address);
+
+      const tx = await nft.connect(user1).mint(user1.address, TOKEN_URI, {
+        value: excessPayment,
+      });
+      const receipt = await tx.wait();
+      const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
+
+      const finalBalance = await ethers.provider.getBalance(user1.address);
+      const expectedBalance = initialBalance - MINT_PRICE - gasUsed;
+
+      expect(finalBalance).to.be.closeTo(expectedBalance, ethers.parseEther("0.001"));
+    });
+
+    it("Should fail with insufficient payment", async function () {
+      await expect(
+        nft.connect(user1).mint(user1.address, TOKEN_URI, {
+          value: MINT_PRICE - 1n,
+        })
+      ).to.be.revertedWith("Insufficient payment");
+    });
+
+    it("Should fail when max supply reached", async function () {
+      // Set a small max supply for testing
+      const NFT = await ethers.getContractFactory("{{PROJECT_NAME}}NFT");
+      const testNft = await NFT.deploy(2, MINT_PRICE);
+
+      await testNft.connect(user1).mint(user1.address, TOKEN_URI, { value: MINT_PRICE });
+      await testNft.connect(user1).mint(user1.address, TOKEN_URI, { value: MINT_PRICE });
+
+      await expect(
+        testNft.connect(user1).mint(user1.address, TOKEN_URI, { value: MINT_PRICE })
+      ).to.be.revertedWith("Max supply reached");
+    });
+  });
+
+  describe("Owner Minting", function () {
+    it("Should allow owner to mint for free", async function () {
+      await nft.ownerMint(user1.address, TOKEN_URI);
+
+      expect(await nft.balanceOf(user1.address)).to.equal(1);
+      expect(await nft.ownerOf(0)).to.equal(user1.address);
+    });
+
+    it("Should fail if non-owner tries to owner mint", async function () {
+      await expect(
+        nft.connect(user1).ownerMint(user2.address, TOKEN_URI)
+      ).to.be.revertedWithCustomError(nft, "OwnableUnauthorizedAccount");
+    });
+  });
+
+  describe("Batch Minting", function () {
+    it("Should batch mint multiple NFTs", async function () {
+      const recipients = [user1.address, user2.address, user1.address];
+      const uris = [TOKEN_URI, TOKEN_URI + "2", TOKEN_URI + "3"];
+
+      await nft.batchMint(recipients, uris);
+
+      expect(await nft.balanceOf(user1.address)).to.equal(2);
+      expect(await nft.balanceOf(user2.address)).to.equal(1);
+      expect(await nft.totalMinted()).to.equal(3);
+    });
+
+    it("Should fail if arrays length mismatch", async function () {
+      const recipients = [user1.address, user2.address];
+      const uris = [TOKEN_URI];
+
+      await expect(nft.batchMint(recipients, uris)).to.be.revertedWith(
+        "Arrays length mismatch"
+      );
+    });
+
+    it("Should fail if batch would exceed max supply", async function () {
+      const NFT = await ethers.getContractFactory("{{PROJECT_NAME}}NFT");
+      const testNft = await NFT.deploy(2, MINT_PRICE);
+
+      const recipients = [user1.address, user2.address, user1.address];
+      const uris = [TOKEN_URI, TOKEN_URI, TOKEN_URI];
+
+      await expect(testNft.batchMint(recipients, uris)).to.be.revertedWith(
+        "Would exceed max supply"
+      );
+    });
+
+    it("Should fail if non-owner tries to batch mint", async function () {
+      const recipients = [user1.address];
+      const uris = [TOKEN_URI];
+
+      await expect(
+        nft.connect(user1).batchMint(recipients, uris)
+      ).to.be.revertedWithCustomError(nft, "OwnableUnauthorizedAccount");
+    });
+  });
+
+  describe("Configuration", function () {
+    it("Should allow owner to update mint price", async function () {
+      const newPrice = ethers.parseEther("0.1");
+
+      await expect(nft.setMintPrice(newPrice))
+        .to.emit(nft, "MintPriceUpdated")
+        .withArgs(MINT_PRICE, newPrice);
+
+      expect(await nft.mintPrice()).to.equal(newPrice);
+    });
+
+    it("Should allow owner to increase max supply", async function () {
+      const newMaxSupply = MAX_SUPPLY + 1000;
+
+      await expect(nft.setMaxSupply(newMaxSupply))
+        .to.emit(nft, "MaxSupplyUpdated")
+        .withArgs(MAX_SUPPLY, newMaxSupply);
+
+      expect(await nft.maxSupply()).to.equal(newMaxSupply);
+    });
+
+    it("Should fail to decrease max supply", async function () {
+      await expect(nft.setMaxSupply(MAX_SUPPLY - 1)).to.be.revertedWith(
+        "Can only increase max supply"
+      );
+    });
+
+    it("Should fail if non-owner tries to update config", async function () {
+      await expect(
+        nft.connect(user1).setMintPrice(ethers.parseEther("0.1"))
+      ).to.be.revertedWithCustomError(nft, "OwnableUnauthorizedAccount");
+
+      await expect(
+        nft.connect(user1).setMaxSupply(MAX_SUPPLY + 1)
+      ).to.be.revertedWithCustomError(nft, "OwnableUnauthorizedAccount");
+    });
+  });
+
+  describe("Burning", function () {
+    beforeEach(async function () {
+      await nft.connect(user1).mint(user1.address, TOKEN_URI, { value: MINT_PRICE });
+    });
+
+    it("Should allow owner to burn their NFT", async function () {
+      await nft.connect(user1).burn(0);
+
+      expect(await nft.balanceOf(user1.address)).to.equal(0);
+      await expect(nft.ownerOf(0)).to.be.reverted;
+    });
+
+    it("Should fail if non-owner tries to burn", async function () {
+      await expect(nft.connect(user2).burn(0)).to.be.reverted;
+    });
+  });
+
+  describe("Withdrawals", function () {
+    beforeEach(async function () {
+      // Mint some NFTs to accumulate balance
+      await nft.connect(user1).mint(user1.address, TOKEN_URI, { value: MINT_PRICE });
+      await nft.connect(user2).mint(user2.address, TOKEN_URI, { value: MINT_PRICE });
+    });
+
+    it("Should allow owner to withdraw contract balance", async function () {
+      const contractBalance = await ethers.provider.getBalance(await nft.getAddress());
+      const initialOwnerBalance = await ethers.provider.getBalance(owner.address);
+
+      const tx = await nft.withdraw();
+      const receipt = await tx.wait();
+      const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
+
+      const finalOwnerBalance = await ethers.provider.getBalance(owner.address);
+      const expectedBalance = initialOwnerBalance + contractBalance - gasUsed;
+
+      expect(finalOwnerBalance).to.be.closeTo(expectedBalance, ethers.parseEther("0.001"));
+    });
+
+    it("Should fail if no balance to withdraw", async function () {
+      await nft.withdraw(); // First withdrawal
+
+      await expect(nft.withdraw()).to.be.revertedWith("No balance to withdraw");
+    });
+
+    it("Should fail if non-owner tries to withdraw", async function () {
+      await expect(
+        nft.connect(user1).withdraw()
+      ).to.be.revertedWithCustomError(nft, "OwnableUnauthorizedAccount");
+    });
+  });
+});

@@ -1,0 +1,245 @@
+/**
+ * wasm-loader.js - Vanilla JavaScript WASM Loader
+ *
+ * Simple utility for loading and using WebAssembly modules in vanilla JS.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+/**
+ * WASM Loader class
+ */
+class WasmLoader {
+  constructor() {
+    this.module = null;
+    this.instance = null;
+    this.exports = null;
+    this.loading = false;
+    this.loaded = false;
+    this.error = null;
+  }
+
+  /**
+   * Load WASM from URL
+   *
+   * @param {string} url - URL to WASM file
+   * @returns {Promise<Object>} Exports from WASM module
+   */
+  async load(url) {
+    if (this.loaded) {
+      return this.exports;
+    }
+
+    if (this.loading) {
+      throw new Error('Already loading WASM module');
+    }
+
+    this.loading = true;
+
+    try {
+      // Fetch WASM file
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch WASM: ${response.statusText}`);
+      }
+
+      const buffer = await response.arrayBuffer();
+
+      // Instantiate WASM module
+      const result = await WebAssembly.instantiate(buffer, this.getImports());
+
+      this.module = result.module;
+      this.instance = result.instance;
+      this.exports = result.instance.exports;
+
+      this.loaded = true;
+      this.loading = false;
+
+      console.log('WASM module loaded successfully');
+
+      return this.exports;
+    } catch (error) {
+      this.error = error;
+      this.loading = false;
+      console.error('WASM loading error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Load WASM from ES module
+   *
+   * @param {string} modulePath - Path to WASM ES module
+   * @returns {Promise<Object>} WASM module exports
+   */
+  async loadModule(modulePath) {
+    try {
+      const wasmModule = await import(modulePath);
+
+      // Initialize if needed (for wasm-bindgen)
+      if (typeof wasmModule.default === 'function') {
+        await wasmModule.default();
+      }
+
+      this.exports = wasmModule;
+      this.loaded = true;
+
+      return wasmModule;
+    } catch (error) {
+      this.error = error;
+      console.error('WASM module loading error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get imports for WASM instantiation
+   */
+  getImports() {
+    return {
+      env: {
+        abort: (msg, file, line, column) => {
+          console.error('WASM abort:', { msg, file, line, column });
+        },
+        // Add more imports as needed
+      },
+    };
+  }
+
+  /**
+   * Call WASM function safely
+   *
+   * @param {string} funcName - Function name
+   * @param {...any} args - Function arguments
+   * @returns {any} Result from WASM function
+   */
+  call(funcName, ...args) {
+    if (!this.loaded) {
+      throw new Error('WASM module not loaded');
+    }
+
+    if (!this.exports[funcName]) {
+      throw new Error(`Function ${funcName} not found in WASM exports`);
+    }
+
+    try {
+      return this.exports[funcName](...args);
+    } catch (error) {
+      console.error(`Error calling ${funcName}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if WASM is supported
+   */
+  static isSupported() {
+    return typeof WebAssembly === 'object' && typeof WebAssembly.instantiate === 'function';
+  }
+}
+
+/**
+ * Helper functions for common operations
+ */
+const WasmHelpers = {
+  /**
+   * Convert string to Uint8Array
+   */
+  stringToBytes(str) {
+    return new TextEncoder().encode(str);
+  },
+
+  /**
+   * Convert Uint8Array to string
+   */
+  bytesToString(bytes) {
+    return new TextDecoder().decode(bytes);
+  },
+
+  /**
+   * Convert hex string to Uint8Array
+   */
+  hexToBytes(hex) {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+    }
+    return bytes;
+  },
+
+  /**
+   * Convert Uint8Array to hex string
+   */
+  bytesToHex(bytes) {
+    return Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  },
+
+  /**
+   * Measure function performance
+   */
+  measure(fn, iterations = 10000) {
+    const start = performance.now();
+    for (let i = 0; i < iterations; i++) {
+      fn();
+    }
+    const duration = performance.now() - start;
+
+    return {
+      duration,
+      average: duration / iterations,
+      opsPerSec: iterations / (duration / 1000),
+    };
+  },
+
+  /**
+   * Compare WASM vs JS performance
+   */
+  async compare(wasmFn, jsFn, iterations = 10000) {
+    const wasmResult = this.measure(wasmFn, iterations);
+    const jsResult = this.measure(jsFn, iterations);
+
+    return {
+      wasm: wasmResult,
+      js: jsResult,
+      speedup: jsResult.duration / wasmResult.duration,
+    };
+  },
+};
+
+/**
+ * Example usage:
+ *
+ * // Create loader
+ * const loader = new WasmLoader();
+ *
+ * // Load from URL
+ * await loader.load('./module.wasm');
+ *
+ * // Or load from ES module
+ * await loader.loadModule('./pkg/module.js');
+ *
+ * // Use functions
+ * const result = loader.call('add', 5, 3);
+ * console.log(result); // 8
+ *
+ * // With helpers
+ * const data = WasmHelpers.stringToBytes('hello');
+ * const hash = loader.call('sha256_hex', data);
+ */
+
+// Export for ES modules
+export { WasmLoader, WasmHelpers };
+
+// Export for CommonJS
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { WasmLoader, WasmHelpers };
+}
+
+// Global for script tag
+if (typeof window !== 'undefined') {
+  window.WasmLoader = WasmLoader;
+  window.WasmHelpers = WasmHelpers;
+}

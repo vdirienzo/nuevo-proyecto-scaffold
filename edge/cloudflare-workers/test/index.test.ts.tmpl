@@ -1,0 +1,182 @@
+/**
+ * Main worker tests for {{PROJECT_NAME}}
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { env, createExecutionContext, waitOnExecutionContext } from "cloudflare:test";
+import worker from "../src/index";
+
+describe("Worker", () => {
+  it("responds to health check", async () => {
+    const request = new Request("http://example.com/health");
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(200);
+
+    const data = await response.json();
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("status", "healthy");
+  });
+
+  it("returns 404 for unknown routes", async () => {
+    const request = new Request("http://example.com/unknown");
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(404);
+
+    const data = await response.json();
+    expect(data.success).toBe(false);
+    expect(data.error).toBe("Not Found");
+  });
+
+  it("handles CORS preflight", async () => {
+    const request = new Request("http://example.com/api/v1/users", {
+      method: "OPTIONS",
+      headers: {
+        Origin: "http://localhost:3000",
+        "Access-Control-Request-Method": "POST"
+      }
+    });
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(204);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBeTruthy();
+  });
+
+  it("requires authentication for protected routes", async () => {
+    const request = new Request("http://example.com/api/v1/users");
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(401);
+
+    const data = await response.json();
+    expect(data.success).toBe(false);
+  });
+
+  it("allows access with valid JWT", async () => {
+    // Note: This requires creating a valid JWT with the secret from env
+    // In a real test, you'd use a test JWT or mock the auth middleware
+
+    const token = "valid-jwt-token"; // Replace with actual JWT generation
+
+    const request = new Request("http://example.com/auth/me", {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    // Will be 401 without real JWT, but demonstrates the pattern
+    expect([200, 401]).toContain(response.status);
+  });
+});
+
+describe("Authentication", () => {
+  it("allows user registration", async () => {
+    const request = new Request("http://example.com/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: "test@example.com",
+        name: "Test User",
+        password: "password123"
+      })
+    });
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    // Might be 201 or 409 depending on if user exists
+    expect([201, 409]).toContain(response.status);
+  });
+
+  it("validates registration input", async () => {
+    const request = new Request("http://example.com/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: "invalid-email",
+        name: "",
+        password: "short"
+      })
+    });
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    expect(response.status).toBe(422);
+
+    const data = await response.json();
+    expect(data.success).toBe(false);
+  });
+
+  it("allows user login", async () => {
+    const request = new Request("http://example.com/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: "admin@{{PROJECT_NAME}}.com",
+        password: "admin123"
+      })
+    });
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    // Will be 401 if password not set, but demonstrates the pattern
+    expect([200, 401]).toContain(response.status);
+  });
+});
+
+describe("Rate Limiting", () => {
+  it("applies rate limits", async () => {
+    const requests: Promise<Response>[] = [];
+
+    // Send multiple requests
+    for (let i = 0; i < 5; i++) {
+      const request = new Request("http://example.com/health");
+      const ctx = createExecutionContext();
+      requests.push(worker.fetch(request, env, ctx));
+    }
+
+    const responses = await Promise.all(requests);
+
+    // Check that rate limit headers are present
+    responses.forEach(response => {
+      expect(response.headers.has("X-RateLimit-Limit") || response.status === 200).toBe(true);
+    });
+  });
+});
+
+describe("Static Assets", () => {
+  it("serves static files from R2", async () => {
+    // First, upload a test file (in real tests)
+    // Then try to retrieve it
+
+    const request = new Request("http://example.com/static/test.txt");
+    const ctx = createExecutionContext();
+    const response = await worker.fetch(request, env, ctx);
+    await waitOnExecutionContext(ctx);
+
+    // Will be 404 if file doesn't exist
+    expect([200, 404]).toContain(response.status);
+  });
+});

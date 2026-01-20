@@ -1,0 +1,232 @@
+/**
+ * auth.ts - Authentication handlers (JWT-based)
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "oak";
+import { z } from "zod";
+import { create, verify } from "djwt";
+import { crypto } from "@std/crypto";
+import { encodeHex } from "@std/encoding";
+import { kvService } from "../services/kv.ts";
+import { successResponse, errorResponse } from "../utils/response.ts";
+import { validateBody } from "../utils/validation.ts";
+import { hashPassword, verifyPassword } from "../utils/crypto.ts";
+
+const JWT_SECRET = Deno.env.get("JWT_SECRET") || "change-me-in-production";
+const JWT_KEY = await crypto.subtle.importKey(
+  "raw",
+  new TextEncoder().encode(JWT_SECRET),
+  { name: "HMAC", hash: "SHA-256" },
+  false,
+  ["sign", "verify"],
+);
+
+// Validation schemas
+const RegisterSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().optional(),
+});
+
+const LoginSchema = z.object({
+  email: z.string().email(),
+  password: z.string(),
+});
+
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  passwordHash: string;
+  createdAt: string;
+}
+
+export async function register(ctx: Context) {
+  try {
+    const body = await validateBody(ctx, RegisterSchema);
+    if (!body.success) {
+      ctx.response.status = 400;
+      ctx.response.body = errorResponse(body.error);
+      return;
+    }
+
+    const { email, password, name } = body.data;
+
+    // Check if user exists
+    const existing = await kvService.get<User>(`user:email:${email}`);
+    if (existing) {
+      ctx.response.status = 409;
+      ctx.response.body = errorResponse("User already exists");
+      return;
+    }
+
+    // Create user
+    const userId = crypto.randomUUID();
+    const passwordHash = await hashPassword(password);
+    const user: User = {
+      id: userId,
+      email,
+      name,
+      passwordHash,
+      createdAt: new Date().toISOString(),
+    };
+
+    await kvService.set(`user:${userId}`, user);
+    await kvService.set(`user:email:${email}`, { id: userId });
+
+    // Generate token
+    const token = await createToken(userId, email);
+
+    ctx.response.status = 201;
+    ctx.response.body = successResponse({
+      user: { id: userId, email, name },
+      token,
+    });
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}
+
+export async function login(ctx: Context) {
+  try {
+    const body = await validateBody(ctx, LoginSchema);
+    if (!body.success) {
+      ctx.response.status = 400;
+      ctx.response.body = errorResponse(body.error);
+      return;
+    }
+
+    const { email, password } = body.data;
+
+    // Find user
+    const userRef = await kvService.get<{ id: string }>(`user:email:${email}`);
+    if (!userRef) {
+      ctx.response.status = 401;
+      ctx.response.body = errorResponse("Invalid credentials");
+      return;
+    }
+
+    const user = await kvService.get<User>(`user:${userRef.id}`);
+    if (!user) {
+      ctx.response.status = 401;
+      ctx.response.body = errorResponse("Invalid credentials");
+      return;
+    }
+
+    // Verify password
+    const valid = await verifyPassword(password, user.passwordHash);
+    if (!valid) {
+      ctx.response.status = 401;
+      ctx.response.body = errorResponse("Invalid credentials");
+      return;
+    }
+
+    // Generate token
+    const token = await createToken(user.id, user.email);
+
+    ctx.response.body = successResponse({
+      user: { id: user.id, email: user.email, name: user.name },
+      token,
+    });
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}
+
+export async function refresh(ctx: Context) {
+  try {
+    const authHeader = ctx.request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      ctx.response.status = 401;
+      ctx.response.body = errorResponse("Missing or invalid token");
+      return;
+    }
+
+    const token = authHeader.substring(7);
+    const payload = await verify(token, JWT_KEY);
+
+    if (!payload.sub || !payload.email) {
+      ctx.response.status = 401;
+      ctx.response.body = errorResponse("Invalid token");
+      return;
+    }
+
+    // Generate new token
+    const newToken = await createToken(payload.sub as string, payload.email as string);
+
+    ctx.response.body = successResponse({ token: newToken });
+  } catch (error) {
+    ctx.response.status = 401;
+    ctx.response.body = errorResponse("Invalid or expired token");
+  }
+}
+
+export async function getProfile(ctx: Context) {
+  try {
+    // Extract user from context (set by auth middleware)
+    const userId = ctx.state.userId as string;
+    if (!userId) {
+      ctx.response.status = 401;
+      ctx.response.body = errorResponse("Unauthorized");
+      return;
+    }
+
+    const user = await kvService.get<User>(`user:${userId}`);
+    if (!user) {
+      ctx.response.status = 404;
+      ctx.response.body = errorResponse("User not found");
+      return;
+    }
+
+    ctx.response.body = successResponse({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      createdAt: user.createdAt,
+    });
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}
+
+async function createToken(userId: string, email: string): Promise<string> {
+  const expiresIn = Deno.env.get("JWT_EXPIRES_IN") || "7d";
+  const expiresInMs = parseExpiry(expiresIn);
+
+  return await create(
+    { alg: "HS256", typ: "JWT" },
+    {
+      sub: userId,
+      email,
+      exp: Math.floor((Date.now() + expiresInMs) / 1000),
+      iat: Math.floor(Date.now() / 1000),
+    },
+    JWT_KEY,
+  );
+}
+
+function parseExpiry(expiry: string): number {
+  const match = expiry.match(/^(\d+)([dhms])$/);
+  if (!match) return 7 * 24 * 60 * 60 * 1000; // Default 7 days
+
+  const value = parseInt(match[1]);
+  const unit = match[2];
+
+  switch (unit) {
+    case "d":
+      return value * 24 * 60 * 60 * 1000;
+    case "h":
+      return value * 60 * 60 * 1000;
+    case "m":
+      return value * 60 * 1000;
+    case "s":
+      return value * 1000;
+    default:
+      return 7 * 24 * 60 * 60 * 1000;
+  }
+}

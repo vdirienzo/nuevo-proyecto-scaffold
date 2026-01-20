@@ -1,0 +1,178 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {ERC721URIStorage} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import {ERC721Enumerable} from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+
+/**
+ * @title {{PROJECT_NAME}} NFT
+ * @author {{AUTHOR}}
+ * @notice ERC721 NFT with enumerable and URI storage
+ * @dev Extends OpenZeppelin's ERC721, ERC721URIStorage, ERC721Enumerable, and Ownable
+ */
+contract NFT is ERC721, ERC721URIStorage, ERC721Enumerable, Ownable {
+    using Strings for uint256;
+
+    /// @notice Counter for token IDs
+    uint256 private _nextTokenId;
+
+    /// @notice Base URI for metadata
+    string private _baseTokenURI;
+
+    /// @notice Max supply (0 for unlimited)
+    uint256 public immutable MAX_SUPPLY;
+
+    /// @notice Mint price
+    uint256 public mintPrice;
+
+    /// @notice Emitted when NFT is minted
+    event NFTMinted(address indexed to, uint256 indexed tokenId, string tokenURI);
+
+    /// @notice Emitted when base URI is updated
+    event BaseURIUpdated(string newBaseURI);
+
+    /// @notice Emitted when mint price is updated
+    event MintPriceUpdated(uint256 newPrice);
+
+    /**
+     * @notice Constructor
+     * @param name Token name
+     * @param symbol Token symbol
+     * @param baseURI Base URI for metadata
+     * @param maxSupply Maximum supply (0 for unlimited)
+     * @param price Mint price in wei
+     */
+    constructor(
+        string memory name,
+        string memory symbol,
+        string memory baseURI,
+        uint256 maxSupply,
+        uint256 price
+    ) ERC721(name, symbol) Ownable(msg.sender) {
+        _baseTokenURI = baseURI;
+        MAX_SUPPLY = maxSupply;
+        mintPrice = price;
+    }
+
+    /**
+     * @notice Mint NFT (public)
+     * @param to Recipient address
+     */
+    function mint(address to) external payable returns (uint256) {
+        if (msg.value < mintPrice) {
+            revert("Insufficient payment");
+        }
+
+        if (MAX_SUPPLY > 0 && _nextTokenId >= MAX_SUPPLY) {
+            revert("Max supply reached");
+        }
+
+        uint256 tokenId = _nextTokenId++;
+        _safeMint(to, tokenId);
+
+        emit NFTMinted(to, tokenId, tokenURI(tokenId));
+        return tokenId;
+    }
+
+    /**
+     * @notice Mint NFT with custom URI (only owner)
+     * @param to Recipient address
+     * @param uri Custom token URI
+     */
+    function mintWithURI(address to, string memory uri) external onlyOwner returns (uint256) {
+        if (MAX_SUPPLY > 0 && _nextTokenId >= MAX_SUPPLY) {
+            revert("Max supply reached");
+        }
+
+        uint256 tokenId = _nextTokenId++;
+        _safeMint(to, tokenId);
+        _setTokenURI(tokenId, uri);
+
+        emit NFTMinted(to, tokenId, uri);
+        return tokenId;
+    }
+
+    /**
+     * @notice Set base URI (only owner)
+     * @param baseURI New base URI
+     */
+    function setBaseURI(string memory baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+        emit BaseURIUpdated(baseURI);
+    }
+
+    /**
+     * @notice Set mint price (only owner)
+     * @param price New price in wei
+     */
+    function setMintPrice(uint256 price) external onlyOwner {
+        mintPrice = price;
+        emit MintPriceUpdated(price);
+    }
+
+    /**
+     * @notice Withdraw contract balance (only owner)
+     */
+    function withdraw() external onlyOwner {
+        uint256 balance = address(this).balance;
+        (bool success, ) = msg.sender.call{value: balance}("");
+        require(success, "Withdrawal failed");
+    }
+
+    /**
+     * @notice Get all tokens owned by an address
+     * @param owner Owner address
+     */
+    function tokensOfOwner(address owner) external view returns (uint256[] memory) {
+        uint256 tokenCount = balanceOf(owner);
+        uint256[] memory tokens = new uint256[](tokenCount);
+
+        for (uint256 i = 0; i < tokenCount; i++) {
+            tokens[i] = tokenOfOwnerByIndex(owner, i);
+        }
+
+        return tokens;
+    }
+
+    // Required overrides
+
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return super.tokenURI(tokenId);
+    }
+
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override(ERC721, ERC721Enumerable, ERC721URIStorage)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    function _update(address to, uint256 tokenId, address auth)
+        internal
+        override(ERC721, ERC721Enumerable)
+        returns (address)
+    {
+        return super._update(to, tokenId, auth);
+    }
+
+    function _increaseBalance(address account, uint128 value)
+        internal
+        override(ERC721, ERC721Enumerable)
+    {
+        super._increaseBalance(account, value);
+    }
+}

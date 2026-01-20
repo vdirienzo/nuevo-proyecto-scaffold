@@ -1,0 +1,84 @@
+/**
+ * @fileoverview React hook for NFT data
+ * @author {{AUTHOR}}
+ */
+
+import { useState, useEffect } from 'react';
+import { createERC721Service, NFT } from '../services/erc721-service';
+
+/**
+ * Hook options
+ */
+export interface UseNFTOptions {
+  nftAddress: string;
+  ownerAddress: string | null;
+  chainId: number;
+  refreshInterval?: number;
+}
+
+/**
+ * Hook return type
+ */
+export interface UseNFTReturn {
+  nfts: NFT[];
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+}
+
+/**
+ * React hook for fetching NFTs owned by address
+ */
+export function useNFT(options: UseNFTOptions): UseNFTReturn {
+  const { nftAddress, ownerAddress, chainId, refreshInterval } = options;
+
+  const [state, setState] = useState<{
+    nfts: NFT[];
+    isLoading: boolean;
+    error: Error | null;
+  }>({
+    nfts: [],
+    isLoading: false,
+    error: null,
+  });
+
+  const fetchNFTs = async () => {
+    if (!ownerAddress) {
+      setState({ nfts: [], isLoading: false, error: null });
+      return;
+    }
+
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const service = createERC721Service(nftAddress, chainId);
+      const nfts = await service.getNFTsOfOwner(ownerAddress);
+
+      setState({
+        nfts,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error : new Error('Failed to fetch NFTs'),
+      }));
+    }
+  };
+
+  useEffect(() => {
+    fetchNFTs();
+
+    if (refreshInterval) {
+      const interval = setInterval(fetchNFTs, refreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [nftAddress, ownerAddress, chainId, refreshInterval]);
+
+  return {
+    ...state,
+    refetch: fetchNFTs,
+  };
+}

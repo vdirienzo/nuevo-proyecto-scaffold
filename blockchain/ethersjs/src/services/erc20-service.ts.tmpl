@@ -1,0 +1,179 @@
+/**
+ * @fileoverview ERC20 token service
+ * @author {{AUTHOR}}
+ */
+
+import { ethers, ContractTransactionResponse } from 'ethers';
+import { ContractService, TxOptions } from './contract-service';
+import { ERC20_ABI } from '../config/abis';
+
+/**
+ * Token information
+ */
+export interface TokenInfo {
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: bigint;
+}
+
+/**
+ * Transfer event
+ */
+export interface TransferEvent {
+  from: string;
+  to: string;
+  value: bigint;
+  blockNumber: number;
+  transactionHash: string;
+}
+
+/**
+ * ERC20 token service
+ */
+export class ERC20Service extends ContractService {
+  constructor(tokenAddress: string, chainId: number) {
+    super(tokenAddress, ERC20_ABI, chainId);
+  }
+
+  /**
+   * Get token information
+   */
+  async getTokenInfo(): Promise<TokenInfo> {
+    const [name, symbol, decimals, totalSupply] = await Promise.all([
+      this.call<string>('name'),
+      this.call<string>('symbol'),
+      this.call<number>('decimals'),
+      this.call<bigint>('totalSupply'),
+    ]);
+
+    return { name, symbol, decimals, totalSupply };
+  }
+
+  /**
+   * Get token balance of address
+   */
+  async balanceOf(address: string): Promise<bigint> {
+    return await this.call<bigint>('balanceOf', address);
+  }
+
+  /**
+   * Get formatted balance (with decimals)
+   */
+  async getFormattedBalance(address: string): Promise<string> {
+    const [balance, decimals] = await Promise.all([
+      this.balanceOf(address),
+      this.call<number>('decimals'),
+    ]);
+
+    return ethers.formatUnits(balance, decimals);
+  }
+
+  /**
+   * Get allowance
+   */
+  async allowance(owner: string, spender: string): Promise<bigint> {
+    return await this.call<bigint>('allowance', owner, spender);
+  }
+
+  /**
+   * Approve spender
+   */
+  async approve(
+    spender: string,
+    amount: bigint,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.send('approve', [spender, amount], options);
+  }
+
+  /**
+   * Transfer tokens
+   */
+  async transfer(
+    to: string,
+    amount: bigint,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.send('transfer', [to, amount], options);
+  }
+
+  /**
+   * Transfer tokens from address (requires approval)
+   */
+  async transferFrom(
+    from: string,
+    to: string,
+    amount: bigint,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.send('transferFrom', [from, to, amount], options);
+  }
+
+  /**
+   * Get transfer history for address
+   */
+  async getTransferHistory(
+    address: string,
+    fromBlock: number | string = 0,
+    toBlock: number | string = 'latest'
+  ): Promise<TransferEvent[]> {
+    // Query transfers FROM address
+    const sentFilter = this.contract.filters.Transfer(address, null);
+    const sentEvents = await this.contract.queryFilter(sentFilter, fromBlock, toBlock);
+
+    // Query transfers TO address
+    const receivedFilter = this.contract.filters.Transfer(null, address);
+    const receivedEvents = await this.contract.queryFilter(receivedFilter, fromBlock, toBlock);
+
+    // Combine and sort by block number
+    const allEvents = [...sentEvents, ...receivedEvents]
+      .sort((a, b) => a.blockNumber - b.blockNumber)
+      .map((event) => ({
+        from: event.args?.from || '',
+        to: event.args?.to || '',
+        value: event.args?.value || 0n,
+        blockNumber: event.blockNumber,
+        transactionHash: event.transactionHash,
+      }));
+
+    return allEvents;
+  }
+
+  /**
+   * Check if address has sufficient balance
+   */
+  async hasSufficientBalance(address: string, amount: bigint): Promise<boolean> {
+    const balance = await this.balanceOf(address);
+    return balance >= amount;
+  }
+
+  /**
+   * Check if address has sufficient allowance
+   */
+  async hasSufficientAllowance(
+    owner: string,
+    spender: string,
+    amount: bigint
+  ): Promise<boolean> {
+    const allowance = await this.allowance(owner, spender);
+    return allowance >= amount;
+  }
+
+  /**
+   * Approve unlimited amount (max uint256)
+   */
+  async approveUnlimited(
+    spender: string,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.approve(spender, ethers.MaxUint256, options);
+  }
+}
+
+/**
+ * Create ERC20 service instance
+ */
+export function createERC20Service(tokenAddress: string, chainId: number): ERC20Service {
+  return new ERC20Service(tokenAddress, chainId);
+}

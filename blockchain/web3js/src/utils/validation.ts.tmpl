@@ -1,0 +1,238 @@
+/**
+ * Validation utilities for {{PROJECT_NAME}}
+ * Helper functions for validating blockchain data
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { web3Provider } from "../services/web3-provider";
+
+/**
+ * Validate Ethereum address
+ */
+export function isValidAddress(address: string): boolean {
+  if (!address) return false;
+
+  try {
+    const web3 = web3Provider.getWeb3();
+    return web3.utils.isAddress(address);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate transaction hash
+ */
+export function isValidTxHash(hash: string): boolean {
+  if (!hash) return false;
+
+  // Transaction hash should be 66 characters (0x + 64 hex characters)
+  const regex = /^0x[a-fA-F0-9]{64}$/;
+  return regex.test(hash);
+}
+
+/**
+ * Validate private key format
+ */
+export function isValidPrivateKey(privateKey: string): boolean {
+  if (!privateKey) return false;
+
+  // Private key should be 66 characters (0x + 64 hex characters) or 64 hex characters
+  const with0x = /^0x[a-fA-F0-9]{64}$/;
+  const without0x = /^[a-fA-F0-9]{64}$/;
+
+  return with0x.test(privateKey) || without0x.test(privateKey);
+}
+
+/**
+ * Validate amount (must be a valid number > 0)
+ */
+export function isValidAmount(amount: string | number): boolean {
+  if (!amount) return false;
+
+  const num = typeof amount === "string" ? parseFloat(amount) : amount;
+
+  return !isNaN(num) && num > 0 && isFinite(num);
+}
+
+/**
+ * Validate token amount with decimals
+ */
+export function isValidTokenAmount(amount: string, decimals: number = 18): boolean {
+  if (!amount) return false;
+
+  try {
+    const web3 = web3Provider.getWeb3();
+    const wei = web3.utils.toWei(amount, "ether");
+    return BigInt(wei) > 0n;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate URL format
+ */
+export function isValidURL(url: string): boolean {
+  if (!url) return false;
+
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate IPFS URI
+ */
+export function isValidIPFSURI(uri: string): boolean {
+  if (!uri) return false;
+
+  const ipfsRegex = /^ipfs:\/\/[a-zA-Z0-9]+$/;
+  return ipfsRegex.test(uri);
+}
+
+/**
+ * Validate hex string
+ */
+export function isValidHex(hex: string): boolean {
+  if (!hex) return false;
+
+  const regex = /^0x[a-fA-F0-9]+$/;
+  return regex.test(hex);
+}
+
+/**
+ * Validate chain ID
+ */
+export function isValidChainId(chainId: number): boolean {
+  return Number.isInteger(chainId) && chainId > 0;
+}
+
+/**
+ * Validate gas limit
+ */
+export function isValidGasLimit(gasLimit: string | number | bigint): boolean {
+  try {
+    const limit = typeof gasLimit === "bigint" ? gasLimit : BigInt(gasLimit.toString());
+    return limit > 0n && limit < 30000000n; // Max block gas limit on most chains
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate gas price (in Wei)
+ */
+export function isValidGasPrice(gasPrice: string | number | bigint): boolean {
+  try {
+    const price = typeof gasPrice === "bigint" ? gasPrice : BigInt(gasPrice.toString());
+    return price > 0n;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate ENS name format
+ */
+export function isValidENSName(name: string): boolean {
+  if (!name) return false;
+
+  const ensRegex = /^[a-z0-9-]+\.eth$/;
+  return ensRegex.test(name);
+}
+
+/**
+ * Validate signature format
+ */
+export function isValidSignature(signature: string): boolean {
+  if (!signature) return false;
+
+  // Signature should be 132 characters (0x + 130 hex characters)
+  const regex = /^0x[a-fA-F0-9]{130}$/;
+  return regex.test(signature);
+}
+
+/**
+ * Check if address is zero address
+ */
+export function isZeroAddress(address: string): boolean {
+  const zeroAddress = "0x0000000000000000000000000000000000000000";
+  return address.toLowerCase() === zeroAddress.toLowerCase();
+}
+
+/**
+ * Check if addresses are equal (case-insensitive)
+ */
+export function areAddressesEqual(address1: string, address2: string): boolean {
+  if (!isValidAddress(address1) || !isValidAddress(address2)) {
+    return false;
+  }
+
+  return address1.toLowerCase() === address2.toLowerCase();
+}
+
+/**
+ * Validate JSON string
+ */
+export function isValidJSON(json: string): boolean {
+  try {
+    JSON.parse(json);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if value is within range
+ */
+export function isInRange(value: number, min: number, max: number): boolean {
+  return value >= min && value <= max;
+}
+
+/**
+ * Validate nonce
+ */
+export function isValidNonce(nonce: number): boolean {
+  return Number.isInteger(nonce) && nonce >= 0;
+}
+
+/**
+ * Sanitize user input (remove potentially dangerous characters)
+ */
+export function sanitizeInput(input: string): string {
+  if (!input) return "";
+
+  // Remove HTML tags and potentially dangerous characters
+  return input
+    .replace(/<[^>]*>/g, "")
+    .replace(/[<>'"]/g, "")
+    .trim();
+}
+
+/**
+ * Validate contract address (not EOA)
+ */
+export async function isContract(address: string): Promise<boolean> {
+  if (!isValidAddress(address)) return false;
+
+  try {
+    const web3 = web3Provider.getWeb3();
+    const code = await web3.eth.getCode(address);
+    return code !== "0x" && code !== "0x0";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Validate balance against amount
+ */
+export function hasSufficientBalance(balance: bigint, amount: bigint): boolean {
+  return balance >= amount;
+}

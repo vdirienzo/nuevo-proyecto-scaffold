@@ -1,0 +1,160 @@
+/**
+ * web.rs - Browser-based WASM tests
+ *
+ * Tests that run in a headless browser using wasm-bindgen-test.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+//! Test suite for the Web and headless browsers.
+
+#![cfg(target_arch = "wasm32")]
+
+extern crate wasm_bindgen_test;
+use wasm_bindgen_test::*;
+
+wasm_bindgen_test_configure!(run_in_browser);
+
+use {{PROJECT_NAME}}_wasm::*;
+
+#[wasm_bindgen_test]
+fn test_greet() {
+    let result = greet("WASM");
+    assert!(result.contains("WASM"));
+    assert!(result.contains("Hello"));
+}
+
+// Crypto tests
+#[wasm_bindgen_test]
+fn test_sha256() {
+    let data = b"hello world";
+    let hash = sha256_hex(data);
+
+    // SHA-256 of "hello world"
+    assert_eq!(hash.len(), 64);
+    assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[wasm_bindgen_test]
+fn test_blake3() {
+    let data = b"test data";
+    let hash = blake3_hash_hex(data);
+
+    assert_eq!(hash.len(), 64);
+    assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+}
+
+#[wasm_bindgen_test]
+fn test_xor_cipher() {
+    let data = b"secret message";
+    let key = b"key123";
+
+    let encrypted = xor_cipher(data, key).unwrap();
+    let decrypted = xor_cipher(&encrypted, key).unwrap();
+
+    assert_eq!(data.to_vec(), decrypted);
+    assert_ne!(data.to_vec(), encrypted);
+}
+
+// Validation tests
+#[wasm_bindgen_test]
+fn test_validate_email() {
+    assert!(validate_email("test@example.com"));
+    assert!(validate_email("user.name+tag@example.co.uk"));
+    assert!(!validate_email("invalid"));
+    assert!(!validate_email("@example.com"));
+    assert!(!validate_email("test@"));
+    assert!(!validate_email(""));
+}
+
+#[wasm_bindgen_test]
+fn test_validate_url() {
+    assert!(validate_url("https://example.com"));
+    assert!(validate_url("http://localhost:3000"));
+    assert!(!validate_url("ftp://example.com"));
+    assert!(!validate_url("example.com"));
+    assert!(!validate_url(""));
+}
+
+#[wasm_bindgen_test]
+fn test_validate_username() {
+    assert!(validate_username("user123"));
+    assert!(validate_username("test_user"));
+    assert!(validate_username("my-name"));
+    assert!(!validate_username("ab"));
+    assert!(!validate_username("thisusernameistoolongtobevalid"));
+    assert!(!validate_username("user@name"));
+}
+
+#[wasm_bindgen_test]
+fn test_password_strength() {
+    assert_eq!(password_strength("weak"), 1);
+    assert_eq!(password_strength("12345678"), 1);
+    assert!(password_strength("StrongPass123!") >= 3);
+    assert_eq!(password_strength(""), 0);
+}
+
+#[wasm_bindgen_test]
+fn test_validate_ipv4() {
+    assert!(validate_ipv4("192.168.1.1"));
+    assert!(validate_ipv4("0.0.0.0"));
+    assert!(validate_ipv4("255.255.255.255"));
+    assert!(!validate_ipv4("256.1.1.1"));
+    assert!(!validate_ipv4("192.168.1"));
+    assert!(!validate_ipv4("not.an.ip.address"));
+}
+
+#[wasm_bindgen_test]
+fn test_validate_hex_color() {
+    assert!(validate_hex_color("#fff"));
+    assert!(validate_hex_color("#ffffff"));
+    assert!(validate_hex_color("#123ABC"));
+    assert!(!validate_hex_color("ffffff"));
+    assert!(!validate_hex_color("#gg"));
+    assert!(!validate_hex_color("#12345"));
+}
+
+// Utility tests
+#[wasm_bindgen_test]
+fn test_bytes_to_hex() {
+    let bytes = vec![0xde, 0xad, 0xbe, 0xef];
+    assert_eq!(bytes_to_hex(&bytes), "deadbeef");
+}
+
+#[wasm_bindgen_test]
+fn test_hex_to_bytes() {
+    let result = hex_to_bytes("deadbeef").unwrap();
+    assert_eq!(result, vec![0xde, 0xad, 0xbe, 0xef]);
+
+    assert!(hex_to_bytes("invalid").is_err());
+    assert!(hex_to_bytes("abc").is_err());
+}
+
+#[wasm_bindgen_test]
+fn test_random_bytes() {
+    let bytes1 = random_bytes(32).unwrap();
+    let bytes2 = random_bytes(32).unwrap();
+
+    assert_eq!(bytes1.len(), 32);
+    assert_eq!(bytes2.len(), 32);
+    assert_ne!(bytes1, bytes2); // Should be different (very high probability)
+}
+
+#[wasm_bindgen_test]
+fn test_sanitize_html() {
+    let dirty = "<script>alert('xss')</script>";
+    let clean = sanitize_html(dirty);
+
+    assert!(!clean.contains('<'));
+    assert!(!clean.contains('>'));
+    assert!(clean.contains("&lt;"));
+    assert!(clean.contains("&gt;"));
+}
+
+#[wasm_bindgen_test]
+fn test_is_ascii() {
+    assert!(is_ascii("hello world"));
+    assert!(is_ascii("123ABC"));
+    assert!(!is_ascii("hello 世界"));
+    assert!(!is_ascii("café"));
+}

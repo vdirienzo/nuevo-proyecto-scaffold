@@ -1,0 +1,147 @@
+/**
+ * Login Screen
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React, {useState} from 'react';
+import {View, StyleSheet, KeyboardAvoidingView, Platform} from 'react-native';
+import {Text, useTheme} from 'react-native-paper';
+import {useNavigation} from '@react-navigation/native';
+
+import Container from '@components/layout/Container';
+import Input from '@components/ui/Input';
+import Button from '@components/ui/Button';
+import {useAuth} from '@hooks/useAuth';
+import {AuthNavigationProp} from '@navigation/types';
+
+const LoginScreen = (): JSX.Element => {
+  const theme = useTheme();
+  const navigation = useNavigation<AuthNavigationProp>();
+  const {login, isLoading} = useAuth();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors] = useState({email: '', password: ''});
+
+  const validate = (): boolean => {
+    let valid = true;
+    const newErrors = {email: '', password: ''};
+
+    if (!email) {
+      newErrors.email = 'Email is required';
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Email is invalid';
+      valid = false;
+    }
+
+    if (!password) {
+      newErrors.password = 'Password is required';
+      valid = false;
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    return valid;
+  };
+
+  const handleLogin = async () => {
+    if (!validate()) return;
+
+    try {
+      await login({email, password});
+    } catch (error) {
+      console.error('Login error:', error);
+    }
+  };
+
+  return (
+    <Container>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={styles.content}>
+          <Text variant="headlineLarge" style={[styles.title, {color: theme.colors.primary}]}>
+            Welcome Back
+          </Text>
+          <Text variant="bodyMedium" style={[styles.subtitle, {color: theme.colors.onSurfaceVariant}]}>
+            Sign in to continue
+          </Text>
+
+          <Input
+            label="Email"
+            value={email}
+            onChangeText={setEmail}
+            error={errors.email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
+
+          <Input
+            label="Password"
+            value={password}
+            onChangeText={setPassword}
+            error={errors.password}
+            secureTextEntry
+            autoComplete="password"
+          />
+
+          <Button
+            mode="text"
+            onPress={() => navigation.navigate('ForgotPassword')}
+            style={styles.forgotButton}>
+            Forgot Password?
+          </Button>
+
+          <Button
+            mode="contained"
+            onPress={handleLogin}
+            loading={isLoading}
+            disabled={isLoading}
+            style={styles.loginButton}>
+            Login
+          </Button>
+
+          <Button
+            mode="text"
+            onPress={() => navigation.navigate('Register')}>
+            Don't have an account? Register
+          </Button>
+        </View>
+      </KeyboardAvoidingView>
+    </Container>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  title: {
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginTop: 8,
+  },
+  loginButton: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+});
+
+export default LoginScreen;

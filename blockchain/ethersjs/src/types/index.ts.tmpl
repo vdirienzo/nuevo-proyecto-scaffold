@@ -1,0 +1,161 @@
+/**
+ * @fileoverview Common types
+ * @author {{AUTHOR}}
+ */
+
+/**
+ * Transaction status
+ */
+export enum TransactionStatus {
+  Pending = 'pending',
+  Confirmed = 'confirmed',
+  Failed = 'failed',
+}
+
+/**
+ * Transaction info
+ */
+export interface Transaction {
+  hash: string;
+  from: string;
+  to: string | null;
+  value: bigint;
+  gasLimit: bigint;
+  gasPrice: bigint | null;
+  maxFeePerGas: bigint | null;
+  maxPriorityFeePerGas: bigint | null;
+  nonce: number;
+  data: string;
+  chainId: number;
+  blockNumber: number | null;
+  blockHash: string | null;
+  timestamp: number | null;
+  status: TransactionStatus;
+}
+
+/**
+ * Block info
+ */
+export interface Block {
+  number: number;
+  hash: string;
+  parentHash: string;
+  timestamp: number;
+  miner: string;
+  gasLimit: bigint;
+  gasUsed: bigint;
+  baseFeePerGas: bigint | null;
+  transactions: string[];
+}
+
+/**
+ * Gas estimation
+ */
+export interface GasEstimation {
+  gasLimit: bigint;
+  gasPrice: bigint | null;
+  maxFeePerGas: bigint | null;
+  maxPriorityFeePerGas: bigint | null;
+  estimatedCost: bigint;
+}
+
+/**
+ * Chain info
+ */
+export interface ChainInfo {
+  id: number;
+  name: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+  rpcUrls: string[];
+  blockExplorerUrls: string[];
+}
+
+/**
+ * Wallet state
+ */
+export interface WalletState {
+  address: string | null;
+  chainId: number | null;
+  balance: bigint | null;
+  ensName: string | null;
+  isConnected: boolean;
+}
+
+/**
+ * Contract call options
+ */
+export interface CallOptions {
+  blockTag?: number | string;
+  from?: string;
+  gasLimit?: bigint;
+  gasPrice?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  value?: bigint;
+}
+
+/**
+ * Event filter options
+ */
+export interface EventFilterOptions {
+  fromBlock?: number | string;
+  toBlock?: number | string;
+  topics?: (string | string[] | null)[];
+}
+
+/**
+ * Contract event
+ */
+export interface ContractEvent<T = unknown> {
+  event: string;
+  args: T;
+  address: string;
+  blockNumber: number;
+  transactionHash: string;
+  logIndex: number;
+}
+
+/**
+ * Error with code
+ */
+export interface ErrorWithCode extends Error {
+  code?: string | number;
+  data?: unknown;
+}
+
+/**
+ * Network status
+ */
+export enum NetworkStatus {
+  Connected = 'connected',
+  Disconnected = 'disconnected',
+  Connecting = 'connecting',
+  Error = 'error',
+}
+
+/**
+ * Token standard
+ */
+export enum TokenStandard {
+  ERC20 = 'ERC20',
+  ERC721 = 'ERC721',
+  ERC1155 = 'ERC1155',
+}
+
+/**
+ * Proposal state (for governance)
+ */
+export enum ProposalState {
+  Pending = 0,
+  Active = 1,
+  Canceled = 2,
+  Defeated = 3,
+  Succeeded = 4,
+  Queued = 5,
+  Expired = 6,
+  Executed = 7,
+}

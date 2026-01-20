@@ -1,0 +1,229 @@
+/**
+ * Validation utilities for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { z } from "zod";
+
+/**
+ * Email validation regex
+ */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * UUID validation regex
+ */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validate email address
+ */
+export function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email);
+}
+
+/**
+ * Validate UUID
+ */
+export function isValidUUID(uuid: string): boolean {
+  return UUID_REGEX.test(uuid);
+}
+
+/**
+ * Validate URL
+ */
+export function isValidURL(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sanitize string for XSS prevention
+ */
+export function sanitizeString(input: string): string {
+  return input
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;")
+    .replace(/\//g, "&#x2F;");
+}
+
+/**
+ * Parse and validate JSON
+ */
+export function parseJSON<T>(json: string): T | null {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Validate request body with Zod schema
+ */
+export async function validateBody<T extends z.ZodType>(
+  request: Request,
+  schema: T
+): Promise<{ success: true; data: z.infer<T> } | { success: false; errors: Record<string, string> }> {
+  try {
+    const body = await request.json();
+    const result = schema.safeParse(body);
+
+    if (result.success) {
+      return { success: true, data: result.data };
+    }
+
+    const errors: Record<string, string> = {};
+    result.error.issues.forEach(issue => {
+      const path = issue.path.join(".");
+      errors[path] = issue.message;
+    });
+
+    return { success: false, errors };
+  } catch {
+    return {
+      success: false,
+      errors: { body: "Invalid JSON" }
+    };
+  }
+}
+
+/**
+ * Common Zod schemas
+ */
+export const schemas = {
+  email: z.string().email(),
+  uuid: z.string().uuid(),
+  url: z.string().url(),
+  password: z.string().min(8).max(100),
+  username: z.string().min(3).max(50).regex(/^[a-zA-Z0-9_-]+$/),
+
+  // Pagination
+  pagination: z.object({
+    page: z.number().int().positive().default(1),
+    limit: z.number().int().positive().max(100).default(20)
+  }),
+
+  // Date range
+  dateRange: z.object({
+    from: z.string().datetime(),
+    to: z.string().datetime()
+  }),
+
+  // User schemas
+  userCreate: z.object({
+    email: z.string().email(),
+    name: z.string().min(1).max(100),
+    password: z.string().min(8).max(100)
+  }),
+
+  userUpdate: z.object({
+    name: z.string().min(1).max(100).optional(),
+    email: z.string().email().optional()
+  }),
+
+  // Auth schemas
+  login: z.object({
+    email: z.string().email(),
+    password: z.string()
+  }),
+
+  register: z.object({
+    email: z.string().email(),
+    name: z.string().min(1).max(100),
+    password: z.string().min(8).max(100)
+  }),
+
+  // Generic ID param
+  idParam: z.object({
+    id: z.string().uuid()
+  })
+};
+
+/**
+ * Validate query parameters
+ */
+export function validateQuery<T extends z.ZodType>(
+  url: URL,
+  schema: T
+): { success: true; data: z.infer<T> } | { success: false; errors: Record<string, string> } {
+  const params: Record<string, string> = {};
+  url.searchParams.forEach((value, key) => {
+    params[key] = value;
+  });
+
+  const result = schema.safeParse(params);
+
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+
+  const errors: Record<string, string> = {};
+  result.error.issues.forEach(issue => {
+    const path = issue.path.join(".");
+    errors[path] = issue.message;
+  });
+
+  return { success: false, errors };
+}
+
+/**
+ * Validate headers
+ */
+export function validateHeaders(
+  headers: Headers,
+  required: string[]
+): { success: true } | { success: false; missing: string[] } {
+  const missing = required.filter(header => !headers.has(header));
+
+  if (missing.length > 0) {
+    return { success: false, missing };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Check content type
+ */
+export function isContentType(request: Request, type: string): boolean {
+  const contentType = request.headers.get("Content-Type");
+  return contentType?.includes(type) ?? false;
+}
+
+/**
+ * Validate file upload
+ */
+export function validateFile(
+  file: File,
+  options: {
+    maxSize?: number;
+    allowedTypes?: string[];
+  } = {}
+): { valid: true } | { valid: false; error: string } {
+  const { maxSize = 5 * 1024 * 1024, allowedTypes } = options;
+
+  if (file.size > maxSize) {
+    return {
+      valid: false,
+      error: `File size exceeds ${maxSize} bytes`
+    };
+  }
+
+  if (allowedTypes && !allowedTypes.includes(file.type)) {
+    return {
+      valid: false,
+      error: `File type ${file.type} not allowed`
+    };
+  }
+
+  return { valid: true };
+}

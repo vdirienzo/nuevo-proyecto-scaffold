@@ -1,0 +1,48 @@
+/**
+ * index.tsx - Home page route
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import Counter from "../islands/Counter.tsx";
+
+export default function Home() {
+  return (
+    <div class="page">
+      <header>
+        <h1>{{PROJECT_NAME}}</h1>
+        <p>Deno Deploy Edge Application</p>
+      </header>
+
+      <main>
+        <section>
+          <h2>Welcome</h2>
+          <p>
+            This is a Fresh-based application running on Deno Deploy with edge computing capabilities.
+          </p>
+        </section>
+
+        <section>
+          <Counter />
+        </section>
+
+        <section>
+          <h2>Features</h2>
+          <ul>
+            <li>Server-side rendering with Fresh</li>
+            <li>Interactive islands architecture</li>
+            <li>JWT authentication</li>
+            <li>Deno KV storage</li>
+            <li>WebSocket support</li>
+            <li>PostgreSQL/Supabase integration</li>
+          </ul>
+        </section>
+
+        <div class="cta">
+          <a href="/login" class="button">Login</a>
+          <a href="/register" class="button">Register</a>
+        </div>
+      </main>
+    </div>
+  );
+}

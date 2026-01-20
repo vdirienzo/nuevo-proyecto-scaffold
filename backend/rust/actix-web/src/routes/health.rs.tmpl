@@ -1,0 +1,37 @@
+/*!
+ * Health check routes
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use actix_web::{get, web, HttpResponse};
+
+use crate::{db::Database, models::response::HealthResponse};
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "Service is healthy", body = HealthResponse),
+        (status = 503, description = "Service is unhealthy")
+    )
+)]
+#[get("/health")]
+pub async fn health_check(db: web::Data<Database>) -> HttpResponse {
+    let database_status = match db.health_check().await {
+        Ok(_) => "healthy",
+        Err(_) => "unhealthy",
+    };
+
+    let response = HealthResponse {
+        status: "ok".to_string(),
+        database: database_status.to_string(),
+    };
+
+    if database_status == "healthy" {
+        HttpResponse::Ok().json(response)
+    } else {
+        HttpResponse::ServiceUnavailable().json(response)
+    }
+}

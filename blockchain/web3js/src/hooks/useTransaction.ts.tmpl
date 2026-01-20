@@ -1,0 +1,198 @@
+/**
+ * useTransaction Hook for {{PROJECT_NAME}}
+ * React hook for transaction management and tracking
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { useState, useCallback } from "react";
+import { transactionService, TransactionDetails, GasEstimation } from "../services/transaction-service";
+
+export interface TransactionState {
+  hash: string | null;
+  details: TransactionDetails | null;
+  isPending: boolean;
+  isSuccess: boolean;
+  isError: boolean;
+  error: Error | null;
+}
+
+export function useTransaction() {
+  const [state, setState] = useState<TransactionState>({
+    hash: null,
+    details: null,
+    isPending: false,
+    isSuccess: false,
+    isError: false,
+    error: null,
+  });
+
+  const sendTransaction = useCallback(
+    async (
+      txFunction: () => Promise<string>,
+      confirmations: number = 1
+    ): Promise<string> => {
+      setState({
+        hash: null,
+        details: null,
+        isPending: true,
+        isSuccess: false,
+        isError: false,
+        error: null,
+      });
+
+      try {
+        // Execute transaction
+        const hash = await txFunction();
+
+        setState((prev) => ({
+          ...prev,
+          hash,
+        }));
+
+        // Wait for confirmation
+        const receipt = await transactionService.waitForTransaction(hash, confirmations);
+
+        // Get full details
+        const details = await transactionService.getTransactionDetails(hash);
+
+        setState({
+          hash,
+          details,
+          isPending: false,
+          isSuccess: receipt.status === true,
+          isError: receipt.status === false,
+          error: null,
+        });
+
+        return hash;
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          isPending: false,
+          isError: true,
+          error: error as Error,
+        }));
+        throw error;
+      }
+    },
+    []
+  );
+
+  const getTransactionDetails = useCallback(async (hash: string) => {
+    setState((prev) => ({ ...prev, isPending: true, error: null }));
+
+    try {
+      const details = await transactionService.getTransactionDetails(hash);
+
+      setState({
+        hash,
+        details,
+        isPending: false,
+        isSuccess: details.status === true,
+        isError: details.status === false,
+        error: null,
+      });
+
+      return details;
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isPending: false,
+        isError: true,
+        error: error as Error,
+      }));
+      throw error;
+    }
+  }, []);
+
+  const waitForConfirmation = useCallback(
+    async (hash: string, confirmations: number = 1): Promise<void> => {
+      setState((prev) => ({ ...prev, isPending: true }));
+
+      try {
+        await transactionService.waitForTransaction(hash, confirmations);
+        const details = await transactionService.getTransactionDetails(hash);
+
+        setState({
+          hash,
+          details,
+          isPending: false,
+          isSuccess: details.status === true,
+          isError: details.status === false,
+          error: null,
+        });
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          isPending: false,
+          isError: true,
+          error: error as Error,
+        }));
+        throw error;
+      }
+    },
+    []
+  );
+
+  const estimateGas = useCallback(
+    async (transaction: any): Promise<GasEstimation> => {
+      return await transactionService.estimateGas(transaction);
+    },
+    []
+  );
+
+  const reset = useCallback(() => {
+    setState({
+      hash: null,
+      details: null,
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      error: null,
+    });
+  }, []);
+
+  return {
+    ...state,
+    sendTransaction,
+    getTransactionDetails,
+    waitForConfirmation,
+    estimateGas,
+    reset,
+  };
+}
+
+export function useTransactionHistory(address: string, startBlock: number) {
+  const [history, setHistory] = useState<TransactionDetails[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchHistory = useCallback(
+    async (endBlock: number | "latest" = "latest") => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const transactions = await transactionService.getTransactionHistory(
+          address,
+          startBlock,
+          endBlock
+        );
+        setHistory(transactions);
+      } catch (err) {
+        setError(err as Error);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [address, startBlock]
+  );
+
+  return {
+    history,
+    isLoading,
+    error,
+    fetchHistory,
+  };
+}

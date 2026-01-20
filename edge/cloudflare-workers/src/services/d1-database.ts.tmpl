@@ -1,0 +1,231 @@
+/**
+ * D1 Database service for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { User } from "../types";
+
+export class D1Service {
+  constructor(private db: D1Database) {}
+
+  /**
+   * Execute a query
+   */
+  async query<T = unknown>(sql: string, params: unknown[] = []): Promise<T[]> {
+    const result = await this.db.prepare(sql).bind(...params).all<T>();
+    return result.results ?? [];
+  }
+
+  /**
+   * Execute a query and return first result
+   */
+  async queryOne<T = unknown>(sql: string, params: unknown[] = []): Promise<T | null> {
+    const result = await this.db.prepare(sql).bind(...params).first<T>();
+    return result ?? null;
+  }
+
+  /**
+   * Execute a mutation (INSERT, UPDATE, DELETE)
+   */
+  async execute(sql: string, params: unknown[] = []): Promise<D1Result> {
+    return await this.db.prepare(sql).bind(...params).run();
+  }
+
+  /**
+   * Execute multiple statements in a transaction
+   */
+  async batch(statements: { sql: string; params?: unknown[] }[]): Promise<D1Result[]> {
+    const prepared = statements.map(stmt =>
+      this.db.prepare(stmt.sql).bind(...(stmt.params ?? []))
+    );
+    return await this.db.batch(prepared);
+  }
+
+  /**
+   * Get table info
+   */
+  async getTableInfo(tableName: string): Promise<unknown[]> {
+    return await this.query(`PRAGMA table_info(${tableName})`);
+  }
+
+  /**
+   * Check if table exists
+   */
+  async tableExists(tableName: string): Promise<boolean> {
+    const result = await this.queryOne<{ count: number }>(
+      `SELECT COUNT(*) as count FROM sqlite_master WHERE type='table' AND name=?`,
+      [tableName]
+    );
+    return (result?.count ?? 0) > 0;
+  }
+}
+
+/**
+ * User repository using D1
+ */
+export class UserRepository {
+  constructor(private db: D1Service) {}
+
+  /**
+   * Create user
+   */
+  async create(user: Omit<User, "id" | "createdAt">): Promise<User> {
+    const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
+
+    await this.db.execute(
+      `INSERT INTO users (id, email, name, role, created_at) VALUES (?, ?, ?, ?, ?)`,
+      [id, user.email, user.name, user.role, createdAt]
+    );
+
+    return {
+      id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      createdAt
+    };
+  }
+
+  /**
+   * Find user by ID
+   */
+  async findById(id: string): Promise<User | null> {
+    const result = await this.db.queryOne<{
+      id: string;
+      email: string;
+      name: string;
+      role: "user" | "admin";
+      created_at: string;
+    }>(`SELECT * FROM users WHERE id = ?`, [id]);
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      role: result.role,
+      createdAt: result.created_at
+    };
+  }
+
+  /**
+   * Find user by email
+   */
+  async findByEmail(email: string): Promise<User | null> {
+    const result = await this.db.queryOne<{
+      id: string;
+      email: string;
+      name: string;
+      role: "user" | "admin";
+      created_at: string;
+    }>(`SELECT * FROM users WHERE email = ?`, [email]);
+
+    if (!result) return null;
+
+    return {
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      role: result.role,
+      createdAt: result.created_at
+    };
+  }
+
+  /**
+   * Update user
+   */
+  async update(id: string, data: Partial<Omit<User, "id" | "createdAt">>): Promise<User | null> {
+    const fields: string[] = [];
+    const values: unknown[] = [];
+
+    if (data.email) {
+      fields.push("email = ?");
+      values.push(data.email);
+    }
+    if (data.name) {
+      fields.push("name = ?");
+      values.push(data.name);
+    }
+    if (data.role) {
+      fields.push("role = ?");
+      values.push(data.role);
+    }
+
+    if (fields.length === 0) {
+      return await this.findById(id);
+    }
+
+    values.push(id);
+    await this.db.execute(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, values);
+
+    return await this.findById(id);
+  }
+
+  /**
+   * Delete user
+   */
+  async delete(id: string): Promise<boolean> {
+    const result = await this.db.execute(`DELETE FROM users WHERE id = ?`, [id]);
+    return (result.meta.changes ?? 0) > 0;
+  }
+
+  /**
+   * List users with pagination
+   */
+  async list(options: { limit?: number; offset?: number } = {}): Promise<User[]> {
+    const { limit = 20, offset = 0 } = options;
+
+    const results = await this.db.query<{
+      id: string;
+      email: string;
+      name: string;
+      role: "user" | "admin";
+      created_at: string;
+    }>(`SELECT * FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`, [limit, offset]);
+
+    return results.map(result => ({
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      role: result.role,
+      createdAt: result.created_at
+    }));
+  }
+
+  /**
+   * Count total users
+   */
+  async count(): Promise<number> {
+    const result = await this.db.queryOne<{ count: number }>(
+      `SELECT COUNT(*) as count FROM users`
+    );
+    return result?.count ?? 0;
+  }
+
+  /**
+   * Search users by name or email
+   */
+  async search(query: string, limit = 20): Promise<User[]> {
+    const results = await this.db.query<{
+      id: string;
+      email: string;
+      name: string;
+      role: "user" | "admin";
+      created_at: string;
+    }>(
+      `SELECT * FROM users WHERE name LIKE ? OR email LIKE ? LIMIT ?`,
+      [`%${query}%`, `%${query}%`, limit]
+    );
+
+    return results.map(result => ({
+      id: result.id,
+      email: result.email,
+      name: result.name,
+      role: result.role,
+      createdAt: result.created_at
+    }));
+  }
+}

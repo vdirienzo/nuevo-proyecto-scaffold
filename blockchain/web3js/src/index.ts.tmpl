@@ -1,0 +1,37 @@
+/**
+ * {{PROJECT_NAME}} Blockchain Integration
+ * Main entry point for Web3.js integration
+ *
+ * @author {{AUTHOR}}
+ */
+
+// Configuration
+export * from "./config/networks";
+export * from "./config/contracts";
+
+// Services
+export * from "./services/web3-provider";
+export * from "./services/wallet-service";
+export * from "./services/token-service";
+export * from "./services/nft-service";
+export * from "./services/transaction-service";
+
+// Hooks (for React applications)
+export * from "./hooks/useWeb3";
+export * from "./hooks/useWallet";
+export * from "./hooks/useContract";
+export * from "./hooks/useTransaction";
+
+// Components (for React applications)
+export * from "./components/ConnectWallet";
+export * from "./components/NetworkSwitch";
+export * from "./components/TokenBalance";
+export * from "./components/TransactionStatus";
+
+// Utilities
+export * from "./utils/format";
+export * from "./utils/validation";
+export * from "./utils/constants";
+
+// Types
+export * from "./types";

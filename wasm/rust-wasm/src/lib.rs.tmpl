@@ -1,0 +1,58 @@
+/**
+ * {{PROJECT_NAME}} - WebAssembly Module
+ *
+ * Main library entry point for WASM module.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+mod utils;
+mod crypto;
+mod image;
+mod validation;
+
+use wasm_bindgen::prelude::*;
+
+// When the `wee_alloc` feature is enabled, use `wee_alloc` as the global allocator.
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
+#[wasm_bindgen]
+extern "C" {
+    fn alert(s: &str);
+
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+}
+
+#[wasm_bindgen]
+pub fn init() {
+    // Set panic hook for better error messages in console
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
+
+    log("WASM module initialized successfully");
+}
+
+#[wasm_bindgen]
+pub fn greet(name: &str) -> String {
+    format!("Hello, {}! Welcome to {{PROJECT_NAME}} WASM module.", name)
+}
+
+// Re-export submodules
+pub use crypto::*;
+pub use image::*;
+pub use validation::*;
+pub use utils::*;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_greet() {
+        let result = greet("World");
+        assert!(result.contains("World"));
+    }
+}

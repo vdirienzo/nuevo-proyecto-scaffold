@@ -1,0 +1,202 @@
+import { expect } from "chai";
+import { ethers } from "hardhat";
+import { {{PROJECT_NAME}}Token } from "../typechain-types";
+import { SignerWithAddress } from "@nomicfoundation/hardhat-ethers/signers";
+
+/**
+ * Tests for {{PROJECT_NAME}}Token contract
+ * @author {{AUTHOR}}
+ */
+
+describe("{{PROJECT_NAME}}Token", function () {
+  let token: {{PROJECT_NAME}}Token;
+  let owner: SignerWithAddress;
+  let user1: SignerWithAddress;
+  let user2: SignerWithAddress;
+
+  const INITIAL_SUPPLY = ethers.parseEther("100000000"); // 100 million
+  const MAX_SUPPLY = ethers.parseEther("1000000000"); // 1 billion
+
+  beforeEach(async function () {
+    [owner, user1, user2] = await ethers.getSigners();
+
+    const Token = await ethers.getContractFactory("{{PROJECT_NAME}}Token");
+    token = await Token.deploy(INITIAL_SUPPLY);
+    await token.waitForDeployment();
+  });
+
+  describe("Deployment", function () {
+    it("Should set the correct name and symbol", async function () {
+      expect(await token.name()).to.equal("{{PROJECT_NAME}} Token");
+      expect(await token.symbol()).to.equal("{{PROJECT_NAME}}");
+    });
+
+    it("Should mint initial supply to owner", async function () {
+      const ownerBalance = await token.balanceOf(owner.address);
+      expect(ownerBalance).to.equal(INITIAL_SUPPLY);
+    });
+
+    it("Should set correct total supply", async function () {
+      expect(await token.totalSupply()).to.equal(INITIAL_SUPPLY);
+    });
+
+    it("Should set correct max supply", async function () {
+      expect(await token.MAX_SUPPLY()).to.equal(MAX_SUPPLY);
+    });
+
+    it("Should fail if initial supply exceeds max supply", async function () {
+      const Token = await ethers.getContractFactory("{{PROJECT_NAME}}Token");
+      await expect(
+        Token.deploy(MAX_SUPPLY + 1n)
+      ).to.be.revertedWith("Initial supply exceeds max supply");
+    });
+  });
+
+  describe("Transfers", function () {
+    it("Should transfer tokens between accounts", async function () {
+      const amount = ethers.parseEther("1000");
+
+      await token.transfer(user1.address, amount);
+      expect(await token.balanceOf(user1.address)).to.equal(amount);
+
+      await token.connect(user1).transfer(user2.address, amount);
+      expect(await token.balanceOf(user2.address)).to.equal(amount);
+      expect(await token.balanceOf(user1.address)).to.equal(0);
+    });
+
+    it("Should fail if sender doesn't have enough tokens", async function () {
+      const amount = ethers.parseEther("1");
+      await expect(
+        token.connect(user1).transfer(user2.address, amount)
+      ).to.be.reverted;
+    });
+
+    it("Should update balances after transfers", async function () {
+      const amount = ethers.parseEther("100");
+      const initialOwnerBalance = await token.balanceOf(owner.address);
+
+      await token.transfer(user1.address, amount);
+      await token.transfer(user2.address, amount);
+
+      const finalOwnerBalance = await token.balanceOf(owner.address);
+      expect(finalOwnerBalance).to.equal(initialOwnerBalance - (amount * 2n));
+    });
+  });
+
+  describe("Allowances", function () {
+    it("Should approve tokens for delegated transfer", async function () {
+      const amount = ethers.parseEther("100");
+
+      await token.approve(user1.address, amount);
+      expect(await token.allowance(owner.address, user1.address)).to.equal(amount);
+    });
+
+    it("Should transfer tokens using transferFrom", async function () {
+      const amount = ethers.parseEther("100");
+
+      await token.approve(user1.address, amount);
+      await token.connect(user1).transferFrom(owner.address, user2.address, amount);
+
+      expect(await token.balanceOf(user2.address)).to.equal(amount);
+    });
+
+    it("Should fail transferFrom without approval", async function () {
+      const amount = ethers.parseEther("100");
+
+      await expect(
+        token.connect(user1).transferFrom(owner.address, user2.address, amount)
+      ).to.be.reverted;
+    });
+  });
+
+  describe("Minting", function () {
+    it("Should allow owner to mint tokens", async function () {
+      const amount = ethers.parseEther("1000");
+      const initialSupply = await token.totalSupply();
+
+      await token.mint(user1.address, amount);
+
+      expect(await token.balanceOf(user1.address)).to.equal(amount);
+      expect(await token.totalSupply()).to.equal(initialSupply + amount);
+    });
+
+    it("Should emit TokensMinted event", async function () {
+      const amount = ethers.parseEther("1000");
+
+      await expect(token.mint(user1.address, amount))
+        .to.emit(token, "TokensMinted")
+        .withArgs(user1.address, amount);
+    });
+
+    it("Should fail if minting exceeds max supply", async function () {
+      const excessAmount = MAX_SUPPLY - INITIAL_SUPPLY + 1n;
+
+      await expect(
+        token.mint(user1.address, excessAmount)
+      ).to.be.revertedWith("Minting would exceed max supply");
+    });
+
+    it("Should fail if non-owner tries to mint", async function () {
+      const amount = ethers.parseEther("1000");
+
+      await expect(
+        token.connect(user1).mint(user2.address, amount)
+      ).to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount");
+    });
+  });
+
+  describe("Burning", function () {
+    it("Should allow users to burn their tokens", async function () {
+      const amount = ethers.parseEther("1000");
+      await token.transfer(user1.address, amount);
+
+      const initialSupply = await token.totalSupply();
+      await token.connect(user1).burn(amount);
+
+      expect(await token.balanceOf(user1.address)).to.equal(0);
+      expect(await token.totalSupply()).to.equal(initialSupply - amount);
+    });
+
+    it("Should emit TokensBurned event", async function () {
+      const amount = ethers.parseEther("1000");
+
+      await expect(token.burn(amount))
+        .to.emit(token, "TokensBurned")
+        .withArgs(owner.address, amount);
+    });
+
+    it("Should fail if burning more than balance", async function () {
+      const balance = await token.balanceOf(user1.address);
+      await expect(
+        token.connect(user1).burn(balance + 1n)
+      ).to.be.reverted;
+    });
+  });
+
+  describe("Pausable", function () {
+    it("Should allow owner to pause", async function () {
+      await token.pause();
+      expect(await token.paused()).to.be.true;
+    });
+
+    it("Should allow owner to unpause", async function () {
+      await token.pause();
+      await token.unpause();
+      expect(await token.paused()).to.be.false;
+    });
+
+    it("Should prevent transfers when paused", async function () {
+      await token.pause();
+
+      await expect(
+        token.transfer(user1.address, ethers.parseEther("100"))
+      ).to.be.revertedWithCustomError(token, "EnforcedPause");
+    });
+
+    it("Should fail if non-owner tries to pause", async function () {
+      await expect(
+        token.connect(user1).pause()
+      ).to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount");
+    });
+  });
+});

@@ -1,0 +1,117 @@
+/**
+ * TokenBalance Component for {{PROJECT_NAME}}
+ * React component for displaying token balance
+ *
+ * @author {{AUTHOR}}
+ */
+
+import React, { useState, useEffect } from "react";
+import { tokenService, TokenInfo } from "../services/token-service";
+import { useWeb3 } from "../hooks/useWeb3";
+import { useWallet } from "../hooks/useWallet";
+
+export interface TokenBalanceProps {
+  onError?: (error: Error) => void;
+  className?: string;
+  refreshInterval?: number; // in milliseconds
+  showSymbol?: boolean;
+  decimals?: number;
+}
+
+export const TokenBalance: React.FC<TokenBalanceProps> = ({
+  onError,
+  className = "",
+  refreshInterval = 30000,
+  showSymbol = true,
+  decimals = 4,
+}) => {
+  const { chainId } = useWeb3();
+  const { account, isConnected } = useWallet();
+
+  const [tokenInfo, setTokenInfo] = useState<TokenInfo | null>(null);
+  const [balance, setBalance] = useState<string>("0");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchTokenInfo = async () => {
+    if (!chainId) return;
+
+    try {
+      await tokenService.initialize(chainId);
+      const info = await tokenService.getTokenInfo();
+      setTokenInfo(info);
+    } catch (error) {
+      console.error("Failed to fetch token info:", error);
+      if (onError) {
+        onError(error as Error);
+      }
+    }
+  };
+
+  const fetchBalance = async () => {
+    if (!account) return;
+
+    setIsLoading(true);
+
+    try {
+      const balanceInfo = await tokenService.getBalanceInfo(account);
+      setBalance(balanceInfo.balanceFormatted);
+    } catch (error) {
+      console.error("Failed to fetch token balance:", error);
+      if (onError) {
+        onError(error as Error);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected && chainId) {
+      fetchTokenInfo();
+    }
+  }, [isConnected, chainId]);
+
+  useEffect(() => {
+    if (isConnected && account) {
+      fetchBalance();
+
+      // Set up auto-refresh
+      const interval = setInterval(fetchBalance, refreshInterval);
+
+      return () => clearInterval(interval);
+    }
+  }, [isConnected, account, refreshInterval]);
+
+  if (!isConnected || !account) {
+    return (
+      <div className={`token-balance not-connected ${className}`}>
+        <span>Connect wallet to view balance</span>
+      </div>
+    );
+  }
+
+  if (isLoading && !balance) {
+    return (
+      <div className={`token-balance loading ${className}`}>
+        <span>Loading balance...</span>
+      </div>
+    );
+  }
+
+  const formattedBalance = parseFloat(balance).toFixed(decimals);
+
+  return (
+    <div className={`token-balance ${className}`}>
+      <span className="balance-label">Token Balance:</span>
+      <span className="balance-amount">
+        {formattedBalance}
+        {showSymbol && tokenInfo && (
+          <span className="balance-symbol"> {tokenInfo.symbol}</span>
+        )}
+      </span>
+      {isLoading && <span className="balance-updating">↻</span>}
+    </div>
+  );
+};
+
+export default TokenBalance;

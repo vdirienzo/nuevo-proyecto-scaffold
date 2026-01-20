@@ -1,0 +1,44 @@
+/*!
+ * Configuration management
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Config {
+    pub database: DatabaseConfig,
+    pub jwt: JwtConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DatabaseConfig {
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct JwtConfig {
+    pub secret: String,
+    pub expiration_hours: i64,
+}
+
+impl Config {
+    pub fn from_env() -> Result<Self, config::ConfigError> {
+        let database = DatabaseConfig {
+            url: std::env::var("DATABASE_URL")
+                .expect("DATABASE_URL must be set"),
+        };
+
+        let jwt = JwtConfig {
+            secret: std::env::var("JWT_SECRET")
+                .expect("JWT_SECRET must be set"),
+            expiration_hours: std::env::var("JWT_EXPIRATION_HOURS")
+                .unwrap_or_else(|_| "24".to_string())
+                .parse()
+                .unwrap_or(24),
+        };
+
+        Ok(Config { database, jwt })
+    }
+}

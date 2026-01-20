@@ -1,0 +1,83 @@
+/**
+ * @fileoverview Multicall utilities
+ * @author {{AUTHOR}}
+ */
+
+import { Interface } from 'ethers';
+import { createMulticallService, Call } from '../services/multicall-service';
+
+/**
+ * Batch multiple contract calls
+ */
+export async function batchCalls(chainId: number, calls: Call[]): Promise<string[]> {
+  const multicall = createMulticallService(chainId);
+  const results = await multicall.aggregate(calls);
+
+  return results.map((result) => {
+    if (!result.success) {
+      throw new Error('Call failed');
+    }
+    return result.returnData;
+  });
+}
+
+/**
+ * Create call from contract method
+ */
+export function createCall(
+  target: string,
+  contractInterface: Interface,
+  method: string,
+  params: unknown[],
+  allowFailure: boolean = false
+): Call {
+  return {
+    target,
+    callData: contractInterface.encodeFunctionData(method, params),
+    allowFailure,
+  };
+}
+
+/**
+ * Decode call results
+ */
+export function decodeResults<T>(
+  contractInterface: Interface,
+  method: string,
+  results: string[]
+): T[] {
+  return results.map((data) => {
+    return contractInterface.decodeFunctionResult(method, data) as T;
+  });
+}
+
+/**
+ * Get multiple balances in one call
+ */
+export async function getBalances(
+  chainId: number,
+  tokenAddresses: string[],
+  holderAddress: string
+): Promise<Record<string, bigint>> {
+  const multicall = createMulticallService(chainId);
+  return await multicall.getTokenBalances(tokenAddresses, holderAddress);
+}
+
+/**
+ * Get multiple token info in one call
+ */
+export async function getTokensInfo(
+  chainId: number,
+  tokenAddresses: string[]
+): Promise<
+  Array<{
+    address: string;
+    name: string;
+    symbol: string;
+    decimals: number;
+    totalSupply: bigint;
+  }>
+> {
+  const multicall = createMulticallService(chainId);
+  return await multicall.getTokensInfo(tokenAddresses);
+}

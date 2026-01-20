@@ -1,0 +1,58 @@
+/**
+ * Auth Service
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import {api} from './api';
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterData {
+  name: string;
+  email: string;
+  password: string;
+}
+
+interface AuthResponse {
+  token: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+export const authService = {
+  login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    return response.data;
+  },
+
+  register: async (data: RegisterData): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/register', data);
+    return response.data;
+  },
+
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
+  },
+
+  refreshToken: async (refreshToken: string): Promise<{token: string}> => {
+    const response = await api.post<{token: string}>('/auth/refresh', {
+      refreshToken,
+    });
+    return response.data;
+  },
+
+  forgotPassword: async (email: string): Promise<void> => {
+    await api.post('/auth/forgot-password', {email});
+  },
+
+  resetPassword: async (token: string, password: string): Promise<void> => {
+    await api.post('/auth/reset-password', {token, password});
+  },
+};

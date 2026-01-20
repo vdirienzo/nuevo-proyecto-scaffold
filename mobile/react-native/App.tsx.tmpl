@@ -1,0 +1,39 @@
+/**
+ * {{PROJECT_NAME}} Main Application Component
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React from 'react';
+import {StatusBar, useColorScheme} from 'react-native';
+import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {Provider as PaperProvider} from 'react-native-paper';
+import {Provider as ReduxProvider} from 'react-redux';
+import {NavigationContainer} from '@react-navigation/native';
+
+import {store} from './src/store';
+import RootNavigator from './src/navigation';
+import {lightTheme, darkTheme} from './src/theme';
+
+const App = (): JSX.Element => {
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? darkTheme : lightTheme;
+
+  return (
+    <ReduxProvider store={store}>
+      <SafeAreaProvider>
+        <PaperProvider theme={theme}>
+          <NavigationContainer theme={theme}>
+            <StatusBar
+              barStyle={colorScheme === 'dark' ? 'light-content' : 'dark-content'}
+              backgroundColor={theme.colors.background}
+            />
+            <RootNavigator />
+          </NavigationContainer>
+        </PaperProvider>
+      </SafeAreaProvider>
+    </ReduxProvider>
+  );
+};
+
+export default App;

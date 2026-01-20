@@ -1,0 +1,31 @@
+/**
+ * handlers_test.ts - Handler tests
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { assertEquals } from "@std/assert";
+import { successResponse, errorResponse } from "../src/utils/response.ts";
+
+Deno.test("successResponse creates correct structure", () => {
+  const result = successResponse({ id: 1, name: "Test" });
+
+  assertEquals(result.success, true);
+  assertEquals(result.data, { id: 1, name: "Test" });
+});
+
+Deno.test("errorResponse creates correct structure", () => {
+  const result = errorResponse("Something went wrong");
+
+  assertEquals(result.success, false);
+  assertEquals(result.error, "Something went wrong");
+});
+
+Deno.test("Response with meta information", () => {
+  const result = successResponse([1, 2, 3], { total: 3, page: 1 });
+
+  assertEquals(result.success, true);
+  assertEquals(result.data, [1, 2, 3]);
+  assertEquals(result.meta?.total, 3);
+  assertEquals(result.meta?.page, 1);
+});

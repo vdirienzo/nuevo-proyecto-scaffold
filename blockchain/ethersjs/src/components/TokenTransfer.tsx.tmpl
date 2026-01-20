@@ -1,0 +1,120 @@
+/**
+ * @fileoverview Token transfer component
+ * @author {{AUTHOR}}
+ */
+
+import React, { useState } from 'react';
+import { parseUnits } from 'ethers';
+import { useEthers } from '../hooks/useEthers';
+import { useTokenBalance } from '../hooks/useTokenBalance';
+import { createERC20Service } from '../services/erc20-service';
+
+/**
+ * Component props
+ */
+export interface TokenTransferProps {
+  tokenAddress: string;
+  chainId: number;
+  onTransferComplete?: (txHash: string) => void;
+  className?: string;
+}
+
+/**
+ * Token transfer component
+ */
+export const TokenTransfer: React.FC<TokenTransferProps> = ({
+  tokenAddress,
+  chainId,
+  onTransferComplete,
+  className = '',
+}) => {
+  const { account, isConnected } = useEthers();
+  const { balance, decimals, symbol, formattedBalance, refetch } = useTokenBalance({
+    tokenAddress,
+    holderAddress: account,
+    chainId,
+  });
+
+  const [recipient, setRecipient] = useState('');
+  const [amount, setAmount] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+
+  const handleTransfer = async () => {
+    if (!account || !decimals) return;
+
+    setIsTransferring(true);
+    setError(null);
+    setTxHash(null);
+
+    try {
+      const service = createERC20Service(tokenAddress, chainId);
+      const amountWei = parseUnits(amount, decimals);
+
+      const tx = await service.transfer(recipient, amountWei);
+      setTxHash(tx.hash);
+
+      await service.waitForTransaction(tx);
+      await refetch();
+
+      onTransferComplete?.(tx.hash);
+      setRecipient('');
+      setAmount('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Transfer failed');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const canTransfer = isConnected && recipient && amount && !isTransferring;
+
+  if (!isConnected) {
+    return <div className={className}>Please connect wallet</div>;
+  }
+
+  return (
+    <div className={`token-transfer ${className}`}>
+      <h3>Transfer {symbol}</h3>
+
+      <div className="balance-info">
+        Balance: {formattedBalance} {symbol}
+      </div>
+
+      <div className="transfer-form">
+        <input
+          type="text"
+          placeholder="Recipient address (0x...)"
+          value={recipient}
+          onChange={(e) => setRecipient(e.target.value)}
+          className="recipient-input"
+        />
+
+        <input
+          type="number"
+          placeholder="Amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="amount-input"
+          step="any"
+        />
+
+        <button
+          onClick={handleTransfer}
+          disabled={!canTransfer}
+          className="transfer-button"
+        >
+          {isTransferring ? 'Transferring...' : 'Transfer'}
+        </button>
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+      {txHash && (
+        <div className="success-message">
+          Transfer successful! Hash: {txHash.slice(0, 10)}...
+        </div>
+      )}
+    </div>
+  );
+};

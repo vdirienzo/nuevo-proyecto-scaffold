@@ -1,0 +1,195 @@
+/**
+ * Constants for {{PROJECT_NAME}}
+ * Blockchain-related constants and configurations
+ *
+ * @author {{AUTHOR}}
+ */
+
+/**
+ * Zero Address
+ */
+export const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+/**
+ * Dead Address (burn address)
+ */
+export const DEAD_ADDRESS = "0x000000000000000000000000000000000000dEaD";
+
+/**
+ * Maximum uint256 value
+ */
+export const MAX_UINT256 = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+/**
+ * Wei per Ether
+ */
+export const WEI_PER_ETHER = BigInt(10) ** BigInt(18);
+
+/**
+ * Wei per Gwei
+ */
+export const WEI_PER_GWEI = BigInt(10) ** BigInt(9);
+
+/**
+ * Gas limits for common operations
+ */
+export const GAS_LIMITS = {
+  TRANSFER: 21000n,
+  ERC20_TRANSFER: 65000n,
+  ERC20_APPROVE: 50000n,
+  ERC721_TRANSFER: 85000n,
+  ERC721_MINT: 150000n,
+  CONTRACT_DEPLOYMENT: 3000000n,
+} as const;
+
+/**
+ * Default transaction confirmation blocks
+ */
+export const DEFAULT_CONFIRMATIONS = {
+  ETHEREUM: 12,
+  POLYGON: 128,
+  BSC: 15,
+  LOCAL: 1,
+} as const;
+
+/**
+ * Block times (in seconds)
+ */
+export const BLOCK_TIMES = {
+  ETHEREUM: 12,
+  POLYGON: 2,
+  BSC: 3,
+  HARDHAT: 1,
+} as const;
+
+/**
+ * Standard ERC token decimals
+ */
+export const TOKEN_DECIMALS = {
+  STANDARD: 18,
+  USDC: 6,
+  USDT: 6,
+  WBTC: 8,
+} as const;
+
+/**
+ * Transaction types
+ */
+export const TX_TYPES = {
+  LEGACY: "0x0",
+  EIP2930: "0x1",
+  EIP1559: "0x2",
+} as const;
+
+/**
+ * Error codes
+ */
+export const ERROR_CODES = {
+  USER_REJECTED: 4001,
+  UNAUTHORIZED: 4100,
+  UNSUPPORTED_METHOD: 4200,
+  DISCONNECTED: 4900,
+  CHAIN_DISCONNECTED: 4901,
+} as const;
+
+/**
+ * MetaMask error messages
+ */
+export const METAMASK_ERRORS = {
+  [ERROR_CODES.USER_REJECTED]: "User rejected the request",
+  [ERROR_CODES.UNAUTHORIZED]: "The requested account has not been authorized",
+  [ERROR_CODES.UNSUPPORTED_METHOD]: "The requested method is not supported",
+  [ERROR_CODES.DISCONNECTED]: "The provider is disconnected",
+  [ERROR_CODES.CHAIN_DISCONNECTED]: "The provider is disconnected from the specified chain",
+} as const;
+
+/**
+ * Wallet types
+ */
+export const WALLET_TYPES = {
+  METAMASK: "metamask",
+  WALLETCONNECT: "walletconnect",
+  COINBASE: "coinbase",
+  INJECTED: "injected",
+} as const;
+
+/**
+ * Event names
+ */
+export const EVENTS = {
+  ACCOUNTS_CHANGED: "accountsChanged",
+  CHAIN_CHANGED: "chainChanged",
+  CONNECT: "connect",
+  DISCONNECT: "disconnect",
+  MESSAGE: "message",
+} as const;
+
+/**
+ * Storage keys for local storage
+ */
+export const STORAGE_KEYS = {
+  WALLET_TYPE: "{{PROJECT_NAME}}_wallet_type",
+  LAST_ACCOUNT: "{{PROJECT_NAME}}_last_account",
+  LAST_CHAIN_ID: "{{PROJECT_NAME}}_last_chain_id",
+  PREFERENCES: "{{PROJECT_NAME}}_preferences",
+} as const;
+
+/**
+ * API endpoints for gas prices
+ */
+export const GAS_PRICE_APIS = {
+  ETHEREUM: "https://api.etherscan.io/api?module=gastracker&action=gasoracle",
+  POLYGON: "https://api.polygonscan.com/api?module=gastracker&action=gasoracle",
+  BSC: "https://api.bscscan.com/api?module=gastracker&action=gasoracle",
+} as const;
+
+/**
+ * IPFS gateways
+ */
+export const IPFS_GATEWAYS = [
+  "https://ipfs.io/ipfs/",
+  "https://gateway.pinata.cloud/ipfs/",
+  "https://cloudflare-ipfs.com/ipfs/",
+  "https://dweb.link/ipfs/",
+] as const;
+
+/**
+ * Standard ERC interfaces
+ */
+export const ERC_INTERFACES = {
+  ERC20: "0x36372b07",
+  ERC721: "0x80ac58cd",
+  ERC721_METADATA: "0x5b5e139f",
+  ERC721_ENUMERABLE: "0x780e9d63",
+  ERC1155: "0xd9b67a26",
+} as const;
+
+/**
+ * Time constants (in milliseconds)
+ */
+export const TIME_CONSTANTS = {
+  SECOND: 1000,
+  MINUTE: 60 * 1000,
+  HOUR: 60 * 60 * 1000,
+  DAY: 24 * 60 * 60 * 1000,
+  WEEK: 7 * 24 * 60 * 60 * 1000,
+} as const;
+
+/**
+ * Rate limits
+ */
+export const RATE_LIMITS = {
+  REQUESTS_PER_SECOND: 10,
+  REQUESTS_PER_MINUTE: 300,
+  REQUESTS_PER_HOUR: 10000,
+} as const;
+
+/**
+ * Default timeouts (in milliseconds)
+ */
+export const TIMEOUTS = {
+  TRANSACTION: 120000, // 2 minutes
+  BLOCK_POLLING: 15000, // 15 seconds
+  BALANCE_REFRESH: 30000, // 30 seconds
+  CONNECTION: 10000, // 10 seconds
+} as const;

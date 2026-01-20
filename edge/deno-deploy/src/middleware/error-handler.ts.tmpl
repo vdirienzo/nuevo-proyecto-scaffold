@@ -1,0 +1,27 @@
+/**
+ * error-handler.ts - Global error handling middleware
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context, Next } from "oak";
+
+export async function errorHandlerMiddleware(ctx: Context, next: Next) {
+  try {
+    await next();
+  } catch (error) {
+    console.error("Error:", error);
+
+    const status = error.status || 500;
+    const message = error.message || "Internal Server Error";
+
+    ctx.response.status = status;
+    ctx.response.body = {
+      success: false,
+      error: message,
+      ...(Deno.env.get("APP_ENV") === "development" && {
+        stack: error.stack,
+      }),
+    };
+  }
+}

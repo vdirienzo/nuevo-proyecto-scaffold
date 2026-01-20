@@ -1,0 +1,85 @@
+/**
+ * @fileoverview Wallet connection component
+ * @author {{AUTHOR}}
+ */
+
+import React from 'react';
+import { useEthers } from '../hooks/useEthers';
+import { formatEther } from 'ethers';
+
+/**
+ * Component props
+ */
+export interface WalletConnectProps {
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+  className?: string;
+}
+
+/**
+ * Wallet connection component
+ */
+export const WalletConnect: React.FC<WalletConnectProps> = ({
+  onConnect,
+  onDisconnect,
+  className = '',
+}) => {
+  const { account, chainId, balance, ensName, isConnected, isConnecting, error, connect, disconnect } =
+    useEthers();
+
+  const handleConnect = async () => {
+    await connect();
+    onConnect?.();
+  };
+
+  const handleDisconnect = () => {
+    disconnect();
+    onDisconnect?.();
+  };
+
+  const formatAddress = (address: string): string => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  if (isConnected && account) {
+    return (
+      <div className={`wallet-connected ${className}`}>
+        <div className="wallet-info">
+          <div className="wallet-address">
+            {ensName || formatAddress(account)}
+          </div>
+          {balance !== null && (
+            <div className="wallet-balance">
+              {parseFloat(formatEther(balance)).toFixed(4)} ETH
+            </div>
+          )}
+          {chainId && (
+            <div className="wallet-chain">
+              Chain: {chainId}
+            </div>
+          )}
+        </div>
+        <button onClick={handleDisconnect} className="disconnect-button">
+          Disconnect
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`wallet-disconnected ${className}`}>
+      <button
+        onClick={handleConnect}
+        disabled={isConnecting}
+        className="connect-button"
+      >
+        {isConnecting ? 'Connecting...' : 'Connect Wallet'}
+      </button>
+      {error && (
+        <div className="wallet-error">
+          {error.message}
+        </div>
+      )}
+    </div>
+  );
+};

@@ -1,0 +1,128 @@
+/*!
+ * {{PROJECT_NAME}} - Main Application Entry Point
+ *
+ * Author: {{AUTHOR}}
+ */
+
+mod config;
+mod db;
+mod error;
+mod middleware;
+mod models;
+mod routes;
+mod services;
+
+use actix_cors::Cors;
+use actix_web::{middleware::Logger, web, App, HttpServer};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
+
+use crate::{
+    config::Config,
+    db::Database,
+    routes::{auth, health, users},
+};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        health::health_check,
+        auth::login,
+        auth::register,
+        users::get_users,
+        users::get_user,
+        users::update_user,
+    ),
+    components(
+        schemas(
+            models::user::User,
+            models::user::UserResponse,
+            models::user::CreateUserRequest,
+            models::user::UpdateUserRequest,
+            models::response::ApiResponse,
+            models::response::ErrorResponse,
+        )
+    ),
+    tags(
+        (name = "health", description = "Health check endpoints"),
+        (name = "auth", description = "Authentication endpoints"),
+        (name = "users", description = "User management endpoints")
+    )
+)]
+struct ApiDoc;
+
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    // Load environment variables
+    dotenvy::dotenv().ok();
+
+    // Initialize tracing
+    tracing_subscriber::registry()
+        .with(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "info,{{PROJECT_NAME}}=debug".into()),
+        )
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
+    // Load configuration
+    let config = Config::from_env().expect("Failed to load configuration");
+    let host = config.server.host.clone();
+    let port = config.server.port;
+
+    tracing::info!("Starting {{PROJECT_NAME}} on {}:{}", host, port);
+
+    // Initialize database connection
+    let db = Database::new(&config.database.url)
+        .await
+        .expect("Failed to connect to database");
+
+    // Run migrations
+    db.run_migrations()
+        .await
+        .expect("Failed to run migrations");
+
+    tracing::info!("Database connected and migrations applied");
+
+    let db_pool = web::Data::new(db);
+    let config_data = web::Data::new(config.clone());
+
+    // Start HTTP server
+    HttpServer::new(move || {
+        let cors = Cors::default()
+            .allow_any_origin()
+            .allow_any_method()
+            .allow_any_header()
+            .max_age(3600);
+
+        App::new()
+            .app_data(db_pool.clone())
+            .app_data(config_data.clone())
+            .wrap(cors)
+            .wrap(Logger::default())
+            .wrap(tracing_actix_web::TracingLogger::default())
+            .service(
+                web::scope("/api/v1")
+                    .service(health::health_check)
+                    .service(
+                        web::scope("/auth")
+                            .service(auth::login)
+                            .service(auth::register),
+                    )
+                    .service(
+                        web::scope("/users")
+                            .service(users::get_users)
+                            .service(users::get_user)
+                            .service(users::update_user),
+                    ),
+            )
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
+            )
+    })
+    .bind((host, port))?
+    .run()
+    .await
+}

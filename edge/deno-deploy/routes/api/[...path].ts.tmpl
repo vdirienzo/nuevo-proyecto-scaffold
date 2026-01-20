@@ -1,0 +1,27 @@
+/**
+ * [...path].ts - Catch-all API route for Fresh
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { HandlerContext } from "fresh/server.ts";
+import { router } from "../../src/router.ts";
+
+export const handler = async (req: Request, ctx: HandlerContext): Promise<Response> => {
+  // Forward to Oak router
+  // Note: This is a simplified example. In production, you'd integrate Oak with Fresh more carefully.
+  const url = new URL(req.url);
+  const path = url.pathname;
+
+  // Mock Oak context for demonstration
+  // In production, properly integrate Oak with Fresh's handler
+  return new Response(
+    JSON.stringify({
+      message: "API route - integrate with Oak router",
+      path,
+    }),
+    {
+      headers: { "Content-Type": "application/json" },
+    },
+  );
+};

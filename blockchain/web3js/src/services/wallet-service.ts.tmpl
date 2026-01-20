@@ -1,0 +1,200 @@
+/**
+ * Wallet Service for {{PROJECT_NAME}}
+ * Manages wallet connection and account operations
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { web3Provider } from "./web3-provider";
+
+export interface WalletAccount {
+  address: string;
+  balance: string;
+  balanceFormatted: string;
+}
+
+export class WalletService {
+  /**
+   * Connect wallet using MetaMask
+   */
+  async connectMetaMask(): Promise<string> {
+    await web3Provider.initializeWithMetaMask();
+    const accounts = await this.getAccounts();
+
+    if (accounts.length === 0) {
+      throw new Error("No accounts found. Please unlock your wallet.");
+    }
+
+    return accounts[0];
+  }
+
+  /**
+   * Connect wallet using WalletConnect
+   */
+  async connectWalletConnect(): Promise<string> {
+    await web3Provider.initializeWithWalletConnect();
+    const accounts = await this.getAccounts();
+
+    if (accounts.length === 0) {
+      throw new Error("No accounts found.");
+    }
+
+    return accounts[0];
+  }
+
+  /**
+   * Get all connected accounts
+   */
+  async getAccounts(): Promise<string[]> {
+    const web3 = web3Provider.getWeb3();
+    return await web3.eth.getAccounts();
+  }
+
+  /**
+   * Get current active account
+   */
+  async getCurrentAccount(): Promise<string | null> {
+    const accounts = await this.getAccounts();
+    return accounts.length > 0 ? accounts[0] : null;
+  }
+
+  /**
+   * Get account balance in Wei
+   */
+  async getBalance(address: string): Promise<bigint> {
+    const web3 = web3Provider.getWeb3();
+    return await web3.eth.getBalance(address);
+  }
+
+  /**
+   * Get account balance formatted in ETH/MATIC/BNB
+   */
+  async getBalanceFormatted(address: string): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+    const balance = await this.getBalance(address);
+    return web3.utils.fromWei(balance, "ether");
+  }
+
+  /**
+   * Get full account information
+   */
+  async getAccountInfo(address: string): Promise<WalletAccount> {
+    const balance = await this.getBalance(address);
+    const balanceFormatted = await this.getBalanceFormatted(address);
+
+    return {
+      address,
+      balance: balance.toString(),
+      balanceFormatted,
+    };
+  }
+
+  /**
+   * Get transaction count (nonce) for an account
+   */
+  async getTransactionCount(address: string): Promise<number> {
+    const web3 = web3Provider.getWeb3();
+    return Number(await web3.eth.getTransactionCount(address));
+  }
+
+  /**
+   * Sign a message
+   */
+  async signMessage(message: string, address: string): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+    return await web3.eth.personal.sign(message, address, "");
+  }
+
+  /**
+   * Verify a signed message
+   */
+  async verifyMessage(message: string, signature: string): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+    return web3.eth.accounts.recover(message, signature);
+  }
+
+  /**
+   * Check if address is valid
+   */
+  isValidAddress(address: string): boolean {
+    const web3 = web3Provider.getWeb3();
+    return web3.utils.isAddress(address);
+  }
+
+  /**
+   * Convert address to checksum format
+   */
+  toChecksumAddress(address: string): string {
+    const web3 = web3Provider.getWeb3();
+    return web3.utils.toChecksumAddress(address);
+  }
+
+  /**
+   * Request account access (for MetaMask)
+   */
+  async requestAccounts(): Promise<string[]> {
+    const provider = web3Provider.getProvider();
+
+    if (!provider || !provider.request) {
+      throw new Error("Provider does not support account requests");
+    }
+
+    return await provider.request({ method: "eth_requestAccounts" });
+  }
+
+  /**
+   * Add token to wallet (MetaMask)
+   */
+  async addToken(
+    tokenAddress: string,
+    tokenSymbol: string,
+    tokenDecimals: number,
+    tokenImage?: string
+  ): Promise<boolean> {
+    const provider = web3Provider.getProvider();
+
+    if (!provider || !provider.request) {
+      throw new Error("Provider does not support adding tokens");
+    }
+
+    try {
+      return await provider.request({
+        method: "wallet_watchAsset",
+        params: {
+          type: "ERC20",
+          options: {
+            address: tokenAddress,
+            symbol: tokenSymbol,
+            decimals: tokenDecimals,
+            image: tokenImage,
+          },
+        },
+      });
+    } catch (error) {
+      console.error("Error adding token to wallet:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Disconnect wallet
+   */
+  async disconnect(): Promise<void> {
+    await web3Provider.disconnect();
+  }
+
+  /**
+   * Check if wallet is connected
+   */
+  async isConnected(): Promise<boolean> {
+    if (!web3Provider.isInitialized()) {
+      return false;
+    }
+
+    const accounts = await this.getAccounts();
+    return accounts.length > 0;
+  }
+}
+
+// Export singleton instance
+export const walletService = new WalletService();

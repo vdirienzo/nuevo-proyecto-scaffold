@@ -1,0 +1,242 @@
+/**
+ * @fileoverview Multicall service for batched contract reads
+ * @author {{AUTHOR}}
+ */
+
+import { ethers, Contract, Interface } from 'ethers';
+import { getProvider } from '../providers/ethers-provider';
+import { MULTICALL3_ABI } from '../config/abis';
+
+/**
+ * Multicall3 addresses (deployed on most chains)
+ */
+const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11';
+
+/**
+ * Call struct
+ */
+export interface Call {
+  target: string;
+  callData: string;
+  allowFailure?: boolean;
+}
+
+/**
+ * Call result
+ */
+export interface CallResult {
+  success: boolean;
+  returnData: string;
+}
+
+/**
+ * Multicall service for batched reads
+ */
+export class MulticallService {
+  private multicall: Contract;
+  private chainId: number;
+
+  constructor(chainId: number, multicallAddress: string = MULTICALL3_ADDRESS) {
+    this.chainId = chainId;
+    const provider = getProvider(chainId);
+    this.multicall = new Contract(multicallAddress, MULTICALL3_ABI, provider);
+  }
+
+  /**
+   * Execute multiple calls in a single transaction
+   */
+  async aggregate(calls: Call[]): Promise<CallResult[]> {
+    const callStructs = calls.map((call) => ({
+      target: call.target,
+      allowFailure: call.allowFailure ?? false,
+      callData: call.callData,
+    }));
+
+    const results = await this.multicall.aggregate3(callStructs);
+
+    return results.map((result: { success: boolean; returnData: string }) => ({
+      success: result.success,
+      returnData: result.returnData,
+    }));
+  }
+
+  /**
+   * Create call data for contract method
+   */
+  static encodeCall(contractInterface: Interface, method: string, params: unknown[]): string {
+    return contractInterface.encodeFunctionData(method, params);
+  }
+
+  /**
+   * Decode call result
+   */
+  static decodeResult(contractInterface: Interface, method: string, data: string): unknown {
+    return contractInterface.decodeFunctionResult(method, data);
+  }
+
+  /**
+   * Batch multiple contract reads
+   */
+  async batchRead<T>(
+    contractAddress: string,
+    contractInterface: Interface,
+    methods: Array<{ method: string; params: unknown[] }>
+  ): Promise<T[]> {
+    const calls: Call[] = methods.map((m) => ({
+      target: contractAddress,
+      callData: MulticallService.encodeCall(contractInterface, m.method, m.params),
+      allowFailure: false,
+    }));
+
+    const results = await this.aggregate(calls);
+
+    return results.map((result, i) => {
+      if (!result.success) {
+        throw new Error(`Call ${methods[i]?.method} failed`);
+      }
+      return MulticallService.decodeResult(
+        contractInterface,
+        methods[i]!.method,
+        result.returnData
+      ) as T;
+    });
+  }
+
+  /**
+   * Get multiple token balances for an address
+   */
+  async getTokenBalances(
+    tokenAddresses: string[],
+    holderAddress: string
+  ): Promise<Record<string, bigint>> {
+    const erc20Interface = new Interface([
+      'function balanceOf(address) view returns (uint256)',
+    ]);
+
+    const calls: Call[] = tokenAddresses.map((token) => ({
+      target: token,
+      callData: MulticallService.encodeCall(erc20Interface, 'balanceOf', [holderAddress]),
+      allowFailure: true,
+    }));
+
+    const results = await this.aggregate(calls);
+
+    const balances: Record<string, bigint> = {};
+    for (let i = 0; i < tokenAddresses.length; i++) {
+      const result = results[i];
+      if (result && result.success) {
+        const balance = MulticallService.decodeResult(
+          erc20Interface,
+          'balanceOf',
+          result.returnData
+        ) as [bigint];
+        balances[tokenAddresses[i]!] = balance[0];
+      } else {
+        balances[tokenAddresses[i]!] = 0n;
+      }
+    }
+
+    return balances;
+  }
+
+  /**
+   * Get multiple token information
+   */
+  async getTokensInfo(
+    tokenAddresses: string[]
+  ): Promise<
+    Array<{
+      address: string;
+      name: string;
+      symbol: string;
+      decimals: number;
+      totalSupply: bigint;
+    }>
+  > {
+    const erc20Interface = new Interface([
+      'function name() view returns (string)',
+      'function symbol() view returns (string)',
+      'function decimals() view returns (uint8)',
+      'function totalSupply() view returns (uint256)',
+    ]);
+
+    const calls: Call[] = tokenAddresses.flatMap((token) => [
+      {
+        target: token,
+        callData: MulticallService.encodeCall(erc20Interface, 'name', []),
+        allowFailure: true,
+      },
+      {
+        target: token,
+        callData: MulticallService.encodeCall(erc20Interface, 'symbol', []),
+        allowFailure: true,
+      },
+      {
+        target: token,
+        callData: MulticallService.encodeCall(erc20Interface, 'decimals', []),
+        allowFailure: true,
+      },
+      {
+        target: token,
+        callData: MulticallService.encodeCall(erc20Interface, 'totalSupply', []),
+        allowFailure: true,
+      },
+    ]);
+
+    const results = await this.aggregate(calls);
+
+    const tokensInfo = [];
+    for (let i = 0; i < tokenAddresses.length; i++) {
+      const baseIndex = i * 4;
+      const nameResult = results[baseIndex];
+      const symbolResult = results[baseIndex + 1];
+      const decimalsResult = results[baseIndex + 2];
+      const totalSupplyResult = results[baseIndex + 3];
+
+      if (
+        nameResult?.success &&
+        symbolResult?.success &&
+        decimalsResult?.success &&
+        totalSupplyResult?.success
+      ) {
+        const name = (
+          MulticallService.decodeResult(erc20Interface, 'name', nameResult.returnData) as [string]
+        )[0];
+        const symbol = (
+          MulticallService.decodeResult(erc20Interface, 'symbol', symbolResult.returnData) as [
+            string,
+          ]
+        )[0];
+        const decimals = (
+          MulticallService.decodeResult(erc20Interface, 'decimals', decimalsResult.returnData) as [
+            number,
+          ]
+        )[0];
+        const totalSupply = (
+          MulticallService.decodeResult(
+            erc20Interface,
+            'totalSupply',
+            totalSupplyResult.returnData
+          ) as [bigint]
+        )[0];
+
+        tokensInfo.push({
+          address: tokenAddresses[i]!,
+          name,
+          symbol,
+          decimals,
+          totalSupply,
+        });
+      }
+    }
+
+    return tokensInfo;
+  }
+}
+
+/**
+ * Create multicall service instance
+ */
+export function createMulticallService(chainId: number): MulticallService {
+  return new MulticallService(chainId);
+}

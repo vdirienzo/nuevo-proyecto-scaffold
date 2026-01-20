@@ -1,0 +1,186 @@
+/**
+ * Register Screen
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React, {useState} from 'react';
+import {View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView} from 'react-native';
+import {Text, useTheme} from 'react-native-paper';
+import {useNavigation} from '@react-navigation/native';
+
+import Container from '@components/layout/Container';
+import Input from '@components/ui/Input';
+import Button from '@components/ui/Button';
+import {useAuth} from '@hooks/useAuth';
+import {AuthNavigationProp} from '@navigation/types';
+
+const RegisterScreen = (): JSX.Element => {
+  const theme = useTheme();
+  const navigation = useNavigation<AuthNavigationProp>();
+  const {register, isLoading} = useAuth();
+
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
+
+  const validate = (): boolean => {
+    let valid = true;
+    const newErrors = {name: '', email: '', password: '', confirmPassword: ''};
+
+    if (!formData.name) {
+      newErrors.name = 'Name is required';
+      valid = false;
+    }
+
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+      valid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+      valid = false;
+    }
+
+    if (!formData.password) {
+      newErrors.password = 'Password is required';
+      valid = false;
+    } else if (formData.password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
+      valid = false;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Passwords do not match';
+      valid = false;
+    }
+
+    setErrors(newErrors);
+    return valid;
+  };
+
+  const handleRegister = async () => {
+    if (!validate()) return;
+
+    try {
+      await register({
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+    } catch (error) {
+      console.error('Register error:', error);
+    }
+  };
+
+  const updateFormData = (field: string, value: string) => {
+    setFormData(prev => ({...prev, [field]: value}));
+  };
+
+  return (
+    <Container>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.content}>
+            <Text variant="headlineLarge" style={[styles.title, {color: theme.colors.primary}]}>
+              Create Account
+            </Text>
+            <Text variant="bodyMedium" style={[styles.subtitle, {color: theme.colors.onSurfaceVariant}]}>
+              Sign up to get started
+            </Text>
+
+            <Input
+              label="Name"
+              value={formData.name}
+              onChangeText={value => updateFormData('name', value)}
+              error={errors.name}
+              autoCapitalize="words"
+            />
+
+            <Input
+              label="Email"
+              value={formData.email}
+              onChangeText={value => updateFormData('email', value)}
+              error={errors.email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+
+            <Input
+              label="Password"
+              value={formData.password}
+              onChangeText={value => updateFormData('password', value)}
+              error={errors.password}
+              secureTextEntry
+              autoComplete="password-new"
+            />
+
+            <Input
+              label="Confirm Password"
+              value={formData.confirmPassword}
+              onChangeText={value => updateFormData('confirmPassword', value)}
+              error={errors.confirmPassword}
+              secureTextEntry
+              autoComplete="password-new"
+            />
+
+            <Button
+              mode="contained"
+              onPress={handleRegister}
+              loading={isLoading}
+              disabled={isLoading}
+              style={styles.registerButton}>
+              Register
+            </Button>
+
+            <Button
+              mode="text"
+              onPress={() => navigation.navigate('Login')}>
+              Already have an account? Login
+            </Button>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Container>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+  },
+  title: {
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  subtitle: {
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  registerButton: {
+    marginTop: 24,
+    marginBottom: 16,
+  },
+});
+
+export default RegisterScreen;

@@ -1,0 +1,48 @@
+/**
+ * validation.ts - Request validation utilities with Zod
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "oak";
+import { z, type ZodSchema } from "zod";
+
+export interface ValidationResult<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export async function validateBody<T>(
+  ctx: Context,
+  schema: ZodSchema<T>,
+): Promise<ValidationResult<T>> {
+  try {
+    const body = await ctx.request.body({ type: "json" }).value;
+    const parsed = schema.parse(body);
+    return { success: true, data: parsed };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const messages = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`);
+      return { success: false, error: messages.join(", ") };
+    }
+    return { success: false, error: "Invalid request body" };
+  }
+}
+
+export function validateQuery<T>(
+  ctx: Context,
+  schema: ZodSchema<T>,
+): ValidationResult<T> {
+  try {
+    const query = Object.fromEntries(ctx.request.url.searchParams);
+    const parsed = schema.parse(query);
+    return { success: true, data: parsed };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      const messages = error.errors.map((e) => `${e.path.join(".")}: ${e.message}`);
+      return { success: false, error: messages.join(", ") };
+    }
+    return { success: false, error: "Invalid query parameters" };
+  }
+}

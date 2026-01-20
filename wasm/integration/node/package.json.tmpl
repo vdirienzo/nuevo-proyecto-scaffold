@@ -1,0 +1,20 @@
+{
+  "name": "{{PROJECT_NAME}}-wasm-node",
+  "version": "0.1.0",
+  "description": "Node.js integration examples for {{PROJECT_NAME}} WASM modules",
+  "author": "{{AUTHOR}}",
+  "type": "module",
+  "main": "wasm-node.js",
+  "scripts": {
+    "start": "node wasm-node.js",
+    "example:rust": "node -e \"import('./wasm-node.js').then(m => m.loadRustWasm().then(w => m.hashExample(w)))\"",
+    "example:as": "node -e \"import('./wasm-node.js').then(m => m.loadAssemblyScriptWasm().then(w => m.assemblyScriptExample(w)))\"",
+    "benchmark": "node -e \"import('./wasm-node.js').then(m => m.loadRustWasm().then(w => m.benchmarkExample(w)))\""
+  },
+  "dependencies": {
+    "@assemblyscript/loader": "^0.27.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

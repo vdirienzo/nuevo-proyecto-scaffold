@@ -1,0 +1,144 @@
+/**
+ * CORS middleware for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+import { cors as honoCors } from "hono/cors";
+
+/**
+ * CORS configuration
+ */
+export interface CORSOptions {
+  allowedOrigins?: string[];
+  allowedMethods?: string[];
+  allowedHeaders?: string[];
+  exposedHeaders?: string[];
+  maxAge?: number;
+  credentials?: boolean;
+}
+
+/**
+ * Default CORS options
+ */
+const defaultOptions: CORSOptions = {
+  allowedOrigins: ["*"],
+  allowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["X-Total-Count", "X-Page", "X-Per-Page"],
+  maxAge: 86400,
+  credentials: true
+};
+
+/**
+ * Create CORS middleware with custom options
+ */
+export function createCorsMiddleware(options: CORSOptions = {}) {
+  const config = { ...defaultOptions, ...options };
+
+  return honoCors({
+    origin: (origin) => {
+      if (!config.allowedOrigins || config.allowedOrigins.includes("*")) {
+        return origin;
+      }
+      return config.allowedOrigins.includes(origin) ? origin : config.allowedOrigins[0] ?? "*";
+    },
+    allowMethods: config.allowedMethods,
+    allowHeaders: config.allowedHeaders,
+    exposeHeaders: config.exposedHeaders,
+    maxAge: config.maxAge,
+    credentials: config.credentials
+  });
+}
+
+/**
+ * Parse allowed origins from environment variable
+ */
+export function parseAllowedOrigins(originsString: string): string[] {
+  return originsString
+    .split(",")
+    .map(origin => origin.trim())
+    .filter(origin => origin.length > 0);
+}
+
+/**
+ * Check if origin is allowed
+ */
+export function isOriginAllowed(origin: string, allowedOrigins: string[]): boolean {
+  if (allowedOrigins.includes("*")) {
+    return true;
+  }
+
+  // Exact match
+  if (allowedOrigins.includes(origin)) {
+    return true;
+  }
+
+  // Wildcard subdomain match (e.g., *.example.com)
+  return allowedOrigins.some(allowed => {
+    if (allowed.startsWith("*.")) {
+      const domain = allowed.slice(2);
+      return origin.endsWith(`.${domain}`) || origin === domain;
+    }
+    return false;
+  });
+}
+
+/**
+ * Manual CORS middleware (if not using Hono's built-in)
+ */
+export function corsMiddleware(options: CORSOptions = {}) {
+  const config = { ...defaultOptions, ...options };
+
+  return async (c: Context, next: () => Promise<void>) => {
+    const origin = c.req.header("Origin") ?? "";
+    const allowed = config.allowedOrigins
+      ? isOriginAllowed(origin, config.allowedOrigins)
+      : true;
+
+    // Handle preflight request
+    if (c.req.method === "OPTIONS") {
+      if (!allowed) {
+        return c.text("Forbidden", 403);
+      }
+
+      return c.text("", 204, {
+        "Access-Control-Allow-Origin": origin || "*",
+        "Access-Control-Allow-Methods": config.allowedMethods?.join(", ") ?? "*",
+        "Access-Control-Allow-Headers": config.allowedHeaders?.join(", ") ?? "*",
+        "Access-Control-Max-Age": config.maxAge?.toString() ?? "86400",
+        "Access-Control-Allow-Credentials": config.credentials ? "true" : "false"
+      });
+    }
+
+    // Add CORS headers to response
+    await next();
+
+    if (allowed) {
+      c.header("Access-Control-Allow-Origin", origin || "*");
+      if (config.exposedHeaders) {
+        c.header("Access-Control-Expose-Headers", config.exposedHeaders.join(", "));
+      }
+      if (config.credentials) {
+        c.header("Access-Control-Allow-Credentials", "true");
+      }
+    }
+  };
+}
+
+/**
+ * Create environment-aware CORS middleware
+ */
+export function createEnvCorsMiddleware(env: { ALLOWED_ORIGINS?: string; ENVIRONMENT?: string }) {
+  const allowedOrigins = env.ALLOWED_ORIGINS
+    ? parseAllowedOrigins(env.ALLOWED_ORIGINS)
+    : env.ENVIRONMENT === "production"
+    ? ["https://{{PROJECT_NAME}}.com"]
+    : ["*"];
+
+  return createCorsMiddleware({
+    allowedOrigins,
+    credentials: env.ENVIRONMENT === "production"
+  });
+}

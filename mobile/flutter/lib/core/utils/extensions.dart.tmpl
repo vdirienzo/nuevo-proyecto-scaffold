@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+
+extension BuildContextExtensions on BuildContext {
+  // Theme
+  ThemeData get theme => Theme.of(this);
+  TextTheme get textTheme => Theme.of(this).textTheme;
+  ColorScheme get colorScheme => Theme.of(this).colorScheme;
+
+  // MediaQuery
+  Size get screenSize => MediaQuery.of(this).size;
+  double get screenWidth => MediaQuery.of(this).size.width;
+  double get screenHeight => MediaQuery.of(this).size.height;
+  EdgeInsets get padding => MediaQuery.of(this).padding;
+  EdgeInsets get viewInsets => MediaQuery.of(this).viewInsets;
+
+  // Navigation
+  void pop<T>([T? result]) => Navigator.of(this).pop(result);
+  Future<T?> push<T>(Widget page) => Navigator.of(this).push<T>(
+        MaterialPageRoute(builder: (_) => page),
+      );
+  Future<T?> pushReplacement<T, TO>(Widget page) =>
+      Navigator.of(this).pushReplacement<T, TO>(
+        MaterialPageRoute(builder: (_) => page),
+      );
+
+  // Snackbar
+  void showSnackbar(String message, {Duration? duration}) {
+    ScaffoldMessenger.of(this).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: duration ?? const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void showErrorSnackbar(String message, {Duration? duration}) {
+    ScaffoldMessenger.of(this).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: colorScheme.error,
+        duration: duration ?? const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void showSuccessSnackbar(String message, {Duration? duration}) {
+    ScaffoldMessenger.of(this).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.green,
+        duration: duration ?? const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Keyboard
+  void hideKeyboard() => FocusScope.of(this).unfocus();
+}
+
+extension StringExtensions on String {
+  String capitalize() {
+    if (isEmpty) return this;
+    return '${this[0].toUpperCase()}${substring(1)}';
+  }
+
+  String capitalizeWords() {
+    if (isEmpty) return this;
+    return split(' ').map((word) => word.capitalize()).join(' ');
+  }
+
+  bool get isValidEmail {
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
+    );
+    return emailRegex.hasMatch(this);
+  }
+}
+
+extension DateTimeExtensions on DateTime {
+  String toFormattedString() {
+    return '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+  }
+
+  bool get isToday {
+    final now = DateTime.now();
+    return year == now.year && month == now.month && day == now.day;
+  }
+
+  bool get isYesterday {
+    final yesterday = DateTime.now().subtract(const Duration(days: 1));
+    return year == yesterday.year &&
+        month == yesterday.month &&
+        day == yesterday.day;
+  }
+}
+
+extension ListExtensions<T> on List<T> {
+  List<T> distinctBy<E>(E Function(T) selector) {
+    final set = <E>{};
+    final list = <T>[];
+
+    for (final item in this) {
+      final value = selector(item);
+      if (set.add(value)) {
+        list.add(item);
+      }
+    }
+
+    return list;
+  }
+}

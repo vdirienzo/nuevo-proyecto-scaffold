@@ -1,0 +1,193 @@
+/**
+ * math.ts - Mathematical operations
+ *
+ * High-performance math functions compiled to WebAssembly.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+/**
+ * Calculate power (x^n)
+ */
+export function power(x: f64, n: i32): f64 {
+  if (n === 0) return 1.0;
+  if (n < 0) return 1.0 / power(x, -n);
+
+  let result: f64 = 1.0;
+  for (let i = 0; i < n; i++) {
+    result *= x;
+  }
+
+  return result;
+}
+
+/**
+ * Calculate square root using Newton's method
+ */
+export function sqrt(x: f64): f64 {
+  if (x < 0.0) return NaN;
+  if (x === 0.0) return 0.0;
+
+  let guess: f64 = x / 2.0;
+  const epsilon: f64 = 1e-10;
+
+  for (let i = 0; i < 50; i++) {
+    const nextGuess = (guess + x / guess) / 2.0;
+    if (abs(nextGuess - guess) < epsilon) {
+      return nextGuess;
+    }
+    guess = nextGuess;
+  }
+
+  return guess;
+}
+
+/**
+ * Absolute value
+ */
+export function abs(x: f64): f64 {
+  return x < 0.0 ? -x : x;
+}
+
+/**
+ * Greatest common divisor (Euclidean algorithm)
+ */
+export function gcd(a: i32, b: i32): i32 {
+  a = a < 0 ? -a : a;
+  b = b < 0 ? -b : b;
+
+  while (b !== 0) {
+    const temp = b;
+    b = a % b;
+    a = temp;
+  }
+
+  return a;
+}
+
+/**
+ * Least common multiple
+ */
+export function lcm(a: i32, b: i32): i32 {
+  if (a === 0 || b === 0) return 0;
+  return abs_i32(a * b) / gcd(a, b);
+}
+
+function abs_i32(x: i32): i32 {
+  return x < 0 ? -x : x;
+}
+
+/**
+ * Fibonacci number (iterative)
+ */
+export function fibonacci(n: i32): i64 {
+  if (n <= 1) return n;
+
+  let prev: i64 = 0;
+  let curr: i64 = 1;
+
+  for (let i = 2; i <= n; i++) {
+    const next = prev + curr;
+    prev = curr;
+    curr = next;
+  }
+
+  return curr;
+}
+
+/**
+ * Check if number is even
+ */
+export function isEven(n: i32): bool {
+  return (n & 1) === 0;
+}
+
+/**
+ * Check if number is odd
+ */
+export function isOdd(n: i32): bool {
+  return (n & 1) === 1;
+}
+
+/**
+ * Clamp value between min and max
+ */
+export function clamp(value: f64, min: f64, max: f64): f64 {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}
+
+/**
+ * Linear interpolation
+ */
+export function lerp(a: f64, b: f64, t: f64): f64 {
+  return a + (b - a) * t;
+}
+
+/**
+ * Map value from one range to another
+ */
+export function map(
+  value: f64,
+  inMin: f64,
+  inMax: f64,
+  outMin: f64,
+  outMax: f64
+): f64 {
+  return ((value - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+}
+
+/**
+ * Calculate average of array
+ */
+export function average(arr: Float64Array): f64 {
+  if (arr.length === 0) return 0.0;
+
+  let sum: f64 = 0.0;
+  for (let i = 0; i < arr.length; i++) {
+    sum += unchecked(arr[i]);
+  }
+
+  return sum / <f64>arr.length;
+}
+
+/**
+ * Calculate standard deviation
+ */
+export function standardDeviation(arr: Float64Array): f64 {
+  if (arr.length === 0) return 0.0;
+
+  const avg = average(arr);
+  let sumSquaredDiff: f64 = 0.0;
+
+  for (let i = 0; i < arr.length; i++) {
+    const diff = unchecked(arr[i]) - avg;
+    sumSquaredDiff += diff * diff;
+  }
+
+  return sqrt(sumSquaredDiff / <f64>arr.length);
+}
+
+/**
+ * Dot product of two vectors
+ */
+export function dotProduct(a: Float64Array, b: Float64Array): f64 {
+  if (a.length !== b.length) return 0.0;
+
+  let sum: f64 = 0.0;
+  for (let i = 0; i < a.length; i++) {
+    sum += unchecked(a[i]) * unchecked(b[i]);
+  }
+
+  return sum;
+}
+
+/**
+ * Calculate distance between two points
+ */
+export function distance(x1: f64, y1: f64, x2: f64, y2: f64): f64 {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  return sqrt(dx * dx + dy * dy);
+}

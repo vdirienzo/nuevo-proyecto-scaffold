@@ -1,0 +1,65 @@
+/*!
+ * Authentication guard
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use rocket::{
+    http::Status,
+    request::{FromRequest, Outcome, Request},
+    State,
+};
+use uuid::Uuid;
+
+use crate::{config::Config, error::AppError, services::auth_service::AuthService};
+
+pub struct AuthenticatedUser {
+    pub user_id: Uuid,
+}
+
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for AuthenticatedUser {
+    type Error = AppError;
+
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let config = match req.guard::<&State<Config>>().await {
+            Outcome::Success(c) => c,
+            _ => {
+                return Outcome::Error((
+                    Status::InternalServerError,
+                    AppError::Internal("Config not found".to_string()),
+                ))
+            }
+        };
+
+        let token = match req.headers().get_one("Authorization") {
+            Some(auth) => {
+                if let Some(token) = auth.strip_prefix("Bearer ") {
+                    token
+                } else {
+                    return Outcome::Error((
+                        Status::Unauthorized,
+                        AppError::Authentication("Invalid authorization header".to_string()),
+                    ));
+                }
+            }
+            None => {
+                return Outcome::Error((
+                    Status::Unauthorized,
+                    AppError::Authentication("Missing authorization header".to_string()),
+                ))
+            }
+        };
+
+        match AuthService::verify_token(token, &config.jwt) {
+            Ok(claims) => match Uuid::parse_str(&claims.sub) {
+                Ok(user_id) => Outcome::Success(AuthenticatedUser { user_id }),
+                Err(_) => Outcome::Error((
+                    Status::Unauthorized,
+                    AppError::Authentication("Invalid user ID in token".to_string()),
+                )),
+            },
+            Err(e) => Outcome::Error((Status::Unauthorized, e)),
+        }
+    }
+}

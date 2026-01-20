@@ -1,0 +1,39 @@
+/*!
+ * Health check routes
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use rocket::{http::Status, serde::json::Json, State};
+
+use crate::{db::Database, models::response::HealthResponse};
+
+#[utoipa::path(
+    get,
+    path = "/api/v1/health",
+    tag = "health",
+    responses(
+        (status = 200, description = "Service is healthy", body = HealthResponse),
+        (status = 503, description = "Service is unhealthy")
+    )
+)]
+#[get("/health")]
+pub async fn health_check(db: &State<Database>) -> (Status, Json<HealthResponse>) {
+    let database_status = match db.health_check().await {
+        Ok(_) => "healthy",
+        Err(_) => "unhealthy",
+    };
+
+    let response = HealthResponse {
+        status: "ok".to_string(),
+        database: database_status.to_string(),
+    };
+
+    let status = if database_status == "healthy" {
+        Status::Ok
+    } else {
+        Status::ServiceUnavailable
+    };
+
+    (status, Json(response))
+}

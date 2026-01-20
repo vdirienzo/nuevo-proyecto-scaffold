@@ -1,0 +1,128 @@
+/**
+ * Profile Screen
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React from 'react';
+import {View, StyleSheet, ScrollView} from 'react-native';
+import {Text, Avatar, Divider, useTheme} from 'react-native-paper';
+import {useSelector} from 'react-redux';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+import Container from '@components/layout/Container';
+import Card from '@components/ui/Card';
+import Button from '@components/ui/Button';
+import {RootState} from '@store/index';
+
+const ProfileScreen = (): JSX.Element => {
+  const theme = useTheme();
+  const {user} = useSelector((state: RootState) => state.auth);
+
+  const handleEditProfile = () => {
+    // TODO: Navigate to edit profile screen
+    console.log('Edit profile');
+  };
+
+  return (
+    <Container>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Card style={styles.profileCard}>
+          <View style={styles.avatarContainer}>
+            <Avatar.Text
+              size={100}
+              label={user?.name?.charAt(0).toUpperCase() || 'U'}
+              style={{backgroundColor: theme.colors.primary}}
+            />
+          </View>
+          <Text variant="headlineSmall" style={styles.name}>
+            {user?.name || 'User Name'}
+          </Text>
+          <Text variant="bodyMedium" style={[styles.email, {color: theme.colors.onSurfaceVariant}]}>
+            {user?.email || 'user@example.com'}
+          </Text>
+          <Button
+            mode="outlined"
+            onPress={handleEditProfile}
+            style={styles.editButton}>
+            Edit Profile
+          </Button>
+        </Card>
+
+        <Card style={styles.infoCard}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Account Information
+          </Text>
+          <Divider style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Icon name="account" size={24} color={theme.colors.onSurfaceVariant} />
+            <View style={styles.infoText}>
+              <Text variant="bodySmall" style={{color: theme.colors.onSurfaceVariant}}>
+                Member since
+              </Text>
+              <Text variant="bodyLarge">
+                January 2024
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Icon name="email" size={24} color={theme.colors.onSurfaceVariant} />
+            <View style={styles.infoText}>
+              <Text variant="bodySmall" style={{color: theme.colors.onSurfaceVariant}}>
+                Email
+              </Text>
+              <Text variant="bodyLarge">
+                {user?.email || 'user@example.com'}
+              </Text>
+            </View>
+          </View>
+        </Card>
+      </ScrollView>
+    </Container>
+  );
+};
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    padding: 16,
+  },
+  profileCard: {
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  avatarContainer: {
+    marginBottom: 16,
+  },
+  name: {
+    marginBottom: 4,
+  },
+  email: {
+    marginBottom: 16,
+  },
+  editButton: {
+    marginTop: 8,
+  },
+  infoCard: {
+    padding: 16,
+  },
+  sectionTitle: {
+    marginBottom: 8,
+  },
+  divider: {
+    marginBottom: 16,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  infoText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+});
+
+export default ProfileScreen;

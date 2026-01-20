@@ -1,0 +1,118 @@
+name = "{{PROJECT_NAME}}-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Account ID - replace with your Cloudflare account ID
+account_id = ""
+
+# Workers configuration
+workers_dev = true
+
+[env.production]
+name = "{{PROJECT_NAME}}-worker"
+route = { pattern = "{{PROJECT_NAME}}.com/*", zone_name = "{{PROJECT_NAME}}.com" }
+
+[env.staging]
+name = "{{PROJECT_NAME}}-worker-staging"
+route = { pattern = "staging.{{PROJECT_NAME}}.com/*", zone_name = "{{PROJECT_NAME}}.com" }
+
+# KV Namespaces
+[[kv_namespaces]]
+binding = "CACHE"
+id = ""
+preview_id = ""
+
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = ""
+preview_id = ""
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = ""
+preview_id = ""
+
+# D1 Database (SQLite at edge)
+[[d1_databases]]
+binding = "DB"
+database_name = "{{PROJECT_NAME}}_production"
+database_id = ""
+preview_database_id = ""
+
+# R2 Buckets (Object Storage)
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "{{PROJECT_NAME}}-assets"
+preview_bucket_name = "{{PROJECT_NAME}}-assets-preview"
+
+[[r2_buckets]]
+binding = "UPLOADS"
+bucket_name = "{{PROJECT_NAME}}-uploads"
+preview_bucket_name = "{{PROJECT_NAME}}-uploads-preview"
+
+# Durable Objects
+[[durable_objects.bindings]]
+name = "COUNTER"
+class_name = "Counter"
+script_name = "{{PROJECT_NAME}}-worker"
+
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+script_name = "{{PROJECT_NAME}}-worker"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["Counter", "ChatRoom"]
+
+# Queues
+[[queues.producers]]
+binding = "EMAIL_QUEUE"
+queue = "{{PROJECT_NAME}}-emails"
+
+[[queues.consumers]]
+queue = "{{PROJECT_NAME}}-emails"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# Analytics Engine
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+
+# Service Bindings (for other workers)
+# [[services]]
+# binding = "AUTH_SERVICE"
+# service = "{{PROJECT_NAME}}-auth"
+
+# Environment Variables
+[vars]
+ENVIRONMENT = "production"
+LOG_LEVEL = "info"
+
+# Secrets (use wrangler secret put)
+# JWT_SECRET
+# API_KEY
+# WEBHOOK_SECRET
+
+# Cron Triggers
+[triggers]
+crons = [
+  "0 */6 * * *",    # Every 6 hours
+  "0 0 * * *"       # Daily at midnight
+]
+
+# Build configuration
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "service-worker"
+
+# Observability
+[observability]
+enabled = true
+
+# Tail consumers (for logging)
+# [[tail_consumers]]
+# service = "{{PROJECT_NAME}}-logger"

@@ -1,0 +1,23 @@
+/**
+ * Counter.tsx - Interactive counter island
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { signal } from "@preact/signals";
+
+const count = signal(0);
+
+export default function Counter() {
+  return (
+    <div class="counter">
+      <h3>Counter Island</h3>
+      <p>Count: {count.value}</p>
+      <div class="buttons">
+        <button onClick={() => count.value--}>-</button>
+        <button onClick={() => count.value++}>+</button>
+        <button onClick={() => count.value = 0}>Reset</button>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,159 @@
+/**
+ * index.ts - Main AssemblyScript WASM Module
+ *
+ * {{PROJECT_NAME}} WebAssembly module using AssemblyScript.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+// Re-export submodules
+export * from './math';
+export * from './string-utils';
+
+/**
+ * Simple greeting function
+ */
+export function greet(name: string): string {
+  return `Hello, ${name}! Welcome to {{PROJECT_NAME}} WASM (AssemblyScript).`;
+}
+
+/**
+ * Add two numbers
+ */
+export function add(a: i32, b: i32): i32 {
+  return a + b;
+}
+
+/**
+ * Multiply two numbers
+ */
+export function multiply(a: i32, b: i32): i32 {
+  return a * b;
+}
+
+/**
+ * Check if number is prime
+ */
+export function isPrime(n: i32): bool {
+  if (n <= 1) return false;
+  if (n <= 3) return true;
+  if (n % 2 === 0 || n % 3 === 0) return false;
+
+  for (let i = 5; i * i <= n; i += 6) {
+    if (n % i === 0 || n % (i + 2) === 0) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Calculate factorial
+ */
+export function factorial(n: i32): i64 {
+  if (n <= 1) return 1;
+
+  let result: i64 = 1;
+  for (let i: i32 = 2; i <= n; i++) {
+    result *= i;
+  }
+
+  return result;
+}
+
+/**
+ * Sum array of integers
+ */
+export function sumArray(arr: Int32Array): i32 {
+  let sum: i32 = 0;
+  for (let i = 0; i < arr.length; i++) {
+    sum += unchecked(arr[i]);
+  }
+  return sum;
+}
+
+/**
+ * Find maximum value in array
+ */
+export function maxArray(arr: Int32Array): i32 {
+  if (arr.length === 0) return 0;
+
+  let max = unchecked(arr[0]);
+  for (let i = 1; i < arr.length; i++) {
+    const val = unchecked(arr[i]);
+    if (val > max) max = val;
+  }
+
+  return max;
+}
+
+/**
+ * Reverse an array in place
+ */
+export function reverseArray(arr: Int32Array): void {
+  let left = 0;
+  let right = arr.length - 1;
+
+  while (left < right) {
+    const temp = unchecked(arr[left]);
+    unchecked(arr[left] = arr[right]);
+    unchecked(arr[right] = temp);
+    left++;
+    right--;
+  }
+}
+
+/**
+ * Binary search in sorted array
+ */
+export function binarySearch(arr: Int32Array, target: i32): i32 {
+  let left = 0;
+  let right = arr.length - 1;
+
+  while (left <= right) {
+    const mid = left + ((right - left) >> 1);
+    const midVal = unchecked(arr[mid]);
+
+    if (midVal === target) {
+      return mid;
+    } else if (midVal < target) {
+      left = mid + 1;
+    } else {
+      right = mid - 1;
+    }
+  }
+
+  return -1; // Not found
+}
+
+/**
+ * Bubble sort (for demonstration)
+ */
+export function bubbleSort(arr: Int32Array): void {
+  const len = arr.length;
+
+  for (let i = 0; i < len - 1; i++) {
+    for (let j = 0; j < len - i - 1; j++) {
+      if (unchecked(arr[j]) > unchecked(arr[j + 1])) {
+        const temp = unchecked(arr[j]);
+        unchecked(arr[j] = arr[j + 1]);
+        unchecked(arr[j + 1] = temp);
+      }
+    }
+  }
+}
+
+/**
+ * Memory allocation example
+ */
+export function allocateBuffer(size: i32): usize {
+  return memory.data(size);
+}
+
+/**
+ * Memory deallocation example
+ */
+export function freeBuffer(ptr: usize): void {
+  memory.free(ptr);
+}

@@ -1,0 +1,365 @@
+/**
+ * NFT Service for {{PROJECT_NAME}}
+ * Manages ERC-721 NFT operations
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { Contract } from "web3";
+import { web3Provider } from "./web3-provider";
+import { getContractAddress, getContractABI } from "../config/contracts";
+
+export interface NFTInfo {
+  name: string;
+  symbol: string;
+  maxSupply: number;
+  mintPrice: string;
+  totalMinted: number;
+  address: string;
+}
+
+export interface NFTMetadata {
+  tokenId: number;
+  owner: string;
+  tokenURI: string;
+}
+
+export class NFTService {
+  private contract: Contract<any> | null = null;
+  private chainId: number | null = null;
+
+  /**
+   * Initialize NFT contract
+   */
+  async initialize(chainId?: number): Promise<void> {
+    const web3 = web3Provider.getWeb3();
+    this.chainId = chainId || (await web3Provider.getChainId());
+
+    const address = getContractAddress(this.chainId, "NFT");
+    const abi = getContractABI("NFT");
+
+    this.contract = new web3.eth.Contract(abi, address);
+  }
+
+  /**
+   * Get contract instance
+   */
+  private getContract(): Contract<any> {
+    if (!this.contract) {
+      throw new Error("NFT contract not initialized. Call initialize() first.");
+    }
+    return this.contract;
+  }
+
+  /**
+   * Get NFT collection information
+   */
+  async getNFTInfo(): Promise<NFTInfo> {
+    const contract = this.getContract();
+
+    const [name, symbol, maxSupply, mintPrice, totalMinted] = await Promise.all([
+      contract.methods.name().call(),
+      contract.methods.symbol().call(),
+      contract.methods.maxSupply().call(),
+      contract.methods.mintPrice().call(),
+      contract.methods.totalMinted().call(),
+    ]);
+
+    return {
+      name: name as string,
+      symbol: symbol as string,
+      maxSupply: Number(maxSupply),
+      mintPrice: mintPrice as string,
+      totalMinted: Number(totalMinted),
+      address: contract.options.address as string,
+    };
+  }
+
+  /**
+   * Get NFT balance for an address
+   */
+  async getBalance(address: string): Promise<number> {
+    const contract = this.getContract();
+    const balance = await contract.methods.balanceOf(address).call();
+    return Number(balance);
+  }
+
+  /**
+   * Get owner of a specific NFT
+   */
+  async getOwner(tokenId: number): Promise<string> {
+    const contract = this.getContract();
+    return (await contract.methods.ownerOf(tokenId).call()) as string;
+  }
+
+  /**
+   * Get token URI
+   */
+  async getTokenURI(tokenId: number): Promise<string> {
+    const contract = this.getContract();
+    return (await contract.methods.tokenURI(tokenId).call()) as string;
+  }
+
+  /**
+   * Get NFT metadata
+   */
+  async getNFTMetadata(tokenId: number): Promise<NFTMetadata> {
+    const [owner, tokenURI] = await Promise.all([
+      this.getOwner(tokenId),
+      this.getTokenURI(tokenId),
+    ]);
+
+    return {
+      tokenId,
+      owner,
+      tokenURI,
+    };
+  }
+
+  /**
+   * Mint an NFT
+   */
+  async mint(from: string, to: string, uri: string): Promise<string> {
+    const contract = this.getContract();
+    const mintPrice = await contract.methods.mintPrice().call();
+
+    const tx = await contract.methods.mint(to, uri).send({
+      from,
+      value: mintPrice,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Owner mint (free, only owner)
+   */
+  async ownerMint(owner: string, to: string, uri: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.ownerMint(to, uri).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Batch mint NFTs (only owner)
+   */
+  async batchMint(
+    owner: string,
+    recipients: string[],
+    uris: string[]
+  ): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.batchMint(recipients, uris).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Burn an NFT
+   */
+  async burn(from: string, tokenId: number): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.burn(tokenId).send({
+      from,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Transfer an NFT
+   */
+  async transfer(from: string, to: string, tokenId: number): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods["safeTransferFrom(address,address,uint256)"](
+      from,
+      to,
+      tokenId
+    ).send({
+      from,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Approve address to transfer NFT
+   */
+  async approve(owner: string, to: string, tokenId: number): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.approve(to, tokenId).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Set approval for all NFTs
+   */
+  async setApprovalForAll(
+    owner: string,
+    operator: string,
+    approved: boolean
+  ): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.setApprovalForAll(operator, approved).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Get approved address for NFT
+   */
+  async getApproved(tokenId: number): Promise<string> {
+    const contract = this.getContract();
+    return (await contract.methods.getApproved(tokenId).call()) as string;
+  }
+
+  /**
+   * Check if operator is approved for all
+   */
+  async isApprovedForAll(owner: string, operator: string): Promise<boolean> {
+    const contract = this.getContract();
+    return (await contract.methods.isApprovedForAll(owner, operator).call()) as boolean;
+  }
+
+  /**
+   * Update mint price (only owner)
+   */
+  async setMintPrice(owner: string, newPrice: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.setMintPrice(newPrice).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Update max supply (only owner)
+   */
+  async setMaxSupply(owner: string, newMaxSupply: number): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.setMaxSupply(newMaxSupply).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Withdraw contract balance (only owner)
+   */
+  async withdraw(owner: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.withdraw().send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Listen to NFTMinted events
+   */
+  subscribeToMints(
+    callback: (to: string, tokenId: number, tokenURI: string) => void,
+    options?: { fromBlock?: number; filter?: any }
+  ): void {
+    const contract = this.getContract();
+
+    contract.events
+      .NFTMinted(options || {})
+      .on("data", (event: any) => {
+        callback(
+          event.returnValues.to,
+          Number(event.returnValues.tokenId),
+          event.returnValues.tokenURI
+        );
+      })
+      .on("error", (error: Error) => {
+        console.error("NFTMinted event error:", error);
+      });
+  }
+
+  /**
+   * Listen to Transfer events
+   */
+  subscribeToTransfers(
+    callback: (from: string, to: string, tokenId: number) => void,
+    options?: { fromBlock?: number; filter?: any }
+  ): void {
+    const contract = this.getContract();
+
+    contract.events
+      .Transfer(options || {})
+      .on("data", (event: any) => {
+        callback(
+          event.returnValues.from,
+          event.returnValues.to,
+          Number(event.returnValues.tokenId)
+        );
+      })
+      .on("error", (error: Error) => {
+        console.error("Transfer event error:", error);
+      });
+  }
+
+  /**
+   * Get past NFTMinted events
+   */
+  async getPastMints(fromBlock: number, toBlock: number | "latest" = "latest"): Promise<any[]> {
+    const contract = this.getContract();
+
+    return await contract.getPastEvents("NFTMinted", {
+      fromBlock,
+      toBlock,
+    });
+  }
+
+  /**
+   * Get all NFTs owned by an address
+   */
+  async getNFTsOwnedBy(address: string): Promise<NFTMetadata[]> {
+    const balance = await this.getBalance(address);
+    const nfts: NFTMetadata[] = [];
+
+    // Note: This is a simplified approach. For production, consider using events or indexing
+    const totalMinted = (await this.getNFTInfo()).totalMinted;
+
+    for (let tokenId = 0; tokenId < totalMinted; tokenId++) {
+      try {
+        const owner = await this.getOwner(tokenId);
+        if (owner.toLowerCase() === address.toLowerCase()) {
+          const metadata = await this.getNFTMetadata(tokenId);
+          nfts.push(metadata);
+        }
+      } catch (error) {
+        // Token might be burned, skip it
+        continue;
+      }
+    }
+
+    return nfts;
+  }
+}
+
+// Export singleton instance
+export const nftService = new NFTService();

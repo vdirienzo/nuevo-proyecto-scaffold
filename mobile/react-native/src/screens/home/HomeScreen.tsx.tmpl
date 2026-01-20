@@ -1,0 +1,92 @@
+/**
+ * Home Screen
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React, {useEffect} from 'react';
+import {View, StyleSheet, ScrollView, RefreshControl} from 'react-native';
+import {Text, useTheme} from 'react-native-paper';
+import {useSelector} from 'react-redux';
+
+import Container from '@components/layout/Container';
+import Card from '@components/ui/Card';
+import {RootState} from '@store/index';
+
+const HomeScreen = (): JSX.Element => {
+  const theme = useTheme();
+  const {user} = useSelector((state: RootState) => state.auth);
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // TODO: Implement data refresh logic
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  }, []);
+
+  useEffect(() => {
+    // TODO: Fetch initial data
+  }, []);
+
+  return (
+    <Container>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }>
+        <View style={styles.header}>
+          <Text variant="headlineMedium" style={{color: theme.colors.onBackground}}>
+            Welcome back, {user?.name || 'User'}!
+          </Text>
+          <Text variant="bodyMedium" style={{color: theme.colors.onSurfaceVariant, marginTop: 8}}>
+            Here's what's happening today
+          </Text>
+        </View>
+
+        <Card style={styles.card}>
+          <Text variant="titleMedium" style={{marginBottom: 8}}>
+            Quick Stats
+          </Text>
+          <Text variant="bodyMedium" style={{color: theme.colors.onSurfaceVariant}}>
+            Your dashboard statistics will appear here
+          </Text>
+        </Card>
+
+        <Card style={styles.card}>
+          <Text variant="titleMedium" style={{marginBottom: 8}}>
+            Recent Activity
+          </Text>
+          <Text variant="bodyMedium" style={{color: theme.colors.onSurfaceVariant}}>
+            Your recent activities will be listed here
+          </Text>
+        </Card>
+
+        <Card style={styles.card}>
+          <Text variant="titleMedium" style={{marginBottom: 8}}>
+            Notifications
+          </Text>
+          <Text variant="bodyMedium" style={{color: theme.colors.onSurfaceVariant}}>
+            You have no new notifications
+          </Text>
+        </Card>
+      </ScrollView>
+    </Container>
+  );
+};
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    padding: 16,
+  },
+  header: {
+    marginBottom: 24,
+  },
+  card: {
+    marginBottom: 16,
+  },
+});
+
+export default HomeScreen;

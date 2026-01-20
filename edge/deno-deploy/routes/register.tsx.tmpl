@@ -1,0 +1,21 @@
+/**
+ * register.tsx - Registration page route
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import AuthForm from "../islands/AuthForm.tsx";
+
+export default function Register() {
+  return (
+    <div class="page">
+      <header>
+        <h1>{{PROJECT_NAME}}</h1>
+      </header>
+
+      <main>
+        <AuthForm mode="register" />
+      </main>
+    </div>
+  );
+}

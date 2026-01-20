@@ -1,0 +1,164 @@
+/**
+ * {{PROJECT_NAME}} Cloudflare Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { createRouter } from "./router";
+import { handleEmailQueue } from "./services/queue";
+import type { Env, CronEvent } from "./types";
+
+// Export Durable Objects
+export { ChatRoom, Counter } from "./handlers/websocket";
+
+/**
+ * Main worker
+ */
+const app = createRouter();
+
+export default {
+  /**
+   * Fetch handler - handles HTTP requests
+   */
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    try {
+      return await app.fetch(request, env, ctx);
+    } catch (error) {
+      console.error("Unhandled error:", error);
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Internal Server Error"
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json"
+          }
+        }
+      );
+    }
+  },
+
+  /**
+   * Queue handler - handles queue messages
+   */
+  async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
+    try {
+      // Type assertion based on queue binding
+      await handleEmailQueue(batch as MessageBatch<any>);
+    } catch (error) {
+      console.error("Queue handler error:", error);
+    }
+  },
+
+  /**
+   * Scheduled handler - handles cron triggers
+   */
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+    try {
+      const cronEvent: CronEvent = {
+        cron: event.cron,
+        scheduledTime: new Date(event.scheduledTime)
+      };
+
+      console.log(`Cron triggered: ${cronEvent.cron} at ${cronEvent.scheduledTime.toISOString()}`);
+
+      // Route to appropriate cron handler
+      if (cronEvent.cron === "0 */6 * * *") {
+        // Every 6 hours - cleanup task
+        await handleCleanupTask(env, ctx);
+      } else if (cronEvent.cron === "0 0 * * *") {
+        // Daily at midnight - analytics task
+        await handleDailyAnalytics(env, ctx);
+      }
+    } catch (error) {
+      console.error("Scheduled handler error:", error);
+    }
+  }
+};
+
+/**
+ * Cleanup task - runs every 6 hours
+ */
+async function handleCleanupTask(env: Env, ctx: ExecutionContext): Promise<void> {
+  console.log("Running cleanup task");
+
+  try {
+    // Example: Clean up expired sessions
+    const sessionKeys = await env.SESSIONS.list({ prefix: "session:" });
+
+    for (const key of sessionKeys.keys) {
+      const session = await env.SESSIONS.get(key.name, "json");
+      if (!session) {
+        await env.SESSIONS.delete(key.name);
+      }
+    }
+
+    // Example: Clean up expired rate limits
+    const rateLimitKeys = await env.RATE_LIMIT.list({ prefix: "ratelimit:" });
+
+    for (const key of rateLimitKeys.keys) {
+      const data = await env.RATE_LIMIT.get(key.name, "json");
+      if (!data) {
+        await env.RATE_LIMIT.delete(key.name);
+      }
+    }
+
+    console.log("Cleanup task completed");
+  } catch (error) {
+    console.error("Cleanup task error:", error);
+  }
+}
+
+/**
+ * Daily analytics task
+ */
+async function handleDailyAnalytics(env: Env, ctx: ExecutionContext): Promise<void> {
+  console.log("Running daily analytics task");
+
+  try {
+    // Example: Generate daily report
+    const db = await import("./services/d1-database");
+    const d1Service = new db.D1Service(env.DB);
+    const userRepo = new db.UserRepository(d1Service);
+
+    const totalUsers = await userRepo.count();
+
+    console.log(`Daily analytics: ${totalUsers} total users`);
+
+    // Store analytics in KV or send to external service
+    const report = {
+      date: new Date().toISOString().split("T")[0],
+      totalUsers
+    };
+
+    await env.CACHE.put(
+      `analytics:daily:${report.date}`,
+      JSON.stringify(report),
+      { expirationTtl: 86400 * 365 } // Keep for 1 year
+    );
+
+    console.log("Daily analytics task completed");
+  } catch (error) {
+    console.error("Daily analytics task error:", error);
+  }
+}
+
+/**
+ * Tail handler - for logging/debugging
+ */
+export async function tail(events: TraceItem[], env: Env, ctx: ExecutionContext): Promise<void> {
+  // Forward logs to external service or process them
+  for (const event of events) {
+    if (event.event?.request) {
+      console.log("Request:", event.event.request.url);
+    }
+
+    if (event.logs) {
+      event.logs.forEach(log => {
+        console.log("Log:", log.message);
+      });
+    }
+  }
+}

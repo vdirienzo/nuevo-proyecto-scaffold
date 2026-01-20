@@ -1,0 +1,141 @@
+/**
+ * TransactionStatus Component for {{PROJECT_NAME}}
+ * React component for displaying transaction status
+ *
+ * @author {{AUTHOR}}
+ */
+
+import React, { useEffect, useState } from "react";
+import { useTransaction } from "../hooks/useTransaction";
+import { useWeb3 } from "../hooks/useWeb3";
+import { getBlockExplorerUrl } from "../config/networks";
+
+export interface TransactionStatusProps {
+  hash: string | null;
+  onSuccess?: (hash: string) => void;
+  onError?: (error: Error) => void;
+  onClose?: () => void;
+  className?: string;
+  autoClose?: boolean;
+  autoCloseDelay?: number; // in milliseconds
+  showExplorerLink?: boolean;
+}
+
+export const TransactionStatus: React.FC<TransactionStatusProps> = ({
+  hash,
+  onSuccess,
+  onError,
+  onClose,
+  className = "",
+  autoClose = false,
+  autoCloseDelay = 3000,
+  showExplorerLink = true,
+}) => {
+  const { chainId } = useWeb3();
+  const { details, isPending, isSuccess, isError, error, getTransactionDetails } =
+    useTransaction();
+
+  const [explorerUrl, setExplorerUrl] = useState<string>("");
+
+  useEffect(() => {
+    if (hash && chainId) {
+      getTransactionDetails(hash).catch((err) => {
+        if (onError) {
+          onError(err);
+        }
+      });
+
+      const url = getBlockExplorerUrl(chainId, hash, "tx");
+      setExplorerUrl(url);
+    }
+  }, [hash, chainId]);
+
+  useEffect(() => {
+    if (isSuccess && hash && onSuccess) {
+      onSuccess(hash);
+
+      if (autoClose) {
+        setTimeout(() => {
+          if (onClose) {
+            onClose();
+          }
+        }, autoCloseDelay);
+      }
+    }
+  }, [isSuccess, hash, onSuccess, autoClose, autoCloseDelay, onClose]);
+
+  useEffect(() => {
+    if (isError && error && onError) {
+      onError(error);
+    }
+  }, [isError, error, onError]);
+
+  if (!hash) {
+    return null;
+  }
+
+  const formatHash = (txHash: string): string => {
+    return `${txHash.slice(0, 10)}...${txHash.slice(-8)}`;
+  };
+
+  return (
+    <div className={`transaction-status ${className}`}>
+      <div className={`status-container ${isPending ? "pending" : ""} ${isSuccess ? "success" : ""} ${isError ? "error" : ""}`}>
+        {isPending && (
+          <div className="status-pending">
+            <div className="spinner" />
+            <span className="status-text">Transaction pending...</span>
+            <span className="status-hash">{formatHash(hash)}</span>
+          </div>
+        )}
+
+        {isSuccess && (
+          <div className="status-success">
+            <span className="status-icon">✓</span>
+            <span className="status-text">Transaction successful!</span>
+            <span className="status-hash">{formatHash(hash)}</span>
+            {details && (
+              <div className="status-details">
+                <span>Block: {details.blockNumber}</span>
+                <span>Confirmations: {details.confirmations}</span>
+                <span>Gas Used: {details.gasUsed}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {isError && (
+          <div className="status-error">
+            <span className="status-icon">✗</span>
+            <span className="status-text">Transaction failed</span>
+            <span className="status-hash">{formatHash(hash)}</span>
+            {error && (
+              <span className="error-message">{error.message}</span>
+            )}
+          </div>
+        )}
+
+        <div className="status-actions">
+          {showExplorerLink && explorerUrl && (
+            <a
+              href={explorerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="explorer-link"
+            >
+              View on Explorer
+            </a>
+          )}
+
+          {onClose && (
+            <button onClick={onClose} className="close-button" type="button">
+              Close
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default TransactionStatus;

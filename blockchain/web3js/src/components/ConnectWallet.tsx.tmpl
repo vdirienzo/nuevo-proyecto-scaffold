@@ -1,0 +1,138 @@
+/**
+ * ConnectWallet Component for {{PROJECT_NAME}}
+ * React component for wallet connection UI
+ *
+ * @author {{AUTHOR}}
+ */
+
+import React, { useState } from "react";
+import { useWeb3 } from "../hooks/useWeb3";
+import { useWallet, WalletProvider } from "../hooks/useWallet";
+
+export interface ConnectWalletProps {
+  onConnect?: (account: string) => void;
+  onDisconnect?: () => void;
+  onError?: (error: Error) => void;
+  className?: string;
+  showBalance?: boolean;
+}
+
+export const ConnectWallet: React.FC<ConnectWalletProps> = ({
+  onConnect,
+  onDisconnect,
+  onError,
+  className = "",
+  showBalance = true,
+}) => {
+  const { initialize } = useWeb3();
+  const {
+    account,
+    balanceFormatted,
+    isConnected,
+    isConnecting,
+    connect,
+    disconnect,
+  } = useWallet();
+
+  const [showProviderMenu, setShowProviderMenu] = useState(false);
+
+  const handleConnect = async (provider: WalletProvider) => {
+    setShowProviderMenu(false);
+
+    try {
+      await initialize();
+      const connectedAccount = await connect(provider);
+
+      if (onConnect) {
+        onConnect(connectedAccount);
+      }
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      if (onError) {
+        onError(error as Error);
+      }
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+
+      if (onDisconnect) {
+        onDisconnect();
+      }
+    } catch (error) {
+      console.error("Failed to disconnect wallet:", error);
+      if (onError) {
+        onError(error as Error);
+      }
+    }
+  };
+
+  const formatAddress = (address: string): string => {
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  };
+
+  if (isConnected && account) {
+    return (
+      <div className={`connect-wallet connected ${className}`}>
+        <div className="wallet-info">
+          <span className="wallet-address">{formatAddress(account)}</span>
+          {showBalance && balanceFormatted && (
+            <span className="wallet-balance">{parseFloat(balanceFormatted).toFixed(4)} ETH</span>
+          )}
+        </div>
+        <button
+          onClick={handleDisconnect}
+          className="disconnect-button"
+          type="button"
+        >
+          Disconnect
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`connect-wallet ${className}`}>
+      {!showProviderMenu ? (
+        <button
+          onClick={() => setShowProviderMenu(true)}
+          disabled={isConnecting}
+          className="connect-button"
+          type="button"
+        >
+          {isConnecting ? "Connecting..." : "Connect Wallet"}
+        </button>
+      ) : (
+        <div className="provider-menu">
+          <button
+            onClick={() => handleConnect("metamask")}
+            disabled={isConnecting}
+            className="provider-button metamask"
+            type="button"
+          >
+            MetaMask
+          </button>
+          <button
+            onClick={() => handleConnect("walletconnect")}
+            disabled={isConnecting}
+            className="provider-button walletconnect"
+            type="button"
+          >
+            WalletConnect
+          </button>
+          <button
+            onClick={() => setShowProviderMenu(false)}
+            className="cancel-button"
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ConnectWallet;

@@ -1,0 +1,276 @@
+/**
+ * Static assets handler for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+import { ResponseBuilder } from "../utils/response";
+import { ImageService } from "../services/r2-storage";
+import type { Env } from "../types";
+
+/**
+ * Serve static file from R2
+ */
+export async function serveStaticHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const path = c.req.param("path");
+
+  if (!path) {
+    return ResponseBuilder.notFound();
+  }
+
+  try {
+    const object = await c.env.ASSETS.get(path);
+
+    if (!object) {
+      return ResponseBuilder.notFound();
+    }
+
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": object.httpMetadata.contentType ?? "application/octet-stream",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": object.httpEtag,
+        "Last-Modified": object.uploaded.toUTCString()
+      }
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to serve file");
+  }
+}
+
+/**
+ * Serve image with optimization
+ */
+export async function serveImageHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const path = c.req.param("path");
+
+  if (!path) {
+    return ResponseBuilder.notFound();
+  }
+
+  const imageService = new ImageService(c.env.ASSETS);
+
+  try {
+    const response = await imageService.getImage(path);
+
+    if (!response) {
+      return ResponseBuilder.notFound();
+    }
+
+    return response;
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to serve image");
+  }
+}
+
+/**
+ * Serve with conditional request support (If-None-Match)
+ */
+export async function serveWithETagHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const path = c.req.param("path");
+
+  if (!path) {
+    return ResponseBuilder.notFound();
+  }
+
+  try {
+    const object = await c.env.ASSETS.get(path);
+
+    if (!object) {
+      return ResponseBuilder.notFound();
+    }
+
+    // Check If-None-Match header
+    const ifNoneMatch = c.req.header("If-None-Match");
+    if (ifNoneMatch && ifNoneMatch === object.httpEtag) {
+      return new Response(null, { status: 304 });
+    }
+
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": object.httpMetadata.contentType ?? "application/octet-stream",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": object.httpEtag,
+        "Last-Modified": object.uploaded.toUTCString()
+      }
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to serve file");
+  }
+}
+
+/**
+ * List directory contents
+ */
+export async function listDirectoryHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const prefix = c.req.query("prefix") ?? "";
+  const limit = parseInt(c.req.query("limit") ?? "100");
+  const cursor = c.req.query("cursor");
+
+  try {
+    const result = await c.env.ASSETS.list({
+      prefix,
+      limit,
+      cursor
+    });
+
+    return ResponseBuilder.success({
+      objects: result.objects.map(obj => ({
+        key: obj.key,
+        size: obj.size,
+        uploaded: obj.uploaded,
+        etag: obj.httpEtag
+      })),
+      truncated: result.truncated,
+      cursor: result.cursor
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to list directory");
+  }
+}
+
+/**
+ * Generate download link (presigned URL simulation)
+ */
+export async function generateDownloadLinkHandler(
+  c: Context<{ Bindings: Env }>
+): Promise<Response> {
+  const path = c.req.query("path");
+
+  if (!path) {
+    return ResponseBuilder.error("Path required", 400);
+  }
+
+  try {
+    // Check if file exists
+    const object = await c.env.ASSETS.head(path);
+
+    if (!object) {
+      return ResponseBuilder.notFound();
+    }
+
+    // Generate temporary download token
+    const token = crypto.randomUUID();
+    const expiresAt = Date.now() + 3600000; // 1 hour
+
+    // Store token
+    await c.env.CACHE.put(
+      `download:${token}`,
+      JSON.stringify({ path, expiresAt }),
+      { expirationTtl: 3600 }
+    );
+
+    const downloadUrl = `${new URL(c.req.url).origin}/download/${token}`;
+
+    return ResponseBuilder.success({
+      url: downloadUrl,
+      expiresAt
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to generate download link");
+  }
+}
+
+/**
+ * Download file with token
+ */
+export async function downloadWithTokenHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const token = c.req.param("token");
+
+  if (!token) {
+    return ResponseBuilder.error("Token required", 400);
+  }
+
+  try {
+    // Get token data
+    const tokenData = await c.env.CACHE.get(`download:${token}`, "json") as
+      | { path: string; expiresAt: number }
+      | null;
+
+    if (!tokenData || tokenData.expiresAt < Date.now()) {
+      return ResponseBuilder.error("Invalid or expired token", 400);
+    }
+
+    // Get file
+    const object = await c.env.ASSETS.get(tokenData.path);
+
+    if (!object) {
+      return ResponseBuilder.notFound();
+    }
+
+    // Delete token (one-time use)
+    await c.env.CACHE.delete(`download:${token}`);
+
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": object.httpMetadata.contentType ?? "application/octet-stream",
+        "Content-Disposition": `attachment; filename="${tokenData.path.split("/").pop()}"`,
+        "Cache-Control": "no-store"
+      }
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to download file");
+  }
+}
+
+/**
+ * Proxy external assets with caching
+ */
+export async function proxyAssetHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const url = c.req.query("url");
+
+  if (!url) {
+    return ResponseBuilder.error("URL required", 400);
+  }
+
+  // Validate URL
+  try {
+    new URL(url);
+  } catch {
+    return ResponseBuilder.error("Invalid URL", 400);
+  }
+
+  try {
+    // Check cache
+    const cacheKey = `proxy:${url}`;
+    const cached = await c.env.CACHE.get(cacheKey, "arrayBuffer");
+
+    if (cached) {
+      return new Response(cached, {
+        headers: {
+          "Content-Type": "image/jpeg",
+          "Cache-Control": "public, max-age=86400",
+          "X-Cache": "HIT"
+        }
+      });
+    }
+
+    // Fetch external resource
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "{{PROJECT_NAME}}-Worker/1.0"
+      }
+    });
+
+    if (!response.ok) {
+      return ResponseBuilder.error("Failed to fetch asset", response.status);
+    }
+
+    const data = await response.arrayBuffer();
+    const contentType = response.headers.get("Content-Type") ?? "application/octet-stream";
+
+    // Cache for 24 hours
+    await c.env.CACHE.put(cacheKey, data, { expirationTtl: 86400 });
+
+    return new Response(data, {
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=86400",
+        "X-Cache": "MISS"
+      }
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to proxy asset");
+  }
+}

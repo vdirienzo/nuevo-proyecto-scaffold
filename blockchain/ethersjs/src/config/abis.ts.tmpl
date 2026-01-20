@@ -1,0 +1,135 @@
+/**
+ * @fileoverview Contract ABIs
+ * @author {{AUTHOR}}
+ */
+
+/**
+ * ERC20 Token ABI (minimal interface)
+ */
+export const ERC20_ABI = [
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function decimals() view returns (uint8)',
+  'function totalSupply() view returns (uint256)',
+  'function balanceOf(address) view returns (uint256)',
+  'function transfer(address to, uint256 amount) returns (bool)',
+  'function approve(address spender, uint256 amount) returns (bool)',
+  'function allowance(address owner, address spender) view returns (uint256)',
+  'function transferFrom(address from, address to, uint256 amount) returns (bool)',
+  'event Transfer(address indexed from, address indexed to, uint256 value)',
+  'event Approval(address indexed owner, address indexed spender, uint256 value)',
+] as const;
+
+/**
+ * ERC721 NFT ABI (minimal interface)
+ */
+export const ERC721_ABI = [
+  'function name() view returns (string)',
+  'function symbol() view returns (string)',
+  'function tokenURI(uint256 tokenId) view returns (string)',
+  'function balanceOf(address owner) view returns (uint256)',
+  'function ownerOf(uint256 tokenId) view returns (address)',
+  'function approve(address to, uint256 tokenId)',
+  'function getApproved(uint256 tokenId) view returns (address)',
+  'function setApprovalForAll(address operator, bool approved)',
+  'function isApprovedForAll(address owner, address operator) view returns (bool)',
+  'function transferFrom(address from, address to, uint256 tokenId)',
+  'function safeTransferFrom(address from, address to, uint256 tokenId)',
+  'function safeTransferFrom(address from, address to, uint256 tokenId, bytes data)',
+  'event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)',
+  'event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId)',
+  'event ApprovalForAll(address indexed owner, address indexed operator, bool approved)',
+] as const;
+
+/**
+ * Custom Token ABI (with mint/burn)
+ */
+export const TOKEN_ABI = [
+  ...ERC20_ABI,
+  'function MAX_SUPPLY() view returns (uint256)',
+  'function mint(address to, uint256 amount)',
+  'function burn(uint256 amount)',
+  'function burnFrom(address from, uint256 amount)',
+  'function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)',
+  'function nonces(address owner) view returns (uint256)',
+  'function DOMAIN_SEPARATOR() view returns (bytes32)',
+  'event TokensMinted(address indexed to, uint256 amount)',
+  'event TokensBurned(address indexed from, uint256 amount)',
+] as const;
+
+/**
+ * Custom NFT ABI (with minting)
+ */
+export const NFT_ABI = [
+  ...ERC721_ABI,
+  'function MAX_SUPPLY() view returns (uint256)',
+  'function mintPrice() view returns (uint256)',
+  'function mint(address to) payable returns (uint256)',
+  'function mintWithURI(address to, string uri) returns (uint256)',
+  'function tokensOfOwner(address owner) view returns (uint256[])',
+  'function setBaseURI(string baseURI)',
+  'function setMintPrice(uint256 price)',
+  'function withdraw()',
+  'event NFTMinted(address indexed to, uint256 indexed tokenId, string tokenURI)',
+  'event BaseURIUpdated(string newBaseURI)',
+  'event MintPriceUpdated(uint256 newPrice)',
+] as const;
+
+/**
+ * Staking Contract ABI
+ */
+export const STAKING_ABI = [
+  'function stakingToken() view returns (address)',
+  'function rewardToken() view returns (address)',
+  'function rewardRate() view returns (uint256)',
+  'function totalStaked() view returns (uint256)',
+  'function minStakeAmount() view returns (uint256)',
+  'function lockPeriod() view returns (uint256)',
+  'function stakes(address) view returns (uint256 amount, uint256 rewardPerTokenPaid, uint256 rewards, uint256 stakedAt)',
+  'function rewardPerToken() view returns (uint256)',
+  'function earned(address account) view returns (uint256)',
+  'function stake(uint256 amount)',
+  'function withdraw(uint256 amount)',
+  'function claimReward()',
+  'function exit()',
+  'function getStakeInfo(address account) view returns (uint256 amount, uint256 rewards, uint256 stakedAt, bool canWithdraw)',
+  'event Staked(address indexed user, uint256 amount)',
+  'event Withdrawn(address indexed user, uint256 amount)',
+  'event RewardPaid(address indexed user, uint256 reward)',
+] as const;
+
+/**
+ * Governance Contract ABI (minimal)
+ */
+export const GOVERNANCE_ABI = [
+  'function propose(address[] targets, uint256[] values, bytes[] calldatas, string description) returns (uint256)',
+  'function castVote(uint256 proposalId, uint8 support) returns (uint256)',
+  'function castVoteWithReason(uint256 proposalId, uint8 support, string reason) returns (uint256)',
+  'function queue(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) returns (uint256)',
+  'function execute(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) returns (uint256)',
+  'function state(uint256 proposalId) view returns (uint8)',
+  'function proposalVotes(uint256 proposalId) view returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes)',
+  'function votingDelay() view returns (uint256)',
+  'function votingPeriod() view returns (uint256)',
+  'function quorum(uint256 blockNumber) view returns (uint256)',
+  'event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)',
+  'event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason)',
+] as const;
+
+/**
+ * Multicall3 ABI
+ */
+export const MULTICALL3_ABI = [
+  'function aggregate(tuple(address target, bytes callData)[] calls) payable returns (uint256 blockNumber, bytes[] returnData)',
+  'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
+] as const;
+
+/**
+ * Contract addresses (update after deployment)
+ */
+export const contractAddresses = {
+  token: process.env.TOKEN_CONTRACT_ADDRESS || '',
+  nft: process.env.NFT_CONTRACT_ADDRESS || '',
+  staking: process.env.STAKING_CONTRACT_ADDRESS || '',
+  governance: process.env.GOVERNANCE_CONTRACT_ADDRESS || '',
+} as const;

@@ -1,0 +1,64 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        deno-version: [v1.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: ${{ matrix.deno-version }}
+
+      - name: Verify installation
+        run: deno --version
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.deno
+            ~/.cache/deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Check formatting
+        run: deno fmt --check
+
+      - name: Run linter
+        run: deno lint
+
+      - name: Type check
+        run: deno check **/*.ts **/*.tsx
+
+      - name: Run tests
+        run: deno test --allow-net --allow-env --allow-read --unstable-kv --coverage=coverage/
+
+      - name: Generate coverage report
+        run: deno coverage coverage/ --lcov > coverage.lcov
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        if: matrix.os == 'ubuntu-latest'
+        with:
+          files: ./coverage.lcov

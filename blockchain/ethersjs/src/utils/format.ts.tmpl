@@ -1,0 +1,115 @@
+/**
+ * @fileoverview Formatting utilities
+ * @author {{AUTHOR}}
+ */
+
+import { formatUnits, parseUnits } from 'ethers';
+
+/**
+ * Format wei to human-readable string
+ */
+export function formatWei(value: bigint, decimals: number = 18, maxDecimals: number = 4): string {
+  const formatted = formatUnits(value, decimals);
+  const num = parseFloat(formatted);
+
+  if (num === 0) return '0';
+
+  // Format with max decimals
+  return num.toFixed(maxDecimals).replace(/\.?0+$/, '');
+}
+
+/**
+ * Parse human-readable string to wei
+ */
+export function parseToWei(value: string, decimals: number = 18): bigint {
+  return parseUnits(value, decimals);
+}
+
+/**
+ * Format address to short format (0x1234...5678)
+ */
+export function formatAddress(address: string, startChars: number = 6, endChars: number = 4): string {
+  if (!address) return '';
+  if (address.length < startChars + endChars) return address;
+
+  return `${address.slice(0, startChars)}...${address.slice(-endChars)}`;
+}
+
+/**
+ * Format transaction hash
+ */
+export function formatTxHash(hash: string, chars: number = 10): string {
+  return formatAddress(hash, chars, 0);
+}
+
+/**
+ * Format large numbers with K, M, B suffixes
+ */
+export function formatNumber(num: number): string {
+  if (num >= 1e9) return `${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `${(num / 1e6).toFixed(2)}M`;
+  if (num >= 1e3) return `${(num / 1e3).toFixed(2)}K`;
+  return num.toFixed(2);
+}
+
+/**
+ * Format percentage
+ */
+export function formatPercent(value: number, decimals: number = 2): string {
+  return `${value.toFixed(decimals)}%`;
+}
+
+/**
+ * Format USD value
+ */
+export function formatUSD(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(value);
+}
+
+/**
+ * Format date
+ */
+export function formatDate(timestamp: number | bigint): string {
+  const date = new Date(Number(timestamp) * 1000);
+  return date.toLocaleString();
+}
+
+/**
+ * Format duration (seconds to human readable)
+ */
+export function formatDuration(seconds: number | bigint): string {
+  const secs = Number(seconds);
+
+  if (secs < 60) return `${secs}s`;
+  if (secs < 3600) return `${Math.floor(secs / 60)}m`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h`;
+
+  const days = Math.floor(secs / 86400);
+  const hours = Math.floor((secs % 86400) / 3600);
+
+  return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+}
+
+/**
+ * Format gas price (wei to gwei)
+ */
+export function formatGasPrice(wei: bigint): string {
+  return `${formatWei(wei, 9, 2)} Gwei`;
+}
+
+/**
+ * Validate Ethereum address
+ */
+export function isValidAddress(address: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/.test(address);
+}
+
+/**
+ * Validate transaction hash
+ */
+export function isValidTxHash(hash: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(hash);
+}

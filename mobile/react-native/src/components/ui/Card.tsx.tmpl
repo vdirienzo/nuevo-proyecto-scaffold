@@ -1,0 +1,29 @@
+/**
+ * Card Component
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React from 'react';
+import {StyleSheet} from 'react-native';
+import {Card as PaperCard, CardProps} from 'react-native-paper';
+
+interface CustomCardProps extends CardProps {
+  children: React.ReactNode;
+}
+
+const Card: React.FC<CustomCardProps> = ({children, style, ...props}) => {
+  return (
+    <PaperCard style={[styles.card, style]} {...props}>
+      <PaperCard.Content>{children}</PaperCard.Content>
+    </PaperCard>
+  );
+};
+
+const styles = StyleSheet.create({
+  card: {
+    elevation: 2,
+  },
+});
+
+export default Card;

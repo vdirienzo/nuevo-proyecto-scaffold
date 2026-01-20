@@ -1,0 +1,74 @@
+/**
+ * kv.ts - Deno KV service wrapper
+ *
+ * Author: {{AUTHOR}}
+ */
+
+const kv = await Deno.openKv();
+
+export const kvService = {
+  /**
+   * Get a value by key
+   */
+  async get<T>(key: string): Promise<T | null> {
+    const result = await kv.get<T>([key]);
+    return result.value;
+  },
+
+  /**
+   * Set a value with optional expiration
+   */
+  async set<T>(key: string, value: T, expiresIn?: number): Promise<void> {
+    const options = expiresIn ? { expireIn: expiresIn } : undefined;
+    await kv.set([key], value, options);
+  },
+
+  /**
+   * Delete a key
+   */
+  async delete(key: string): Promise<void> {
+    await kv.delete([key]);
+  },
+
+  /**
+   * List entries by prefix
+   */
+  async listByPrefix<T>(prefix: string): Promise<T[]> {
+    const entries: T[] = [];
+    const iter = kv.list<T>({ prefix: [prefix] });
+
+    for await (const entry of iter) {
+      if (entry.value) {
+        entries.push(entry.value);
+      }
+    }
+
+    return entries;
+  },
+
+  /**
+   * Atomic operation
+   */
+  atomic() {
+    return kv.atomic();
+  },
+
+  /**
+   * Watch for changes
+   */
+  watch<T>(keys: string[]) {
+    return kv.watch<T>(keys.map((k) => [k]));
+  },
+
+  /**
+   * Close connection
+   */
+  close() {
+    kv.close();
+  },
+};
+
+// Cleanup on process exit
+addEventListener("unload", () => {
+  kvService.close();
+});

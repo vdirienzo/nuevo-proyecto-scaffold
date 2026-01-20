@@ -1,0 +1,286 @@
+/**
+ * Rate limiting middleware for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+import { KVStore } from "../services/kv-store";
+import { ResponseBuilder } from "../utils/response";
+import type { RateLimitInfo } from "../types";
+
+/**
+ * Rate limit configuration
+ */
+export interface RateLimitConfig {
+  requests: number;
+  window: number; // in seconds
+  keyPrefix?: string;
+}
+
+/**
+ * Rate limiter using KV
+ */
+export class RateLimiter {
+  private store: KVStore;
+  private config: Required<RateLimitConfig>;
+
+  constructor(kv: KVNamespace, config: RateLimitConfig) {
+    this.store = new KVStore(kv);
+    this.config = {
+      keyPrefix: "ratelimit",
+      ...config
+    };
+  }
+
+  /**
+   * Check rate limit for a key
+   */
+  async check(key: string): Promise<{
+    allowed: boolean;
+    limit: number;
+    remaining: number;
+    reset: number;
+  }> {
+    const rateLimitKey = `${this.config.keyPrefix}:${key}`;
+    const now = Date.now();
+    const windowStart = Math.floor(now / (this.config.window * 1000));
+    const fullKey = `${rateLimitKey}:${windowStart}`;
+
+    // Get current count
+    const info = await this.store.get<RateLimitInfo>(fullKey);
+    const requests = info?.requests ?? 0;
+    const resetAt = (windowStart + 1) * this.config.window * 1000;
+
+    // Check if limit exceeded
+    if (requests >= this.config.requests) {
+      return {
+        allowed: false,
+        limit: this.config.requests,
+        remaining: 0,
+        reset: resetAt
+      };
+    }
+
+    // Increment counter
+    await this.store.put(
+      fullKey,
+      {
+        requests: requests + 1,
+        resetAt
+      },
+      {
+        expirationTtl: this.config.window + 60 // Add buffer
+      }
+    );
+
+    return {
+      allowed: true,
+      limit: this.config.requests,
+      remaining: this.config.requests - requests - 1,
+      reset: resetAt
+    };
+  }
+
+  /**
+   * Reset rate limit for a key
+   */
+  async reset(key: string): Promise<void> {
+    const rateLimitKey = `${this.config.keyPrefix}:${key}`;
+    const windowStart = Math.floor(Date.now() / (this.config.window * 1000));
+    const fullKey = `${rateLimitKey}:${windowStart}`;
+    await this.store.delete(fullKey);
+  }
+}
+
+/**
+ * Get client identifier for rate limiting
+ */
+export function getClientIdentifier(c: Context): string {
+  // Try to get user ID if authenticated
+  const user = c.get("user") as { id?: string } | undefined;
+  if (user?.id) {
+    return `user:${user.id}`;
+  }
+
+  // Fall back to IP address
+  const ip =
+    c.req.header("CF-Connecting-IP") ??
+    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ??
+    "unknown";
+
+  return `ip:${ip}`;
+}
+
+/**
+ * Rate limiting middleware
+ */
+export function rateLimitMiddleware(
+  rateLimiter: RateLimiter,
+  options: {
+    getKey?: (c: Context) => string;
+    skip?: (c: Context) => boolean;
+  } = {}
+) {
+  return async (c: Context, next: () => Promise<void>) => {
+    // Skip rate limiting if condition met
+    if (options.skip?.(c)) {
+      return next();
+    }
+
+    // Get rate limit key
+    const key = options.getKey?.(c) ?? getClientIdentifier(c);
+
+    // Check rate limit
+    const result = await rateLimiter.check(key);
+
+    // Add rate limit headers
+    c.header("X-RateLimit-Limit", result.limit.toString());
+    c.header("X-RateLimit-Remaining", result.remaining.toString());
+    c.header("X-RateLimit-Reset", result.reset.toString());
+
+    if (!result.allowed) {
+      return ResponseBuilder.rateLimitExceeded(result.reset);
+    }
+
+    await next();
+  };
+}
+
+/**
+ * Create rate limiter from environment
+ */
+export function createRateLimiter(
+  kv: KVNamespace,
+  env: {
+    RATE_LIMIT_REQUESTS?: string;
+    RATE_LIMIT_WINDOW?: string;
+  }
+): RateLimiter {
+  return new RateLimiter(kv, {
+    requests: parseInt(env.RATE_LIMIT_REQUESTS ?? "100"),
+    window: parseInt(env.RATE_LIMIT_WINDOW ?? "60")
+  });
+}
+
+/**
+ * Sliding window rate limiter (more accurate)
+ */
+export class SlidingWindowRateLimiter {
+  private store: KVStore;
+  private requests: number;
+  private window: number;
+  private keyPrefix: string;
+
+  constructor(
+    kv: KVNamespace,
+    config: {
+      requests: number;
+      window: number;
+      keyPrefix?: string;
+    }
+  ) {
+    this.store = new KVStore(kv);
+    this.requests = config.requests;
+    this.window = config.window;
+    this.keyPrefix = config.keyPrefix ?? "sliding";
+  }
+
+  /**
+   * Check rate limit with sliding window
+   */
+  async check(key: string): Promise<{
+    allowed: boolean;
+    limit: number;
+    remaining: number;
+    reset: number;
+  }> {
+    const rateLimitKey = `${this.keyPrefix}:${key}`;
+    const now = Date.now();
+    const windowMs = this.window * 1000;
+
+    // Get timestamps of recent requests
+    const timestamps = (await this.store.get<number[]>(rateLimitKey)) ?? [];
+
+    // Filter timestamps within window
+    const recentTimestamps = timestamps.filter(ts => now - ts < windowMs);
+
+    // Check if limit exceeded
+    const allowed = recentTimestamps.length < this.requests;
+    const reset = recentTimestamps.length > 0 ? recentTimestamps[0]! + windowMs : now + windowMs;
+
+    if (allowed) {
+      // Add current timestamp
+      recentTimestamps.push(now);
+      await this.store.setWithTTL(rateLimitKey, recentTimestamps, this.window + 60);
+    }
+
+    return {
+      allowed,
+      limit: this.requests,
+      remaining: Math.max(0, this.requests - recentTimestamps.length),
+      reset
+    };
+  }
+}
+
+/**
+ * Distributed rate limiter using Durable Objects
+ */
+export class DurableObjectRateLimiter {
+  constructor(
+    private namespace: DurableObjectNamespace,
+    private config: RateLimitConfig
+  ) {}
+
+  /**
+   * Check rate limit
+   */
+  async check(key: string): Promise<{
+    allowed: boolean;
+    limit: number;
+    remaining: number;
+    reset: number;
+  }> {
+    const id = this.namespace.idFromName(key);
+    const stub = this.namespace.get(id);
+
+    const response = await stub.fetch("https://rate-limit/check", {
+      method: "POST",
+      body: JSON.stringify(this.config)
+    });
+
+    return await response.json();
+  }
+}
+
+/**
+ * Rate limit by endpoint
+ */
+export function endpointRateLimitMiddleware(
+  rateLimiter: RateLimiter,
+  endpointLimits: Record<string, { requests: number; window: number }>
+) {
+  return async (c: Context, next: () => Promise<void>) => {
+    const pathname = new URL(c.req.url).pathname;
+    const limit = endpointLimits[pathname];
+
+    if (!limit) {
+      return next();
+    }
+
+    const customLimiter = new RateLimiter(rateLimiter["store"]["kv"], limit);
+    const key = `${pathname}:${getClientIdentifier(c)}`;
+    const result = await customLimiter.check(key);
+
+    c.header("X-RateLimit-Limit", result.limit.toString());
+    c.header("X-RateLimit-Remaining", result.remaining.toString());
+    c.header("X-RateLimit-Reset", result.reset.toString());
+
+    if (!result.allowed) {
+      return ResponseBuilder.rateLimitExceeded(result.reset);
+    }
+
+    await next();
+  };
+}

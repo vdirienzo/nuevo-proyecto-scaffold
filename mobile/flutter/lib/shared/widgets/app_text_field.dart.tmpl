@@ -1,0 +1,89 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+class AppTextField extends StatefulWidget {
+  final TextEditingController? controller;
+  final String? label;
+  final String? hint;
+  final String? Function(String?)? validator;
+  final TextInputType? keyboardType;
+  final bool obscureText;
+  final bool enabled;
+  final int? maxLines;
+  final int? minLines;
+  final int? maxLength;
+  final Widget? prefixIcon;
+  final Widget? suffixIcon;
+  final List<TextInputFormatter>? inputFormatters;
+  final void Function(String)? onChanged;
+  final void Function()? onTap;
+  final FocusNode? focusNode;
+
+  const AppTextField({
+    super.key,
+    this.controller,
+    this.label,
+    this.hint,
+    this.validator,
+    this.keyboardType,
+    this.obscureText = false,
+    this.enabled = true,
+    this.maxLines = 1,
+    this.minLines,
+    this.maxLength,
+    this.prefixIcon,
+    this.suffixIcon,
+    this.inputFormatters,
+    this.onChanged,
+    this.onTap,
+    this.focusNode,
+  });
+
+  @override
+  State<AppTextField> createState() => _AppTextFieldState();
+}
+
+class _AppTextFieldState extends State<AppTextField> {
+  bool _obscureText = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.obscureText;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      controller: widget.controller,
+      validator: widget.validator,
+      keyboardType: widget.keyboardType,
+      obscureText: _obscureText,
+      enabled: widget.enabled,
+      maxLines: widget.obscureText ? 1 : widget.maxLines,
+      minLines: widget.minLines,
+      maxLength: widget.maxLength,
+      inputFormatters: widget.inputFormatters,
+      onChanged: widget.onChanged,
+      onTap: widget.onTap,
+      focusNode: widget.focusNode,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        hintText: widget.hint,
+        prefixIcon: widget.prefixIcon,
+        suffixIcon: widget.obscureText
+            ? IconButton(
+                icon: Icon(
+                  _obscureText ? Icons.visibility : Icons.visibility_off,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
+              )
+            : widget.suffixIcon,
+      ),
+    );
+  }
+}

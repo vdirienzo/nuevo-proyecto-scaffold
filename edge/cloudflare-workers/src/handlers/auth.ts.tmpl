@@ -1,0 +1,330 @@
+/**
+ * Authentication handlers for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "hono";
+import { ResponseBuilder } from "../utils/response";
+import { validateBody, schemas } from "../utils/validation";
+import { JWTService } from "../middleware/auth";
+import { D1Service, UserRepository } from "../services/d1-database";
+import { hashPassword, verifyPassword } from "../utils/crypto";
+import { SessionService } from "../services/kv-store";
+import { EmailQueueService } from "../services/queue";
+import type { Env, User } from "../types";
+
+/**
+ * Register new user
+ */
+export async function registerHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const validation = await validateBody(c.req.raw, schemas.register);
+
+  if (!validation.success) {
+    return ResponseBuilder.validationError(validation.errors);
+  }
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    // Check if user exists
+    const existing = await userRepo.findByEmail(validation.data.email);
+    if (existing) {
+      return ResponseBuilder.error("User already exists", 409);
+    }
+
+    // Hash password
+    const passwordHash = await hashPassword(validation.data.password);
+
+    // Create user
+    const user = await userRepo.create({
+      email: validation.data.email,
+      name: validation.data.name,
+      role: "user"
+    });
+
+    // Store password hash separately (in production, add password field to users table)
+    await c.env.CACHE.put(`password:${user.id}`, passwordHash);
+
+    // Create JWT
+    const jwtService = new JWTService(c.env.JWT_SECRET);
+    const token = await jwtService.createToken(user);
+
+    // Create session
+    const sessionService = new SessionService(c.env.SESSIONS);
+    const sessionId = crypto.randomUUID();
+    await sessionService.create(sessionId, {
+      userId: user.id,
+      createdAt: new Date().toISOString()
+    });
+
+    // Send welcome email
+    const emailQueue = new EmailQueueService(c.env.EMAIL_QUEUE);
+    await emailQueue.sendWelcomeEmail(user.email, user.name);
+
+    return ResponseBuilder.success(
+      {
+        user,
+        token,
+        sessionId
+      },
+      201
+    );
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to register user");
+  }
+}
+
+/**
+ * Login user
+ */
+export async function loginHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const validation = await validateBody(c.req.raw, schemas.login);
+
+  if (!validation.success) {
+    return ResponseBuilder.validationError(validation.errors);
+  }
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    // Find user
+    const user = await userRepo.findByEmail(validation.data.email);
+    if (!user) {
+      return ResponseBuilder.unauthorized("Invalid credentials");
+    }
+
+    // Verify password
+    const passwordHash = await c.env.CACHE.get(`password:${user.id}`, "text");
+    if (!passwordHash) {
+      return ResponseBuilder.unauthorized("Invalid credentials");
+    }
+
+    const valid = await verifyPassword(validation.data.password, passwordHash);
+    if (!valid) {
+      return ResponseBuilder.unauthorized("Invalid credentials");
+    }
+
+    // Create JWT
+    const jwtService = new JWTService(c.env.JWT_SECRET);
+    const token = await jwtService.createToken(user);
+
+    // Create session
+    const sessionService = new SessionService(c.env.SESSIONS);
+    const sessionId = crypto.randomUUID();
+    await sessionService.create(sessionId, {
+      userId: user.id,
+      lastLogin: new Date().toISOString()
+    });
+
+    return ResponseBuilder.success({
+      user,
+      token,
+      sessionId
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to login");
+  }
+}
+
+/**
+ * Logout user
+ */
+export async function logoutHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const sessionId = c.req.header("X-Session-ID");
+
+  if (sessionId) {
+    const sessionService = new SessionService(c.env.SESSIONS);
+    await sessionService.destroy(sessionId);
+  }
+
+  return ResponseBuilder.success({ message: "Logged out successfully" });
+}
+
+/**
+ * Refresh token
+ */
+export async function refreshTokenHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const user = c.get("user") as User | undefined;
+
+  if (!user) {
+    return ResponseBuilder.unauthorized("Not authenticated");
+  }
+
+  const jwtService = new JWTService(c.env.JWT_SECRET);
+  const token = await jwtService.createToken(user);
+
+  return ResponseBuilder.success({ token });
+}
+
+/**
+ * Request password reset
+ */
+export async function requestPasswordResetHandler(
+  c: Context<{ Bindings: Env }>
+): Promise<Response> {
+  const body = await c.req.json<{ email: string }>();
+
+  if (!body.email) {
+    return ResponseBuilder.error("Email required", 400);
+  }
+
+  const db = new D1Service(c.env.DB);
+  const userRepo = new UserRepository(db);
+
+  try {
+    const user = await userRepo.findByEmail(body.email);
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      return ResponseBuilder.success({
+        message: "If the email exists, a reset link has been sent"
+      });
+    }
+
+    // Generate reset token
+    const resetToken = crypto.randomUUID();
+    const expiresAt = Date.now() + 3600000; // 1 hour
+
+    // Store reset token
+    await c.env.CACHE.put(
+      `reset:${resetToken}`,
+      JSON.stringify({ userId: user.id, expiresAt }),
+      { expirationTtl: 3600 }
+    );
+
+    // Send reset email
+    const emailQueue = new EmailQueueService(c.env.EMAIL_QUEUE);
+    await emailQueue.sendPasswordResetEmail(user.email, resetToken);
+
+    return ResponseBuilder.success({
+      message: "If the email exists, a reset link has been sent"
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to process password reset");
+  }
+}
+
+/**
+ * Reset password
+ */
+export async function resetPasswordHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const body = await c.req.json<{ token: string; password: string }>();
+
+  if (!body.token || !body.password) {
+    return ResponseBuilder.error("Token and password required", 400);
+  }
+
+  // Validate password strength
+  if (body.password.length < 8) {
+    return ResponseBuilder.error("Password must be at least 8 characters", 400);
+  }
+
+  try {
+    // Get reset token data
+    const tokenData = await c.env.CACHE.get(`reset:${body.token}`, "json") as
+      | { userId: string; expiresAt: number }
+      | null;
+
+    if (!tokenData || tokenData.expiresAt < Date.now()) {
+      return ResponseBuilder.error("Invalid or expired token", 400);
+    }
+
+    // Hash new password
+    const passwordHash = await hashPassword(body.password);
+
+    // Update password
+    await c.env.CACHE.put(`password:${tokenData.userId}`, passwordHash);
+
+    // Delete reset token
+    await c.env.CACHE.delete(`reset:${body.token}`);
+
+    return ResponseBuilder.success({
+      message: "Password reset successfully"
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to reset password");
+  }
+}
+
+/**
+ * Verify email
+ */
+export async function verifyEmailHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const token = c.req.query("token");
+
+  if (!token) {
+    return ResponseBuilder.error("Token required", 400);
+  }
+
+  try {
+    // Get verification token data
+    const tokenData = await c.env.CACHE.get(`verify:${token}`, "json") as
+      | { userId: string }
+      | null;
+
+    if (!tokenData) {
+      return ResponseBuilder.error("Invalid or expired token", 400);
+    }
+
+    // Mark email as verified (in production, add verified field to users table)
+    await c.env.CACHE.put(`verified:${tokenData.userId}`, "true");
+
+    // Delete verification token
+    await c.env.CACHE.delete(`verify:${token}`);
+
+    return ResponseBuilder.success({
+      message: "Email verified successfully"
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to verify email");
+  }
+}
+
+/**
+ * Change password (authenticated)
+ */
+export async function changePasswordHandler(c: Context<{ Bindings: Env }>): Promise<Response> {
+  const user = c.get("user") as User | undefined;
+
+  if (!user) {
+    return ResponseBuilder.unauthorized("Not authenticated");
+  }
+
+  const body = await c.req.json<{ currentPassword: string; newPassword: string }>();
+
+  if (!body.currentPassword || !body.newPassword) {
+    return ResponseBuilder.error("Current and new password required", 400);
+  }
+
+  if (body.newPassword.length < 8) {
+    return ResponseBuilder.error("Password must be at least 8 characters", 400);
+  }
+
+  try {
+    // Verify current password
+    const passwordHash = await c.env.CACHE.get(`password:${user.id}`, "text");
+    if (!passwordHash) {
+      return ResponseBuilder.unauthorized("Invalid credentials");
+    }
+
+    const valid = await verifyPassword(body.currentPassword, passwordHash);
+    if (!valid) {
+      return ResponseBuilder.unauthorized("Invalid current password");
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(body.newPassword);
+
+    // Update password
+    await c.env.CACHE.put(`password:${user.id}`, newPasswordHash);
+
+    return ResponseBuilder.success({
+      message: "Password changed successfully"
+    });
+  } catch (error) {
+    return ResponseBuilder.internalError("Failed to change password");
+  }
+}

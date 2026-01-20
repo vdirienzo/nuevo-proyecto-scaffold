@@ -1,0 +1,103 @@
+/**
+ * NetworkSwitch Component for {{PROJECT_NAME}}
+ * React component for network switching UI
+ *
+ * @author {{AUTHOR}}
+ */
+
+import React, { useState } from "react";
+import { useWeb3 } from "../hooks/useWeb3";
+import { NETWORKS, SUPPORTED_CHAIN_IDS } from "../config/networks";
+
+export interface NetworkSwitchProps {
+  onSwitch?: (chainId: number) => void;
+  onError?: (error: Error) => void;
+  className?: string;
+  showCurrentNetwork?: boolean;
+}
+
+export const NetworkSwitch: React.FC<NetworkSwitchProps> = ({
+  onSwitch,
+  onError,
+  className = "",
+  showCurrentNetwork = true,
+}) => {
+  const { chainId, networkName, switchNetwork, isLoading } = useWeb3();
+  const [showMenu, setShowMenu] = useState(false);
+
+  const handleSwitch = async (targetChainId: number) => {
+    setShowMenu(false);
+
+    if (targetChainId === chainId) {
+      return; // Already on this network
+    }
+
+    try {
+      await switchNetwork(targetChainId);
+
+      if (onSwitch) {
+        onSwitch(targetChainId);
+      }
+    } catch (error) {
+      console.error("Failed to switch network:", error);
+      if (onError) {
+        onError(error as Error);
+      }
+    }
+  };
+
+  const availableNetworks = SUPPORTED_CHAIN_IDS.filter(
+    (id) => NETWORKS[id] && id !== chainId
+  );
+
+  return (
+    <div className={`network-switch ${className}`}>
+      {showCurrentNetwork && (
+        <div className="current-network">
+          <span className="network-indicator" />
+          <span className="network-name">{networkName || "Unknown Network"}</span>
+        </div>
+      )}
+
+      {!showMenu ? (
+        <button
+          onClick={() => setShowMenu(true)}
+          disabled={isLoading}
+          className="switch-button"
+          type="button"
+        >
+          Switch Network
+        </button>
+      ) : (
+        <div className="network-menu">
+          {availableNetworks.map((id) => {
+            const network = NETWORKS[id];
+            return (
+              <button
+                key={id}
+                onClick={() => handleSwitch(id)}
+                disabled={isLoading}
+                className="network-option"
+                type="button"
+              >
+                <span className="network-option-name">{network.name}</span>
+                <span className="network-option-currency">
+                  {network.nativeCurrency.symbol}
+                </span>
+              </button>
+            );
+          })}
+          <button
+            onClick={() => setShowMenu(false)}
+            className="cancel-button"
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default NetworkSwitch;

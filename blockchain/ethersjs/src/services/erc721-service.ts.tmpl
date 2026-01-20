@@ -1,0 +1,234 @@
+/**
+ * @fileoverview ERC721 NFT service
+ * @author {{AUTHOR}}
+ */
+
+import { ContractTransactionResponse } from 'ethers';
+import { ContractService, TxOptions } from './contract-service';
+import { ERC721_ABI } from '../config/abis';
+
+/**
+ * NFT metadata
+ */
+export interface NFTMetadata {
+  name?: string;
+  description?: string;
+  image?: string;
+  external_url?: string;
+  attributes?: Array<{
+    trait_type: string;
+    value: string | number;
+  }>;
+  [key: string]: unknown;
+}
+
+/**
+ * NFT with metadata
+ */
+export interface NFT {
+  tokenId: bigint;
+  owner: string;
+  tokenURI: string;
+  metadata?: NFTMetadata;
+}
+
+/**
+ * ERC721 NFT service
+ */
+export class ERC721Service extends ContractService {
+  constructor(nftAddress: string, chainId: number) {
+    super(nftAddress, ERC721_ABI, chainId);
+  }
+
+  /**
+   * Get NFT name
+   */
+  async name(): Promise<string> {
+    return await this.call<string>('name');
+  }
+
+  /**
+   * Get NFT symbol
+   */
+  async symbol(): Promise<string> {
+    return await this.call<string>('symbol');
+  }
+
+  /**
+   * Get owner of token
+   */
+  async ownerOf(tokenId: bigint): Promise<string> {
+    return await this.call<string>('ownerOf', tokenId);
+  }
+
+  /**
+   * Get token URI
+   */
+  async tokenURI(tokenId: bigint): Promise<string> {
+    return await this.call<string>('tokenURI', tokenId);
+  }
+
+  /**
+   * Get balance of address
+   */
+  async balanceOf(address: string): Promise<bigint> {
+    return await this.call<bigint>('balanceOf', address);
+  }
+
+  /**
+   * Get approved address for token
+   */
+  async getApproved(tokenId: bigint): Promise<string> {
+    return await this.call<string>('getApproved', tokenId);
+  }
+
+  /**
+   * Check if operator is approved for all
+   */
+  async isApprovedForAll(owner: string, operator: string): Promise<boolean> {
+    return await this.call<boolean>('isApprovedForAll', owner, operator);
+  }
+
+  /**
+   * Approve address for token
+   */
+  async approve(
+    to: string,
+    tokenId: bigint,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.send('approve', [to, tokenId], options);
+  }
+
+  /**
+   * Set approval for all
+   */
+  async setApprovalForAll(
+    operator: string,
+    approved: boolean,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.send('setApprovalForAll', [operator, approved], options);
+  }
+
+  /**
+   * Transfer NFT
+   */
+  async transferFrom(
+    from: string,
+    to: string,
+    tokenId: bigint,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.send('transferFrom', [from, to, tokenId], options);
+  }
+
+  /**
+   * Safe transfer NFT
+   */
+  async safeTransferFrom(
+    from: string,
+    to: string,
+    tokenId: bigint,
+    options?: TxOptions
+  ): Promise<ContractTransactionResponse> {
+    return await this.send('safeTransferFrom', [from, to, tokenId], options);
+  }
+
+  /**
+   * Fetch NFT metadata from tokenURI
+   */
+  async fetchMetadata(tokenId: bigint): Promise<NFTMetadata | null> {
+    try {
+      const uri = await this.tokenURI(tokenId);
+
+      // Handle IPFS URIs
+      const url = uri.startsWith('ipfs://')
+        ? `https://ipfs.io/ipfs/${uri.slice(7)}`
+        : uri;
+
+      const response = await fetch(url);
+      if (!response.ok) return null;
+
+      return await response.json();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get NFT with metadata
+   */
+  async getNFT(tokenId: bigint): Promise<NFT> {
+    const [owner, tokenURI] = await Promise.all([
+      this.ownerOf(tokenId),
+      this.tokenURI(tokenId),
+    ]);
+
+    const metadata = await this.fetchMetadata(tokenId);
+
+    return { tokenId, owner, tokenURI, metadata };
+  }
+
+  /**
+   * Get all NFTs owned by address (requires enumerable extension)
+   */
+  async getNFTsOfOwner(address: string): Promise<NFT[]> {
+    try {
+      // Try to use tokensOfOwner if available
+      const tokenIds = await this.call<bigint[]>('tokensOfOwner', address);
+      return await Promise.all(tokenIds.map((id) => this.getNFT(id)));
+    } catch {
+      // Fallback: query Transfer events
+      const filter = this.contract.filters.Transfer(null, address);
+      const events = await this.contract.queryFilter(filter);
+
+      const tokenIds = new Set<bigint>();
+      for (const event of events) {
+        const tokenId = event.args?.tokenId;
+        if (tokenId) {
+          // Check if still owned
+          try {
+            const owner = await this.ownerOf(tokenId);
+            if (owner.toLowerCase() === address.toLowerCase()) {
+              tokenIds.add(tokenId);
+            }
+          } catch {
+            // Token may have been burned
+          }
+        }
+      }
+
+      return await Promise.all([...tokenIds].map((id) => this.getNFT(id)));
+    }
+  }
+
+  /**
+   * Get transfer history for token
+   */
+  async getTokenHistory(tokenId: bigint): Promise<
+    Array<{
+      from: string;
+      to: string;
+      blockNumber: number;
+      transactionHash: string;
+    }>
+  > {
+    const filter = this.contract.filters.Transfer(null, null, tokenId);
+    const events = await this.contract.queryFilter(filter);
+
+    return events.map((event) => ({
+      from: event.args?.from || '',
+      to: event.args?.to || '',
+      blockNumber: event.blockNumber,
+      transactionHash: event.transactionHash,
+    }));
+  }
+}
+
+/**
+ * Create ERC721 service instance
+ */
+export function createERC721Service(nftAddress: string, chainId: number): ERC721Service {
+  return new ERC721Service(nftAddress, chainId);
+}

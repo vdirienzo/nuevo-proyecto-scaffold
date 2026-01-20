@@ -1,0 +1,155 @@
+/**
+ * useContract Hook for {{PROJECT_NAME}}
+ * React hook for contract interactions
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { useState, useEffect, useCallback } from "react";
+import { Contract } from "web3";
+import { web3Provider } from "../services/web3-provider";
+
+export interface ContractState<T = any> {
+  contract: Contract<T> | null;
+  isInitialized: boolean;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+export function useContract<T = any>(address: string, abi: any[]) {
+  const [state, setState] = useState<ContractState<T>>({
+    contract: null,
+    isInitialized: false,
+    isLoading: false,
+    error: null,
+  });
+
+  const initialize = useCallback(() => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      if (!web3Provider.isInitialized()) {
+        throw new Error("Web3 not initialized");
+      }
+
+      if (!address || !abi) {
+        throw new Error("Contract address and ABI are required");
+      }
+
+      const web3 = web3Provider.getWeb3();
+      const contract = new web3.eth.Contract(abi, address) as Contract<T>;
+
+      setState({
+        contract,
+        isInitialized: true,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error as Error,
+      }));
+    }
+  }, [address, abi]);
+
+  const call = useCallback(
+    async <R = any>(method: string, ...args: any[]): Promise<R> => {
+      if (!state.contract) {
+        throw new Error("Contract not initialized");
+      }
+
+      return (await state.contract.methods[method](...args).call()) as R;
+    },
+    [state.contract]
+  );
+
+  const send = useCallback(
+    async (
+      method: string,
+      from: string,
+      options?: { value?: string; gas?: bigint },
+      ...args: any[]
+    ): Promise<string> => {
+      if (!state.contract) {
+        throw new Error("Contract not initialized");
+      }
+
+      const tx = await state.contract.methods[method](...args).send({
+        from,
+        ...options,
+      });
+
+      return tx.transactionHash as string;
+    },
+    [state.contract]
+  );
+
+  const estimateGas = useCallback(
+    async (method: string, from: string, ...args: any[]): Promise<bigint> => {
+      if (!state.contract) {
+        throw new Error("Contract not initialized");
+      }
+
+      return await state.contract.methods[method](...args).estimateGas({ from });
+    },
+    [state.contract]
+  );
+
+  const subscribe = useCallback(
+    (
+      eventName: string,
+      callback: (...args: any[]) => void,
+      options?: { fromBlock?: number; filter?: any }
+    ) => {
+      if (!state.contract) {
+        throw new Error("Contract not initialized");
+      }
+
+      state.contract.events[eventName](options || {})
+        .on("data", (event: any) => {
+          callback(event);
+        })
+        .on("error", (error: Error) => {
+          console.error(`Event ${eventName} error:`, error);
+        });
+    },
+    [state.contract]
+  );
+
+  const getPastEvents = useCallback(
+    async (
+      eventName: string,
+      fromBlock: number,
+      toBlock: number | "latest" = "latest"
+    ): Promise<any[]> => {
+      if (!state.contract) {
+        throw new Error("Contract not initialized");
+      }
+
+      return await state.contract.getPastEvents(eventName, {
+        fromBlock,
+        toBlock,
+      });
+    },
+    [state.contract]
+  );
+
+  // Initialize on mount
+  useEffect(() => {
+    if (web3Provider.isInitialized() && address && abi) {
+      initialize();
+    }
+  }, [address, abi, initialize]);
+
+  return {
+    ...state,
+    initialize,
+    call,
+    send,
+    estimateGas,
+    subscribe,
+    getPastEvents,
+  };
+}

@@ -1,0 +1,64 @@
+/*!
+ * Authentication routes
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use actix_web::{post, web, HttpResponse};
+use validator::Validate;
+
+use crate::{
+    config::Config,
+    db::Database,
+    error::AppError,
+    models::user::{CreateUserRequest, LoginRequest, LoginResponse},
+    services::auth_service::AuthService,
+};
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/register",
+    tag = "auth",
+    request_body = CreateUserRequest,
+    responses(
+        (status = 201, description = "User registered successfully", body = LoginResponse),
+        (status = 400, description = "Validation error"),
+        (status = 409, description = "User already exists")
+    )
+)]
+#[post("/register")]
+pub async fn register(
+    db: web::Data<Database>,
+    config: web::Data<Config>,
+    request: web::Json<CreateUserRequest>,
+) -> Result<HttpResponse, AppError> {
+    request.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+
+    let response = AuthService::register(db.pool(), &config.jwt, request.into_inner()).await?;
+
+    Ok(HttpResponse::Created().json(response))
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/v1/auth/login",
+    tag = "auth",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = LoginResponse),
+        (status = 400, description = "Validation error"),
+        (status = 401, description = "Invalid credentials")
+    )
+)]
+#[post("/login")]
+pub async fn login(
+    db: web::Data<Database>,
+    config: web::Data<Config>,
+    request: web::Json<LoginRequest>,
+) -> Result<HttpResponse, AppError> {
+    request.validate().map_err(|e| AppError::Validation(e.to_string()))?;
+
+    let response = AuthService::login(db.pool(), &config.jwt, request.into_inner()).await?;
+
+    Ok(HttpResponse::Ok().json(response))
+}

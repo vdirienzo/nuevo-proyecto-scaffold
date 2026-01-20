@@ -1,0 +1,182 @@
+/**
+ * @fileoverview React hook for Ethers.js wallet connection
+ * @author {{AUTHOR}}
+ */
+
+import { useState, useEffect, useCallback } from 'react';
+import { walletService, WalletConnection } from '../services/wallet-service';
+
+/**
+ * Hook state
+ */
+export interface UseEthersState {
+  account: string | null;
+  chainId: number | null;
+  balance: bigint | null;
+  ensName: string | null;
+  isConnected: boolean;
+  isConnecting: boolean;
+  error: Error | null;
+}
+
+/**
+ * Hook return type
+ */
+export interface UseEthersReturn extends UseEthersState {
+  connect: () => Promise<void>;
+  disconnect: () => void;
+  switchChain: (chainId: number) => Promise<void>;
+  signMessage: (message: string) => Promise<string | null>;
+}
+
+/**
+ * React hook for Ethers.js wallet connection
+ */
+export function useEthers(): UseEthersReturn {
+  const [state, setState] = useState<UseEthersState>({
+    account: null,
+    chainId: null,
+    balance: null,
+    ensName: null,
+    isConnected: false,
+    isConnecting: false,
+    error: null,
+  });
+
+  /**
+   * Connect wallet
+   */
+  const connect = useCallback(async () => {
+    setState((prev) => ({ ...prev, isConnecting: true, error: null }));
+
+    try {
+      const connection: WalletConnection = await walletService.connect();
+
+      setState({
+        account: connection.address,
+        chainId: connection.chainId,
+        balance: connection.balance,
+        ensName: connection.ensName,
+        isConnected: true,
+        isConnecting: false,
+        error: null,
+      });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isConnecting: false,
+        error: error instanceof Error ? error : new Error('Failed to connect'),
+      }));
+    }
+  }, []);
+
+  /**
+   * Disconnect wallet
+   */
+  const disconnect = useCallback(() => {
+    walletService.disconnect();
+    setState({
+      account: null,
+      chainId: null,
+      balance: null,
+      ensName: null,
+      isConnected: false,
+      isConnecting: false,
+      error: null,
+    });
+  }, []);
+
+  /**
+   * Switch chain
+   */
+  const switchChain = useCallback(async (chainId: number) => {
+    try {
+      await walletService.switchChain(chainId);
+      setState((prev) => ({ ...prev, chainId, error: null }));
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        error: error instanceof Error ? error : new Error('Failed to switch chain'),
+      }));
+    }
+  }, []);
+
+  /**
+   * Sign message
+   */
+  const signMessage = useCallback(
+    async (message: string): Promise<string | null> => {
+      try {
+        const signature = await walletService.signMessage(message);
+        return signature;
+      } catch (error) {
+        setState((prev) => ({
+          ...prev,
+          error: error instanceof Error ? error : new Error('Failed to sign message'),
+        }));
+        return null;
+      }
+    },
+    []
+  );
+
+  /**
+   * Setup event listeners
+   */
+  useEffect(() => {
+    if (!walletService.isWalletAvailable()) return;
+
+    walletService.setupMonitoring({
+      onChainChanged: (chainId) => {
+        setState((prev) => ({ ...prev, chainId }));
+      },
+      onAccountsChanged: async (accounts) => {
+        if (accounts.length === 0) {
+          disconnect();
+        } else {
+          const account = accounts[0];
+          const balance = account ? await walletService.getBalance(account) : null;
+          setState((prev) => ({
+            ...prev,
+            account: account || null,
+            balance: balance || null,
+          }));
+        }
+      },
+      onDisconnect: () => {
+        disconnect();
+      },
+    });
+
+    // Check if already connected
+    const checkConnection = async () => {
+      const account = await walletService.getAccount();
+      if (account) {
+        const [chainId, balance] = await Promise.all([
+          walletService.getChainId(),
+          walletService.getBalance(account),
+        ]);
+
+        setState({
+          account,
+          chainId: chainId || null,
+          balance,
+          ensName: null,
+          isConnected: true,
+          isConnecting: false,
+          error: null,
+        });
+      }
+    };
+
+    checkConnection();
+  }, [disconnect]);
+
+  return {
+    ...state,
+    connect,
+    disconnect,
+    switchChain,
+    signMessage,
+  };
+}

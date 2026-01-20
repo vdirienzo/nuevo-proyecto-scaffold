@@ -1,0 +1,58 @@
+/**
+ * useStorage Hook
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import {useState, useEffect, useCallback} from 'react';
+import {storage} from '@services/storage';
+
+export const useStorage = <T = any>(key: string, initialValue?: T) => {
+  const [storedValue, setStoredValue] = useState<T | undefined>(initialValue);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadValue = async () => {
+      try {
+        const value = await storage.get<T>(key);
+        if (value !== null) {
+          setStoredValue(value);
+        }
+      } catch (error) {
+        console.error(`Error loading ${key} from storage:`, error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadValue();
+  }, [key]);
+
+  const setValue = useCallback(
+    async (value: T) => {
+      try {
+        setStoredValue(value);
+        await storage.set(key, value);
+      } catch (error) {
+        console.error(`Error saving ${key} to storage:`, error);
+      }
+    },
+    [key]
+  );
+
+  const removeValue = useCallback(async () => {
+    try {
+      setStoredValue(undefined);
+      await storage.remove(key);
+    } catch (error) {
+      console.error(`Error removing ${key} from storage:`, error);
+    }
+  }, [key]);
+
+  return {
+    value: storedValue,
+    isLoading,
+    setValue,
+    removeValue,
+  };
+};

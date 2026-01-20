@@ -1,0 +1,151 @@
+/**
+ * Network configuration for {{PROJECT_NAME}}
+ * @author {{AUTHOR}}
+ */
+
+export interface NetworkConfig {
+  chainId: number;
+  name: string;
+  rpcUrl: string;
+  blockExplorer: string;
+  nativeCurrency: {
+    name: string;
+    symbol: string;
+    decimals: number;
+  };
+}
+
+export const NETWORKS: Record<number, NetworkConfig> = {
+  // Ethereum Mainnet
+  1: {
+    chainId: 1,
+    name: "Ethereum Mainnet",
+    rpcUrl: process.env.MAINNET_RPC_URL || "https://eth.llamarpc.com",
+    blockExplorer: "https://etherscan.io",
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
+  },
+
+  // Ethereum Sepolia Testnet
+  11155111: {
+    chainId: 11155111,
+    name: "Sepolia Testnet",
+    rpcUrl: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
+    blockExplorer: "https://sepolia.etherscan.io",
+    nativeCurrency: {
+      name: "Sepolia Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
+  },
+
+  // Polygon Mainnet
+  137: {
+    chainId: 137,
+    name: "Polygon",
+    rpcUrl: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
+    blockExplorer: "https://polygonscan.com",
+    nativeCurrency: {
+      name: "MATIC",
+      symbol: "MATIC",
+      decimals: 18,
+    },
+  },
+
+  // Polygon Mumbai Testnet
+  80001: {
+    chainId: 80001,
+    name: "Mumbai Testnet",
+    rpcUrl: process.env.MUMBAI_RPC_URL || "https://rpc-mumbai.maticvigil.com",
+    blockExplorer: "https://mumbai.polygonscan.com",
+    nativeCurrency: {
+      name: "MATIC",
+      symbol: "MATIC",
+      decimals: 18,
+    },
+  },
+
+  // BSC Mainnet
+  56: {
+    chainId: 56,
+    name: "BNB Smart Chain",
+    rpcUrl: process.env.BSC_RPC_URL || "https://bsc-dataseed.binance.org",
+    blockExplorer: "https://bscscan.com",
+    nativeCurrency: {
+      name: "BNB",
+      symbol: "BNB",
+      decimals: 18,
+    },
+  },
+
+  // BSC Testnet
+  97: {
+    chainId: 97,
+    name: "BSC Testnet",
+    rpcUrl: process.env.BSC_TESTNET_RPC_URL || "https://data-seed-prebsc-1-s1.binance.org:8545",
+    blockExplorer: "https://testnet.bscscan.com",
+    nativeCurrency: {
+      name: "BNB",
+      symbol: "BNB",
+      decimals: 18,
+    },
+  },
+
+  // Local Development
+  1337: {
+    chainId: 1337,
+    name: "Localhost",
+    rpcUrl: "http://127.0.0.1:8545",
+    blockExplorer: "",
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
+  },
+
+  31337: {
+    chainId: 31337,
+    name: "Hardhat",
+    rpcUrl: "http://127.0.0.1:8545",
+    blockExplorer: "",
+    nativeCurrency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
+  },
+};
+
+export const DEFAULT_CHAIN_ID = Number(process.env.CHAIN_ID) || 1337;
+
+export const SUPPORTED_CHAIN_IDS = Object.keys(NETWORKS).map(Number);
+
+export function getNetworkConfig(chainId: number): NetworkConfig | undefined {
+  return NETWORKS[chainId];
+}
+
+export function isNetworkSupported(chainId: number): boolean {
+  return chainId in NETWORKS;
+}
+
+export function getBlockExplorerUrl(chainId: number, hash: string, type: "tx" | "address" | "token"): string {
+  const network = getNetworkConfig(chainId);
+  if (!network || !network.blockExplorer) {
+    return "";
+  }
+
+  switch (type) {
+    case "tx":
+      return `${network.blockExplorer}/tx/${hash}`;
+    case "address":
+      return `${network.blockExplorer}/address/${hash}`;
+    case "token":
+      return `${network.blockExplorer}/token/${hash}`;
+    default:
+      return network.blockExplorer;
+  }
+}

@@ -1,0 +1,143 @@
+/*!
+ * Authentication service
+ *
+ * Author: {{AUTHOR}}
+ */
+
+use argon2::{
+    password_hash::{rand_core::OsRng, PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
+use sqlx::PgPool;
+use uuid::Uuid;
+
+use crate::{
+    config::JwtConfig,
+    error::{AppError, AppResult},
+    models::user::{Claims, CreateUserRequest, LoginRequest, LoginResponse, User, UserResponse},
+};
+
+pub struct AuthService;
+
+impl AuthService {
+    pub fn hash_password(password: &str) -> AppResult<String> {
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        let password_hash = argon2
+            .hash_password(password.as_bytes(), &salt)?
+            .to_string();
+        Ok(password_hash)
+    }
+
+    pub fn verify_password(password: &str, hash: &str) -> AppResult<bool> {
+        let parsed_hash = PasswordHash::new(hash)?;
+        Ok(Argon2::default()
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_ok())
+    }
+
+    pub fn create_token(user_id: Uuid, jwt_config: &JwtConfig) -> AppResult<String> {
+        let expiration = Utc::now()
+            .checked_add_signed(Duration::hours(jwt_config.expiration_hours))
+            .expect("valid timestamp")
+            .timestamp();
+
+        let claims = Claims {
+            sub: user_id.to_string(),
+            exp: expiration,
+        };
+
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(jwt_config.secret.as_bytes()),
+        )?;
+
+        Ok(token)
+    }
+
+    pub fn verify_token(token: &str, jwt_config: &JwtConfig) -> AppResult<Claims> {
+        let token_data = decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(jwt_config.secret.as_bytes()),
+            &Validation::default(),
+        )?;
+
+        Ok(token_data.claims)
+    }
+
+    pub async fn register(
+        pool: &PgPool,
+        jwt_config: &JwtConfig,
+        request: CreateUserRequest,
+    ) -> AppResult<LoginResponse> {
+        // Check if user already exists
+        let existing_user = sqlx::query_as::<_, User>(
+            "SELECT * FROM users WHERE email = $1 OR username = $2",
+        )
+        .bind(&request.email)
+        .bind(&request.username)
+        .fetch_optional(pool)
+        .await?;
+
+        if existing_user.is_some() {
+            return Err(AppError::Conflict("User already exists".to_string()));
+        }
+
+        // Hash password
+        let password_hash = Self::hash_password(&request.password)?;
+
+        // Create user
+        let user = sqlx::query_as::<_, User>(
+            r#"
+            INSERT INTO users (id, email, username, password_hash, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(&request.email)
+        .bind(&request.username)
+        .bind(&password_hash)
+        .bind(Utc::now())
+        .bind(Utc::now())
+        .fetch_one(pool)
+        .await?;
+
+        // Generate token
+        let token = Self::create_token(user.id, jwt_config)?;
+
+        Ok(LoginResponse {
+            token,
+            user: user.into(),
+        })
+    }
+
+    pub async fn login(
+        pool: &PgPool,
+        jwt_config: &JwtConfig,
+        request: LoginRequest,
+    ) -> AppResult<LoginResponse> {
+        // Find user
+        let user = sqlx::query_as::<_, User>("SELECT * FROM users WHERE email = $1")
+            .bind(&request.email)
+            .fetch_optional(pool)
+            .await?
+            .ok_or_else(|| AppError::Authentication("Invalid credentials".to_string()))?;
+
+        // Verify password
+        if !Self::verify_password(&request.password, &user.password_hash)? {
+            return Err(AppError::Authentication("Invalid credentials".to_string()));
+        }
+
+        // Generate token
+        let token = Self::create_token(user.id, jwt_config)?;
+
+        Ok(LoginResponse {
+            token,
+            user: user.into(),
+        })
+    }
+}

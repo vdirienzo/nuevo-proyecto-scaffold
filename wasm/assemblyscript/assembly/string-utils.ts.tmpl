@@ -1,0 +1,282 @@
+/**
+ * string-utils.ts - String manipulation utilities
+ *
+ * High-performance string operations for WebAssembly.
+ *
+ * Author: {{AUTHOR}}
+ */
+
+/**
+ * Reverse a string
+ */
+export function reverseString(str: string): string {
+  let result = '';
+  for (let i = str.length - 1; i >= 0; i--) {
+    result += str.charAt(i);
+  }
+  return result;
+}
+
+/**
+ * Check if string is palindrome
+ */
+export function isPalindrome(str: string): bool {
+  const cleaned = str.toLowerCase().trim();
+  const len = cleaned.length;
+
+  for (let i = 0; i < len / 2; i++) {
+    if (cleaned.charAt(i) !== cleaned.charAt(len - 1 - i)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Count occurrences of character in string
+ */
+export function countChar(str: string, char: string): i32 {
+  let count = 0;
+  for (let i = 0; i < str.length; i++) {
+    if (str.charAt(i) === char) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Count words in string
+ */
+export function countWords(str: string): i32 {
+  const trimmed = str.trim();
+  if (trimmed.length === 0) return 0;
+
+  let count = 1;
+  for (let i = 0; i < trimmed.length; i++) {
+    if (trimmed.charAt(i) === ' ' && trimmed.charAt(i + 1) !== ' ') {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Capitalize first letter of each word
+ */
+export function titleCase(str: string): string {
+  let result = '';
+  let capitalizeNext = true;
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charAt(i);
+
+    if (char === ' ') {
+      result += char;
+      capitalizeNext = true;
+    } else if (capitalizeNext) {
+      result += char.toUpperCase();
+      capitalizeNext = false;
+    } else {
+      result += char.toLowerCase();
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Repeat string n times
+ */
+export function repeatString(str: string, times: i32): string {
+  let result = '';
+  for (let i = 0; i < times; i++) {
+    result += str;
+  }
+  return result;
+}
+
+/**
+ * Truncate string to max length with ellipsis
+ */
+export function truncate(str: string, maxLength: i32): string {
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength - 3) + '...';
+}
+
+/**
+ * Remove whitespace from both ends
+ */
+export function trim(str: string): string {
+  let start = 0;
+  let end = str.length - 1;
+
+  while (start <= end && str.charAt(start) === ' ') {
+    start++;
+  }
+
+  while (end >= start && str.charAt(end) === ' ') {
+    end--;
+  }
+
+  return str.substring(start, end + 1);
+}
+
+/**
+ * Convert string to lowercase
+ */
+export function toLowerCase(str: string): string {
+  return str.toLowerCase();
+}
+
+/**
+ * Convert string to uppercase
+ */
+export function toUpperCase(str: string): string {
+  return str.toUpperCase();
+}
+
+/**
+ * Check if string starts with prefix
+ */
+export function startsWith(str: string, prefix: string): bool {
+  if (prefix.length > str.length) return false;
+
+  for (let i = 0; i < prefix.length; i++) {
+    if (str.charAt(i) !== prefix.charAt(i)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Check if string ends with suffix
+ */
+export function endsWith(str: string, suffix: string): bool {
+  if (suffix.length > str.length) return false;
+
+  const offset = str.length - suffix.length;
+
+  for (let i = 0; i < suffix.length; i++) {
+    if (str.charAt(offset + i) !== suffix.charAt(i)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Check if string contains substring
+ */
+export function contains(str: string, search: string): bool {
+  return str.includes(search);
+}
+
+/**
+ * Replace all occurrences of search with replacement
+ */
+export function replaceAll(str: string, search: string, replacement: string): string {
+  let result = '';
+  let lastIndex = 0;
+
+  for (let i = 0; i <= str.length - search.length; i++) {
+    let match = true;
+
+    for (let j = 0; j < search.length; j++) {
+      if (str.charAt(i + j) !== search.charAt(j)) {
+        match = false;
+        break;
+      }
+    }
+
+    if (match) {
+      result += str.substring(lastIndex, i) + replacement;
+      lastIndex = i + search.length;
+      i += search.length - 1;
+    }
+  }
+
+  result += str.substring(lastIndex);
+  return result;
+}
+
+/**
+ * Pad string to target length with padding character
+ */
+export function padStart(str: string, targetLength: i32, padChar: string): string {
+  if (str.length >= targetLength) return str;
+
+  const padLength = targetLength - str.length;
+  let padding = '';
+
+  for (let i = 0; i < padLength; i++) {
+    padding += padChar;
+  }
+
+  return padding + str;
+}
+
+/**
+ * Pad string at end to target length
+ */
+export function padEnd(str: string, targetLength: i32, padChar: string): string {
+  if (str.length >= targetLength) return str;
+
+  const padLength = targetLength - str.length;
+  let padding = '';
+
+  for (let i = 0; i < padLength; i++) {
+    padding += padChar;
+  }
+
+  return str + padding;
+}
+
+/**
+ * Calculate Levenshtein distance between two strings
+ */
+export function levenshteinDistance(a: string, b: string): i32 {
+  const m = a.length;
+  const n = b.length;
+
+  if (m === 0) return n;
+  if (n === 0) return m;
+
+  // Create distance matrix
+  const matrix = new Array<Int32Array>(m + 1);
+  for (let i = 0; i <= m; i++) {
+    matrix[i] = new Int32Array(n + 1);
+  }
+
+  // Initialize first column and row
+  for (let i = 0; i <= m; i++) {
+    unchecked(matrix[i][0] = i);
+  }
+  for (let j = 0; j <= n; j++) {
+    unchecked(matrix[0][j] = j);
+  }
+
+  // Calculate distances
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1;
+
+      const deletion = unchecked(matrix[i - 1][j]) + 1;
+      const insertion = unchecked(matrix[i][j - 1]) + 1;
+      const substitution = unchecked(matrix[i - 1][j - 1]) + cost;
+
+      unchecked(matrix[i][j] = min3(deletion, insertion, substitution));
+    }
+  }
+
+  return unchecked(matrix[m][n]);
+}
+
+function min3(a: i32, b: i32, c: i32): i32 {
+  return a < b ? (a < c ? a : c) : (b < c ? b : c);
+}

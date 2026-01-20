@@ -1,0 +1,268 @@
+/**
+ * R2 Storage service for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+export class R2Service {
+  constructor(private bucket: R2Bucket) {}
+
+  /**
+   * Upload file to R2
+   */
+  async upload(
+    key: string,
+    data: ReadableStream | ArrayBuffer | string,
+    options?: {
+      contentType?: string;
+      metadata?: Record<string, string>;
+      customMetadata?: Record<string, string>;
+    }
+  ): Promise<R2Object | null> {
+    const httpMetadata: R2HTTPMetadata = {};
+    if (options?.contentType) {
+      httpMetadata.contentType = options.contentType;
+    }
+
+    return await this.bucket.put(key, data, {
+      httpMetadata,
+      customMetadata: options?.customMetadata
+    });
+  }
+
+  /**
+   * Get file from R2
+   */
+  async get(key: string): Promise<R2ObjectBody | null> {
+    return await this.bucket.get(key);
+  }
+
+  /**
+   * Get file with metadata
+   */
+  async getWithMetadata(key: string): Promise<{
+    body: ReadableStream | null;
+    metadata: R2Object | null;
+  }> {
+    const object = await this.bucket.get(key);
+    if (!object) {
+      return { body: null, metadata: null };
+    }
+
+    return {
+      body: object.body,
+      metadata: object
+    };
+  }
+
+  /**
+   * Delete file from R2
+   */
+  async delete(key: string): Promise<void> {
+    await this.bucket.delete(key);
+  }
+
+  /**
+   * Delete multiple files
+   */
+  async deleteMultiple(keys: string[]): Promise<void> {
+    await this.bucket.delete(keys);
+  }
+
+  /**
+   * Check if file exists
+   */
+  async exists(key: string): Promise<boolean> {
+    const object = await this.bucket.head(key);
+    return object !== null;
+  }
+
+  /**
+   * List files with prefix
+   */
+  async list(
+    prefix?: string,
+    options?: {
+      limit?: number;
+      cursor?: string;
+    }
+  ): Promise<R2Objects> {
+    return await this.bucket.list({
+      prefix,
+      limit: options?.limit,
+      cursor: options?.cursor
+    });
+  }
+
+  /**
+   * Copy file within bucket
+   */
+  async copy(sourceKey: string, destinationKey: string): Promise<R2Object | null> {
+    const source = await this.get(sourceKey);
+    if (!source) {
+      return null;
+    }
+
+    return await this.bucket.put(destinationKey, source.body, {
+      httpMetadata: source.httpMetadata,
+      customMetadata: source.customMetadata
+    });
+  }
+
+  /**
+   * Get file metadata only
+   */
+  async getMetadata(key: string): Promise<R2Object | null> {
+    return await this.bucket.head(key);
+  }
+
+  /**
+   * Generate presigned URL (requires public bucket or signed URLs setup)
+   */
+  generatePublicUrl(key: string, baseUrl: string): string {
+    return `${baseUrl}/${key}`;
+  }
+}
+
+/**
+ * File upload service with validation
+ */
+export class FileUploadService {
+  private r2: R2Service;
+
+  constructor(bucket: R2Bucket) {
+    this.r2 = new R2Service(bucket);
+  }
+
+  /**
+   * Upload with validation
+   */
+  async uploadFile(
+    file: File,
+    options: {
+      path?: string;
+      maxSize?: number;
+      allowedTypes?: string[];
+    } = {}
+  ): Promise<{ success: true; key: string; url: string } | { success: false; error: string }> {
+    const { path = "uploads", maxSize = 5 * 1024 * 1024, allowedTypes } = options;
+
+    // Validate file size
+    if (file.size > maxSize) {
+      return {
+        success: false,
+        error: `File size exceeds ${maxSize} bytes`
+      };
+    }
+
+    // Validate file type
+    if (allowedTypes && !allowedTypes.includes(file.type)) {
+      return {
+        success: false,
+        error: `File type ${file.type} not allowed`
+      };
+    }
+
+    // Generate unique key
+    const ext = file.name.split(".").pop();
+    const key = `${path}/${crypto.randomUUID()}.${ext}`;
+
+    // Upload to R2
+    const result = await this.r2.upload(key, await file.arrayBuffer(), {
+      contentType: file.type,
+      customMetadata: {
+        originalName: file.name,
+        uploadedAt: new Date().toISOString()
+      }
+    });
+
+    if (!result) {
+      return {
+        success: false,
+        error: "Upload failed"
+      };
+    }
+
+    return {
+      success: true,
+      key,
+      url: key
+    };
+  }
+
+  /**
+   * Delete uploaded file
+   */
+  async deleteFile(key: string): Promise<void> {
+    await this.r2.delete(key);
+  }
+
+  /**
+   * List uploaded files
+   */
+  async listFiles(path = "uploads", limit = 100): Promise<string[]> {
+    const result = await this.r2.list(path, { limit });
+    return result.objects.map(obj => obj.key);
+  }
+}
+
+/**
+ * Image processing service
+ */
+export class ImageService {
+  private r2: R2Service;
+
+  constructor(bucket: R2Bucket) {
+    this.r2 = new R2Service(bucket);
+  }
+
+  /**
+   * Upload image with metadata
+   */
+  async uploadImage(
+    key: string,
+    data: ArrayBuffer,
+    metadata: {
+      width?: number;
+      height?: number;
+      format?: string;
+    }
+  ): Promise<R2Object | null> {
+    return await this.r2.upload(key, data, {
+      contentType: `image/${metadata.format ?? "jpeg"}`,
+      customMetadata: {
+        width: metadata.width?.toString() ?? "",
+        height: metadata.height?.toString() ?? "",
+        format: metadata.format ?? "jpeg"
+      }
+    });
+  }
+
+  /**
+   * Get image with caching headers
+   */
+  async getImage(key: string): Promise<Response | null> {
+    const object = await this.r2.get(key);
+    if (!object) {
+      return null;
+    }
+
+    return new Response(object.body, {
+      headers: {
+        "Content-Type": object.httpMetadata.contentType ?? "image/jpeg",
+        "Cache-Control": "public, max-age=31536000, immutable",
+        "ETag": object.httpEtag
+      }
+    });
+  }
+
+  /**
+   * Delete image and its variants
+   */
+  async deleteImage(key: string): Promise<void> {
+    const basePath = key.replace(/\.[^/.]+$/, "");
+    const variants = [key, `${basePath}-thumb`, `${basePath}-medium`, `${basePath}-large`];
+
+    await this.r2.deleteMultiple(variants);
+  }
+}

@@ -1,0 +1,108 @@
+/**
+ * @fileoverview React hook for ERC20 token balance
+ * @author {{AUTHOR}}
+ */
+
+import { useState, useEffect } from 'react';
+import { createERC20Service } from '../services/erc20-service';
+
+/**
+ * Hook options
+ */
+export interface UseTokenBalanceOptions {
+  tokenAddress: string;
+  holderAddress: string | null;
+  chainId: number;
+  refreshInterval?: number; // in milliseconds
+}
+
+/**
+ * Hook return type
+ */
+export interface UseTokenBalanceReturn {
+  balance: bigint | null;
+  formattedBalance: string | null;
+  decimals: number | null;
+  symbol: string | null;
+  isLoading: boolean;
+  error: Error | null;
+  refetch: () => Promise<void>;
+}
+
+/**
+ * React hook for ERC20 token balance
+ */
+export function useTokenBalance(options: UseTokenBalanceOptions): UseTokenBalanceReturn {
+  const { tokenAddress, holderAddress, chainId, refreshInterval } = options;
+
+  const [state, setState] = useState<{
+    balance: bigint | null;
+    formattedBalance: string | null;
+    decimals: number | null;
+    symbol: string | null;
+    isLoading: boolean;
+    error: Error | null;
+  }>({
+    balance: null,
+    formattedBalance: null,
+    decimals: null,
+    symbol: null,
+    isLoading: false,
+    error: null,
+  });
+
+  const fetchBalance = async () => {
+    if (!holderAddress) {
+      setState({
+        balance: null,
+        formattedBalance: null,
+        decimals: null,
+        symbol: null,
+        isLoading: false,
+        error: null,
+      });
+      return;
+    }
+
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const service = createERC20Service(tokenAddress, chainId);
+
+      const [balance, formattedBalance, info] = await Promise.all([
+        service.balanceOf(holderAddress),
+        service.getFormattedBalance(holderAddress),
+        service.getTokenInfo(),
+      ]);
+
+      setState({
+        balance,
+        formattedBalance,
+        decimals: info.decimals,
+        symbol: info.symbol,
+        isLoading: false,
+        error: null,
+      });
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error : new Error('Failed to fetch balance'),
+      }));
+    }
+  };
+
+  useEffect(() => {
+    fetchBalance();
+
+    if (refreshInterval) {
+      const interval = setInterval(fetchBalance, refreshInterval);
+      return () => clearInterval(interval);
+    }
+  }, [tokenAddress, holderAddress, chainId, refreshInterval]);
+
+  return {
+    ...state,
+    refetch: fetchBalance,
+  };
+}

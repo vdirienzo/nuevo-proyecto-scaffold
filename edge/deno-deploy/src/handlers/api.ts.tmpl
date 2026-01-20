@@ -1,0 +1,136 @@
+/**
+ * api.ts - API handlers for CRUD operations
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "oak";
+import { z } from "zod";
+import { kvService } from "../services/kv.ts";
+import { successResponse, errorResponse } from "../utils/response.ts";
+import { validateBody } from "../utils/validation.ts";
+
+// Validation schemas
+const ItemSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().optional(),
+  status: z.enum(["active", "inactive"]).default("active"),
+});
+
+type Item = z.infer<typeof ItemSchema>;
+
+export async function listItems(ctx: Context) {
+  try {
+    const items = await kvService.listByPrefix<Item>("item:");
+    ctx.response.body = successResponse(items);
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}
+
+export async function getItem(ctx: Context) {
+  try {
+    const id = ctx.params.id;
+    if (!id) {
+      ctx.response.status = 400;
+      ctx.response.body = errorResponse("Missing item ID");
+      return;
+    }
+
+    const item = await kvService.get<Item>(`item:${id}`);
+    if (!item) {
+      ctx.response.status = 404;
+      ctx.response.body = errorResponse("Item not found");
+      return;
+    }
+
+    ctx.response.body = successResponse(item);
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}
+
+export async function createItem(ctx: Context) {
+  try {
+    const body = await validateBody(ctx, ItemSchema);
+    if (!body.success) {
+      ctx.response.status = 400;
+      ctx.response.body = errorResponse(body.error);
+      return;
+    }
+
+    const id = crypto.randomUUID();
+    const item = { id, ...body.data, createdAt: new Date().toISOString() };
+
+    await kvService.set(`item:${id}`, item);
+
+    ctx.response.status = 201;
+    ctx.response.body = successResponse(item);
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}
+
+export async function updateItem(ctx: Context) {
+  try {
+    const id = ctx.params.id;
+    if (!id) {
+      ctx.response.status = 400;
+      ctx.response.body = errorResponse("Missing item ID");
+      return;
+    }
+
+    const existing = await kvService.get<Item>(`item:${id}`);
+    if (!existing) {
+      ctx.response.status = 404;
+      ctx.response.body = errorResponse("Item not found");
+      return;
+    }
+
+    const body = await validateBody(ctx, ItemSchema.partial());
+    if (!body.success) {
+      ctx.response.status = 400;
+      ctx.response.body = errorResponse(body.error);
+      return;
+    }
+
+    const updated = {
+      ...existing,
+      ...body.data,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kvService.set(`item:${id}`, updated);
+    ctx.response.body = successResponse(updated);
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}
+
+export async function deleteItem(ctx: Context) {
+  try {
+    const id = ctx.params.id;
+    if (!id) {
+      ctx.response.status = 400;
+      ctx.response.body = errorResponse("Missing item ID");
+      return;
+    }
+
+    const existing = await kvService.get(`item:${id}`);
+    if (!existing) {
+      ctx.response.status = 404;
+      ctx.response.body = errorResponse("Item not found");
+      return;
+    }
+
+    await kvService.delete(`item:${id}`);
+    ctx.response.status = 204;
+  } catch (error) {
+    ctx.response.body = errorResponse(error.message);
+    ctx.response.status = 500;
+  }
+}

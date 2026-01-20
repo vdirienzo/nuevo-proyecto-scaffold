@@ -1,0 +1,80 @@
+/**
+ * websocket.ts - WebSocket handler with BroadcastChannel
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { Context } from "oak";
+
+const channel = new BroadcastChannel("chat");
+
+interface WebSocketMessage {
+  type: "join" | "message" | "leave";
+  userId?: string;
+  content?: string;
+  timestamp: string;
+}
+
+export async function handleWebSocket(ctx: Context) {
+  if (!ctx.isUpgradable) {
+    ctx.response.status = 400;
+    ctx.response.body = { error: "WebSocket upgrade required" };
+    return;
+  }
+
+  const ws = ctx.upgrade();
+  const userId = crypto.randomUUID();
+
+  console.log(`WebSocket connected: ${userId}`);
+
+  // Broadcast join message
+  const joinMessage: WebSocketMessage = {
+    type: "join",
+    userId,
+    timestamp: new Date().toISOString(),
+  };
+  channel.postMessage(joinMessage);
+
+  // Listen to broadcast channel
+  channel.onmessage = (event) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(event.data));
+    }
+  };
+
+  // Handle incoming messages
+  ws.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+
+      const message: WebSocketMessage = {
+        type: "message",
+        userId,
+        content: data.content,
+        timestamp: new Date().toISOString(),
+      };
+
+      // Broadcast to all connected clients
+      channel.postMessage(message);
+    } catch (error) {
+      console.error("Invalid WebSocket message:", error);
+    }
+  };
+
+  // Handle close
+  ws.onclose = () => {
+    console.log(`WebSocket disconnected: ${userId}`);
+
+    const leaveMessage: WebSocketMessage = {
+      type: "leave",
+      userId,
+      timestamp: new Date().toISOString(),
+    };
+    channel.postMessage(leaveMessage);
+  };
+
+  // Handle errors
+  ws.onerror = (error) => {
+    console.error(`WebSocket error for ${userId}:`, error);
+  };
+}

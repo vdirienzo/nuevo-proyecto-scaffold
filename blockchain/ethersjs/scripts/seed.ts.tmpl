@@ -1,0 +1,75 @@
+/**
+ * @fileoverview Seed script for testing
+ * @author {{AUTHOR}}
+ */
+
+import { ethers } from 'ethers';
+import { createERC20Service } from '../src/services/erc20-service';
+import { createERC721Service } from '../src/services/erc721-service';
+import { createStakingService } from '../src/services/staking-service';
+import { contractAddresses } from '../src/config/abis';
+
+/**
+ * Seed test data
+ */
+async function main() {
+  console.log('Seeding test data...\n');
+
+  const privateKey = process.env.PRIVATE_KEY;
+  if (!privateKey) {
+    throw new Error('PRIVATE_KEY not set in environment');
+  }
+
+  const chainId = parseInt(process.env.CHAIN_ID || '11155111');
+
+  // Example: Mint tokens to test accounts
+  const testAccounts = [
+    '0x1234567890123456789012345678901234567890',
+    '0x2345678901234567890123456789012345678901',
+    '0x3456789012345678901234567890123456789012',
+  ];
+
+  console.log('Test accounts:', testAccounts);
+
+  if (contractAddresses.token) {
+    console.log('\nMinting tokens...');
+    const tokenService = createERC20Service(contractAddresses.token, chainId);
+
+    for (const account of testAccounts) {
+      const amount = ethers.parseEther('1000'); // 1000 tokens
+      console.log(`Minting ${ethers.formatEther(amount)} tokens to ${account}`);
+
+      // Note: This requires owner privileges
+      // const tx = await tokenService.mint(account, amount);
+      // await tokenService.waitForTransaction(tx);
+      // console.log('  Transaction:', tx.hash);
+    }
+  }
+
+  if (contractAddresses.nft) {
+    console.log('\nMinting NFTs...');
+    const nftService = createERC721Service(contractAddresses.nft, chainId);
+
+    for (const account of testAccounts) {
+      console.log(`Minting NFT to ${account}`);
+
+      // Note: This requires owner privileges
+      // const tx = await nftService.mintWithURI(
+      //   account,
+      //   `ipfs://QmTest${account.slice(-4)}`
+      // );
+      // await nftService.waitForTransaction(tx);
+      // console.log('  Transaction:', tx.hash);
+    }
+  }
+
+  console.log('\nSeeding completed!');
+  console.log('Note: Uncomment actual minting code to execute transactions');
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });

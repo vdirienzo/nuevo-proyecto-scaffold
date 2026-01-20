@@ -1,0 +1,134 @@
+/**
+ * @fileoverview Integration tests
+ * @author {{AUTHOR}}
+ */
+
+import { describe, it, expect, beforeAll } from 'vitest';
+import { ethers } from 'ethers';
+import { createERC20Service } from '../src/services/erc20-service';
+import { createERC721Service } from '../src/services/erc721-service';
+import { createStakingService } from '../src/services/staking-service';
+import { createMulticallService } from '../src/services/multicall-service';
+import { contractAddresses } from '../src/config/abis';
+
+const TEST_CHAIN_ID = 11155111; // Sepolia
+const TEST_ADDRESS = '0x1234567890123456789012345678901234567890';
+
+describe('ERC20 Service', () => {
+  it('should get token info', async () => {
+    if (!contractAddresses.token) {
+      console.log('Token address not configured, skipping test');
+      return;
+    }
+
+    const service = createERC20Service(contractAddresses.token, TEST_CHAIN_ID);
+    const info = await service.getTokenInfo();
+
+    expect(info.name).toBeDefined();
+    expect(info.symbol).toBeDefined();
+    expect(info.decimals).toBeGreaterThan(0);
+    expect(info.totalSupply).toBeGreaterThanOrEqual(0n);
+  });
+
+  it('should get balance', async () => {
+    if (!contractAddresses.token) return;
+
+    const service = createERC20Service(contractAddresses.token, TEST_CHAIN_ID);
+    const balance = await service.balanceOf(TEST_ADDRESS);
+
+    expect(balance).toBeGreaterThanOrEqual(0n);
+  });
+});
+
+describe('ERC721 Service', () => {
+  it('should get NFT info', async () => {
+    if (!contractAddresses.nft) {
+      console.log('NFT address not configured, skipping test');
+      return;
+    }
+
+    const service = createERC721Service(contractAddresses.nft, TEST_CHAIN_ID);
+    const name = await service.name();
+    const symbol = await service.symbol();
+
+    expect(name).toBeDefined();
+    expect(symbol).toBeDefined();
+  });
+
+  it('should get balance', async () => {
+    if (!contractAddresses.nft) return;
+
+    const service = createERC721Service(contractAddresses.nft, TEST_CHAIN_ID);
+    const balance = await service.balanceOf(TEST_ADDRESS);
+
+    expect(balance).toBeGreaterThanOrEqual(0n);
+  });
+});
+
+describe('Staking Service', () => {
+  it('should get staking info', async () => {
+    if (!contractAddresses.staking) {
+      console.log('Staking address not configured, skipping test');
+      return;
+    }
+
+    const service = createStakingService(contractAddresses.staking, TEST_CHAIN_ID);
+    const info = await service.getStakingInfo();
+
+    expect(info.stakingToken).toBeDefined();
+    expect(info.rewardToken).toBeDefined();
+    expect(info.totalStaked).toBeGreaterThanOrEqual(0n);
+  });
+
+  it('should calculate APR', async () => {
+    if (!contractAddresses.staking) return;
+
+    const service = createStakingService(contractAddresses.staking, TEST_CHAIN_ID);
+    const apr = await service.calculateAPR();
+
+    expect(apr).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('Multicall Service', () => {
+  it('should batch multiple calls', async () => {
+    if (!contractAddresses.token) {
+      console.log('Token address not configured, skipping test');
+      return;
+    }
+
+    const service = createMulticallService(TEST_CHAIN_ID);
+    const balances = await service.getTokenBalances(
+      [contractAddresses.token],
+      TEST_ADDRESS
+    );
+
+    expect(balances[contractAddresses.token]).toBeGreaterThanOrEqual(0n);
+  });
+
+  it('should get multiple token info', async () => {
+    if (!contractAddresses.token) return;
+
+    const service = createMulticallService(TEST_CHAIN_ID);
+    const tokensInfo = await service.getTokensInfo([contractAddresses.token]);
+
+    expect(tokensInfo).toHaveLength(1);
+    expect(tokensInfo[0]?.name).toBeDefined();
+  });
+});
+
+describe('Format utilities', () => {
+  it('should format wei to human readable', async () => {
+    const { formatWei } = await import('../src/utils/format');
+
+    expect(formatWei(1000000000000000000n, 18, 4)).toBe('1');
+    expect(formatWei(1500000000000000000n, 18, 4)).toBe('1.5');
+  });
+
+  it('should format address', async () => {
+    const { formatAddress } = await import('../src/utils/format');
+
+    const address = '0x1234567890123456789012345678901234567890';
+    expect(formatAddress(address)).toBe('0x1234...7890');
+  });
+});

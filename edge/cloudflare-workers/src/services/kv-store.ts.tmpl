@@ -1,0 +1,247 @@
+/**
+ * KV Storage service for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+export class KVStore {
+  constructor(private kv: KVNamespace) {}
+
+  /**
+   * Get value from KV
+   */
+  async get<T>(key: string): Promise<T | null> {
+    const value = await this.kv.get(key, "json");
+    return value as T | null;
+  }
+
+  /**
+   * Get text value from KV
+   */
+  async getText(key: string): Promise<string | null> {
+    return await this.kv.get(key, "text");
+  }
+
+  /**
+   * Get value with metadata
+   */
+  async getWithMetadata<T, M = unknown>(
+    key: string
+  ): Promise<{ value: T | null; metadata: M | null }> {
+    const result = await this.kv.getWithMetadata<M>(key, "json");
+    return {
+      value: result.value as T | null,
+      metadata: result.metadata
+    };
+  }
+
+  /**
+   * Put value in KV
+   */
+  async put<T>(
+    key: string,
+    value: T,
+    options?: {
+      expiration?: number;
+      expirationTtl?: number;
+      metadata?: unknown;
+    }
+  ): Promise<void> {
+    await this.kv.put(key, JSON.stringify(value), options);
+  }
+
+  /**
+   * Put text value in KV
+   */
+  async putText(
+    key: string,
+    value: string,
+    options?: {
+      expiration?: number;
+      expirationTtl?: number;
+    }
+  ): Promise<void> {
+    await this.kv.put(key, value, options);
+  }
+
+  /**
+   * Delete key from KV
+   */
+  async delete(key: string): Promise<void> {
+    await this.kv.delete(key);
+  }
+
+  /**
+   * List keys with prefix
+   */
+  async list(prefix?: string, limit = 1000): Promise<string[]> {
+    const list = await this.kv.list({ prefix, limit });
+    return list.keys.map(key => key.name);
+  }
+
+  /**
+   * Check if key exists
+   */
+  async exists(key: string): Promise<boolean> {
+    const value = await this.kv.get(key);
+    return value !== null;
+  }
+
+  /**
+   * Increment counter (atomic operation)
+   */
+  async increment(key: string, amount = 1): Promise<number> {
+    const current = (await this.get<number>(key)) ?? 0;
+    const newValue = current + amount;
+    await this.put(key, newValue);
+    return newValue;
+  }
+
+  /**
+   * Set with TTL in seconds
+   */
+  async setWithTTL<T>(key: string, value: T, ttlSeconds: number): Promise<void> {
+    await this.put(key, value, { expirationTtl: ttlSeconds });
+  }
+
+  /**
+   * Get or set (cache pattern)
+   */
+  async getOrSet<T>(
+    key: string,
+    factory: () => Promise<T>,
+    ttlSeconds?: number
+  ): Promise<T> {
+    const cached = await this.get<T>(key);
+    if (cached !== null) {
+      return cached;
+    }
+
+    const value = await factory();
+    await this.setWithTTL(key, value, ttlSeconds ?? 3600);
+    return value;
+  }
+}
+
+/**
+ * Cache service using KV
+ */
+export class CacheService {
+  private store: KVStore;
+
+  constructor(kv: KVNamespace) {
+    this.store = new KVStore(kv);
+  }
+
+  /**
+   * Cache a response
+   */
+  async cacheResponse(
+    key: string,
+    response: Response,
+    ttlSeconds = 3600
+  ): Promise<void> {
+    const body = await response.text();
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+
+    await this.store.setWithTTL(
+      key,
+      {
+        status: response.status,
+        headers,
+        body
+      },
+      ttlSeconds
+    );
+  }
+
+  /**
+   * Get cached response
+   */
+  async getCachedResponse(key: string): Promise<Response | null> {
+    const cached = await this.store.get<{
+      status: number;
+      headers: Record<string, string>;
+      body: string;
+    }>(key);
+
+    if (!cached) {
+      return null;
+    }
+
+    return new Response(cached.body, {
+      status: cached.status,
+      headers: cached.headers
+    });
+  }
+
+  /**
+   * Generate cache key from request
+   */
+  getCacheKey(request: Request): string {
+    const url = new URL(request.url);
+    return `cache:${request.method}:${url.pathname}:${url.search}`;
+  }
+
+  /**
+   * Clear cache by prefix
+   */
+  async clearByPrefix(prefix: string): Promise<void> {
+    const keys = await this.store.list(prefix);
+    await Promise.all(keys.map(key => this.store.delete(key)));
+  }
+}
+
+/**
+ * Session service using KV
+ */
+export class SessionService {
+  private store: KVStore;
+  private ttl: number;
+
+  constructor(kv: KVNamespace, ttlSeconds = 7 * 24 * 60 * 60) {
+    this.store = new KVStore(kv);
+    this.ttl = ttlSeconds;
+  }
+
+  /**
+   * Create session
+   */
+  async create(sessionId: string, data: unknown): Promise<void> {
+    await this.store.setWithTTL(`session:${sessionId}`, data, this.ttl);
+  }
+
+  /**
+   * Get session
+   */
+  async get<T>(sessionId: string): Promise<T | null> {
+    return await this.store.get<T>(`session:${sessionId}`);
+  }
+
+  /**
+   * Update session
+   */
+  async update(sessionId: string, data: unknown): Promise<void> {
+    await this.create(sessionId, data);
+  }
+
+  /**
+   * Destroy session
+   */
+  async destroy(sessionId: string): Promise<void> {
+    await this.store.delete(`session:${sessionId}`);
+  }
+
+  /**
+   * Refresh session TTL
+   */
+  async refresh(sessionId: string): Promise<void> {
+    const data = await this.get(sessionId);
+    if (data) {
+      await this.create(sessionId, data);
+    }
+  }
+}

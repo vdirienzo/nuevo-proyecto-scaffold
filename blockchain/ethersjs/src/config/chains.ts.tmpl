@@ -1,0 +1,96 @@
+/**
+ * @fileoverview Chain configurations
+ * @author {{AUTHOR}}
+ */
+
+import { type Chain } from 'viem';
+import { mainnet, sepolia, polygon, arbitrum, optimism, base } from 'viem/chains';
+
+/**
+ * Supported chains configuration
+ */
+export const supportedChains: readonly [Chain, ...Chain[]] = [
+  mainnet,
+  sepolia,
+  polygon,
+  arbitrum,
+  optimism,
+  base,
+];
+
+/**
+ * Default chain (used for initial connection)
+ */
+export const defaultChain = sepolia;
+
+/**
+ * Chain metadata
+ */
+export const chainMetadata: Record<number, { name: string; icon: string; explorerUrl: string }> = {
+  [mainnet.id]: {
+    name: 'Ethereum',
+    icon: '⟠',
+    explorerUrl: 'https://etherscan.io',
+  },
+  [sepolia.id]: {
+    name: 'Sepolia',
+    icon: '⟠',
+    explorerUrl: 'https://sepolia.etherscan.io',
+  },
+  [polygon.id]: {
+    name: 'Polygon',
+    icon: '⬡',
+    explorerUrl: 'https://polygonscan.com',
+  },
+  [arbitrum.id]: {
+    name: 'Arbitrum',
+    icon: '◆',
+    explorerUrl: 'https://arbiscan.io',
+  },
+  [optimism.id]: {
+    name: 'Optimism',
+    icon: '🔴',
+    explorerUrl: 'https://optimistic.etherscan.io',
+  },
+  [base.id]: {
+    name: 'Base',
+    icon: '🔵',
+    explorerUrl: 'https://basescan.org',
+  },
+};
+
+/**
+ * Get chain by ID
+ */
+export function getChainById(chainId: number): Chain | undefined {
+  return supportedChains.find((chain) => chain.id === chainId);
+}
+
+/**
+ * Get explorer URL for address
+ */
+export function getExplorerUrl(chainId: number, address: string, type: 'address' | 'tx' = 'address'): string {
+  const metadata = chainMetadata[chainId];
+  if (!metadata) return '';
+
+  return `${metadata.explorerUrl}/${type}/${address}`;
+}
+
+/**
+ * Check if chain is supported
+ */
+export function isChainSupported(chainId: number): boolean {
+  return supportedChains.some((chain) => chain.id === chainId);
+}
+
+/**
+ * RPC URLs from environment
+ */
+export const rpcUrls: Record<number, string> = {
+  [mainnet.id]: process.env.MAINNET_RPC_URL || '',
+  [sepolia.id]: process.env.SEPOLIA_RPC_URL || '',
+  [polygon.id]: process.env.POLYGON_RPC_URL || '',
+  [arbitrum.id]: process.env.ARBITRUM_RPC_URL || '',
+  [optimism.id]: process.env.OPTIMISM_RPC_URL || '',
+  [base.id]: process.env.BASE_RPC_URL || '',
+};

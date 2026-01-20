@@ -1,0 +1,235 @@
+/**
+ * index.js - WASM Demo Application
+ *
+ * Demonstrates WebAssembly integration with {{PROJECT_NAME}}
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import * as wasm from "{{PROJECT_NAME}}-wasm";
+
+let currentImageData = null;
+
+// Initialize WASM module
+wasm.init();
+console.log("WASM module loaded successfully");
+
+/**
+ * Hash text using SHA-256
+ */
+window.hashText = async function() {
+  const input = document.getElementById('hashInput').value;
+  const resultDiv = document.getElementById('hashResult');
+
+  if (!input) {
+    resultDiv.innerHTML = '<div class="result error">Please enter some text</div>';
+    return;
+  }
+
+  try {
+    const start = performance.now();
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input);
+    const hash = wasm.sha256_hex(data);
+    const duration = performance.now() - start;
+
+    resultDiv.innerHTML = `
+      <div class="result success">
+        <strong>SHA-256:</strong><br>
+        ${hash}
+        <div class="performance">⚡ Computed in ${duration.toFixed(2)}ms</div>
+      </div>
+    `;
+  } catch (error) {
+    resultDiv.innerHTML = `<div class="result error">Error: ${error.message}</div>`;
+  }
+};
+
+/**
+ * Validate email address
+ */
+window.validateEmail = function() {
+  const input = document.getElementById('emailInput').value;
+  const resultDiv = document.getElementById('validationResult');
+
+  if (!input) {
+    resultDiv.innerHTML = '<div class="result error">Please enter an email</div>';
+    return;
+  }
+
+  const isValid = wasm.validate_email(input);
+
+  resultDiv.innerHTML = `
+    <div class="result ${isValid ? 'success' : 'error'}">
+      ${isValid ? '✅ Valid email address' : '❌ Invalid email address'}
+    </div>
+  `;
+};
+
+/**
+ * Check password strength
+ */
+window.checkPassword = function() {
+  const input = document.getElementById('passwordInput').value;
+  const resultDiv = document.getElementById('validationResult');
+
+  if (!input) {
+    resultDiv.innerHTML = '<div class="result error">Please enter a password</div>';
+    return;
+  }
+
+  const strength = wasm.password_strength(input);
+  const labels = ['Very Weak', 'Weak', 'Fair', 'Strong', 'Very Strong'];
+  const colors = ['#e74c3c', '#e67e22', '#f39c12', '#2ecc71', '#27ae60'];
+
+  resultDiv.innerHTML = `
+    <div class="result" style="border-left-color: ${colors[strength]}">
+      <strong>Password Strength:</strong> ${labels[strength]} (${strength}/4)
+    </div>
+  `;
+};
+
+/**
+ * Handle image file selection
+ */
+window.handleImage = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentImageData = new Uint8Array(e.target.result);
+
+    // Enable processing buttons
+    document.getElementById('grayscaleBtn').disabled = false;
+    document.getElementById('blurBtn').disabled = false;
+    document.getElementById('rotateBtn').disabled = false;
+
+    // Show original image
+    const preview = document.getElementById('imagePreview');
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = 'block';
+
+    document.getElementById('imageResult').innerHTML = `
+      <div class="result success">
+        Image loaded: ${file.name} (${(file.size / 1024).toFixed(2)} KB)
+      </div>
+    `;
+  };
+  reader.readAsArrayBuffer(file);
+};
+
+/**
+ * Process image with WASM
+ */
+window.processImage = async function(operation) {
+  if (!currentImageData) {
+    document.getElementById('imageResult').innerHTML =
+      '<div class="result error">Please select an image first</div>';
+    return;
+  }
+
+  const section = document.querySelector('.section:has(#imageInput)');
+  section.classList.add('loading');
+
+  try {
+    const start = performance.now();
+    let processedData;
+
+    switch (operation) {
+      case 'grayscale':
+        processedData = wasm.grayscale(currentImageData);
+        break;
+      case 'blur':
+        processedData = wasm.blur_image(currentImageData, 3.0);
+        break;
+      case 'rotate':
+        processedData = wasm.rotate_image(currentImageData, 90);
+        break;
+      default:
+        throw new Error('Unknown operation');
+    }
+
+    const duration = performance.now() - start;
+
+    // Display processed image
+    const blob = new Blob([processedData], { type: 'image/png' });
+    const url = URL.createObjectURL(blob);
+
+    const preview = document.getElementById('imagePreview');
+    preview.src = url;
+
+    document.getElementById('imageResult').innerHTML = `
+      <div class="result success">
+        <strong>Processed:</strong> ${operation}
+        <div class="performance">⚡ Processed in ${duration.toFixed(2)}ms</div>
+      </div>
+    `;
+  } catch (error) {
+    document.getElementById('imageResult').innerHTML =
+      `<div class="result error">Error: ${error.message}</div>`;
+  } finally {
+    section.classList.remove('loading');
+  }
+};
+
+/**
+ * Run performance benchmark
+ */
+window.runPerformanceTest = function() {
+  const resultDiv = document.getElementById('performanceResult');
+  const iterations = 10000;
+
+  // Test 1: Hashing performance
+  const start1 = performance.now();
+  const testData = new TextEncoder().encode("test data for benchmarking");
+
+  for (let i = 0; i < iterations; i++) {
+    wasm.sha256(testData);
+  }
+
+  const hashTime = performance.now() - start1;
+
+  // Test 2: Validation performance
+  const start2 = performance.now();
+
+  for (let i = 0; i < iterations; i++) {
+    wasm.validate_email("test@example.com");
+  }
+
+  const validationTime = performance.now() - start2;
+
+  // Test 3: String operations
+  const start3 = performance.now();
+  const hexString = "deadbeef";
+
+  for (let i = 0; i < iterations; i++) {
+    wasm.hex_to_bytes(hexString);
+  }
+
+  const stringTime = performance.now() - start3;
+
+  resultDiv.innerHTML = `
+    <div class="result success">
+      <strong>Performance Results</strong> (${iterations.toLocaleString()} iterations)<br><br>
+
+      <strong>SHA-256 Hashing:</strong><br>
+      Total: ${hashTime.toFixed(2)}ms |
+      Average: ${(hashTime / iterations).toFixed(4)}ms |
+      Ops/sec: ${(iterations / (hashTime / 1000)).toLocaleString()}<br><br>
+
+      <strong>Email Validation:</strong><br>
+      Total: ${validationTime.toFixed(2)}ms |
+      Average: ${(validationTime / iterations).toFixed(4)}ms |
+      Ops/sec: ${(iterations / (validationTime / 1000)).toLocaleString()}<br><br>
+
+      <strong>Hex Conversion:</strong><br>
+      Total: ${stringTime.toFixed(2)}ms |
+      Average: ${(stringTime / iterations).toFixed(4)}ms |
+      Ops/sec: ${(iterations / (stringTime / 1000)).toLocaleString()}
+    </div>
+  `;
+};
+
+// Auto-test on load
+console.log(wasm.greet("Developer"));

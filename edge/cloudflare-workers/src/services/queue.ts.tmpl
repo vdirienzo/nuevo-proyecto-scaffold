@@ -1,0 +1,228 @@
+/**
+ * Queue service for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { EmailQueueMessage } from "../types";
+
+export class QueueService<T> {
+  constructor(private queue: Queue<T>) {}
+
+  /**
+   * Send message to queue
+   */
+  async send(message: T, options?: { delaySeconds?: number }): Promise<void> {
+    await this.queue.send(message, {
+      delaySeconds: options?.delaySeconds
+    });
+  }
+
+  /**
+   * Send multiple messages
+   */
+  async sendBatch(messages: T[]): Promise<void> {
+    await this.queue.sendBatch(messages.map(body => ({ body })));
+  }
+
+  /**
+   * Send message with delay
+   */
+  async sendDelayed(message: T, delaySeconds: number): Promise<void> {
+    await this.send(message, { delaySeconds });
+  }
+}
+
+/**
+ * Email queue service
+ */
+export class EmailQueueService {
+  private queue: QueueService<EmailQueueMessage>;
+
+  constructor(queue: Queue<EmailQueueMessage>) {
+    this.queue = new QueueService(queue);
+  }
+
+  /**
+   * Send email to queue
+   */
+  async sendEmail(email: EmailQueueMessage): Promise<void> {
+    await this.queue.send(email);
+  }
+
+  /**
+   * Send email with delay
+   */
+  async scheduleEmail(email: EmailQueueMessage, delaySeconds: number): Promise<void> {
+    await this.queue.sendDelayed(email, delaySeconds);
+  }
+
+  /**
+   * Send multiple emails
+   */
+  async sendBulkEmails(emails: EmailQueueMessage[]): Promise<void> {
+    await this.queue.sendBatch(emails);
+  }
+
+  /**
+   * Send welcome email
+   */
+  async sendWelcomeEmail(to: string, name: string): Promise<void> {
+    await this.sendEmail({
+      to,
+      subject: "Welcome to {{PROJECT_NAME}}!",
+      body: `Hello ${name}, welcome to {{PROJECT_NAME}}!`,
+      html: `<h1>Welcome ${name}!</h1><p>Thank you for joining {{PROJECT_NAME}}.</p>`,
+      metadata: {
+        type: "welcome",
+        userId: to
+      }
+    });
+  }
+
+  /**
+   * Send password reset email
+   */
+  async sendPasswordResetEmail(to: string, resetToken: string): Promise<void> {
+    await this.sendEmail({
+      to,
+      subject: "Password Reset Request",
+      body: `Reset your password: https://{{PROJECT_NAME}}.com/reset?token=${resetToken}`,
+      html: `<p>Click <a href="https://{{PROJECT_NAME}}.com/reset?token=${resetToken}">here</a> to reset your password.</p>`,
+      metadata: {
+        type: "password_reset",
+        token: resetToken
+      }
+    });
+  }
+
+  /**
+   * Send verification email
+   */
+  async sendVerificationEmail(to: string, verificationToken: string): Promise<void> {
+    await this.sendEmail({
+      to,
+      subject: "Verify Your Email",
+      body: `Verify your email: https://{{PROJECT_NAME}}.com/verify?token=${verificationToken}`,
+      html: `<p>Click <a href="https://{{PROJECT_NAME}}.com/verify?token=${verificationToken}">here</a> to verify your email.</p>`,
+      metadata: {
+        type: "email_verification",
+        token: verificationToken
+      }
+    });
+  }
+}
+
+/**
+ * Queue consumer handler
+ */
+export async function handleEmailQueue(
+  batch: MessageBatch<EmailQueueMessage>
+): Promise<void> {
+  for (const message of batch.messages) {
+    try {
+      await processEmail(message.body);
+      message.ack();
+    } catch (error) {
+      console.error("Failed to process email:", error);
+      message.retry();
+    }
+  }
+}
+
+/**
+ * Process individual email
+ */
+async function processEmail(email: EmailQueueMessage): Promise<void> {
+  console.log(`Processing email to ${email.to}: ${email.subject}`);
+
+  // Implement actual email sending logic here
+  // For example, using SendGrid, Mailgun, etc.
+
+  // Example with fetch to external email API:
+  // const response = await fetch("https://api.emailservice.com/send", {
+  //   method: "POST",
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //     "Authorization": `Bearer ${env.EMAIL_API_KEY}`
+  //   },
+  //   body: JSON.stringify({
+  //     to: email.to,
+  //     subject: email.subject,
+  //     text: email.body,
+  //     html: email.html
+  //   })
+  // });
+
+  // if (!response.ok) {
+  //   throw new Error(`Failed to send email: ${response.statusText}`);
+  // }
+
+  console.log(`Email sent to ${email.to}`);
+}
+
+/**
+ * Generic task queue service
+ */
+export class TaskQueueService {
+  private queue: QueueService<{
+    type: string;
+    payload: unknown;
+  }>;
+
+  constructor(queue: Queue<{ type: string; payload: unknown }>) {
+    this.queue = new QueueService(queue);
+  }
+
+  /**
+   * Queue a task
+   */
+  async queueTask(type: string, payload: unknown, delaySeconds?: number): Promise<void> {
+    await this.queue.send({ type, payload }, { delaySeconds });
+  }
+
+  /**
+   * Queue multiple tasks
+   */
+  async queueTasks(tasks: Array<{ type: string; payload: unknown }>): Promise<void> {
+    await this.queue.sendBatch(tasks);
+  }
+}
+
+/**
+ * Task queue consumer
+ */
+export async function handleTaskQueue(
+  batch: MessageBatch<{ type: string; payload: unknown }>
+): Promise<void> {
+  for (const message of batch.messages) {
+    try {
+      await processTask(message.body);
+      message.ack();
+    } catch (error) {
+      console.error(`Failed to process task ${message.body.type}:`, error);
+      message.retry();
+    }
+  }
+}
+
+/**
+ * Process individual task
+ */
+async function processTask(task: { type: string; payload: unknown }): Promise<void> {
+  console.log(`Processing task: ${task.type}`);
+
+  switch (task.type) {
+    case "cleanup":
+      // Handle cleanup task
+      break;
+    case "notification":
+      // Handle notification task
+      break;
+    case "analytics":
+      // Handle analytics task
+      break;
+    default:
+      console.warn(`Unknown task type: ${task.type}`);
+  }
+}

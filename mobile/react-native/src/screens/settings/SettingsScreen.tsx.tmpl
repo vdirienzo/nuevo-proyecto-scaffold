@@ -1,0 +1,167 @@
+/**
+ * Settings Screen
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import React from 'react';
+import {View, StyleSheet, ScrollView, Alert} from 'react-native';
+import {Text, Switch, Divider, useTheme} from 'react-native-paper';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+
+import Container from '@components/layout/Container';
+import Card from '@components/ui/Card';
+import Button from '@components/ui/Button';
+import {useAuth} from '@hooks/useAuth';
+
+const SettingsScreen = (): JSX.Element => {
+  const theme = useTheme();
+  const {logout} = useAuth();
+
+  const [notifications, setNotifications] = React.useState(true);
+  const [darkMode, setDarkMode] = React.useState(false);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: () => logout(),
+        },
+      ]
+    );
+  };
+
+  return (
+    <Container>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Card style={styles.card}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            Preferences
+          </Text>
+          <Divider style={styles.divider} />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <Icon name="bell" size={24} color={theme.colors.onSurfaceVariant} />
+              <View style={styles.settingText}>
+                <Text variant="bodyLarge">Notifications</Text>
+                <Text variant="bodySmall" style={{color: theme.colors.onSurfaceVariant}}>
+                  Receive push notifications
+                </Text>
+              </View>
+            </View>
+            <Switch value={notifications} onValueChange={setNotifications} />
+          </View>
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingLeft}>
+              <Icon name="theme-light-dark" size={24} color={theme.colors.onSurfaceVariant} />
+              <View style={styles.settingText}>
+                <Text variant="bodyLarge">Dark Mode</Text>
+                <Text variant="bodySmall" style={{color: theme.colors.onSurfaceVariant}}>
+                  Use dark theme
+                </Text>
+              </View>
+            </View>
+            <Switch value={darkMode} onValueChange={setDarkMode} />
+          </View>
+        </Card>
+
+        <Card style={styles.card}>
+          <Text variant="titleMedium" style={styles.sectionTitle}>
+            About
+          </Text>
+          <Divider style={styles.divider} />
+
+          <View style={styles.infoRow}>
+            <Icon name="information" size={24} color={theme.colors.onSurfaceVariant} />
+            <View style={styles.infoText}>
+              <Text variant="bodySmall" style={{color: theme.colors.onSurfaceVariant}}>
+                Version
+              </Text>
+              <Text variant="bodyLarge">1.0.0</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Icon name="shield-check" size={24} color={theme.colors.onSurfaceVariant} />
+            <View style={styles.infoText}>
+              <Text variant="bodySmall" style={{color: theme.colors.onSurfaceVariant}}>
+                Privacy Policy
+              </Text>
+              <Text variant="bodyLarge">View privacy policy</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoRow}>
+            <Icon name="file-document" size={24} color={theme.colors.onSurfaceVariant} />
+            <View style={styles.infoText}>
+              <Text variant="bodySmall" style={{color: theme.colors.onSurfaceVariant}}>
+                Terms of Service
+              </Text>
+              <Text variant="bodyLarge">View terms</Text>
+            </View>
+          </View>
+        </Card>
+
+        <Button
+          mode="contained"
+          onPress={handleLogout}
+          style={styles.logoutButton}
+          buttonColor={theme.colors.error}>
+          Logout
+        </Button>
+      </ScrollView>
+    </Container>
+  );
+};
+
+const styles = StyleSheet.create({
+  scrollContent: {
+    padding: 16,
+  },
+  card: {
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    marginBottom: 8,
+  },
+  divider: {
+    marginBottom: 16,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  settingText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  infoText: {
+    marginLeft: 16,
+    flex: 1,
+  },
+  logoutButton: {
+    marginTop: 8,
+  },
+});
+
+export default SettingsScreen;

@@ -1,0 +1,33 @@
+class ApiConstants {
+  ApiConstants._();
+
+  // Base URL - Override with .env
+  static const String baseUrl = 'http://localhost:8000/api';
+
+  // Auth Endpoints
+  static const String login = '/auth/login';
+  static const String register = '/auth/register';
+  static const String logout = '/auth/logout';
+  static const String refreshToken = '/auth/refresh';
+  static const String me = '/auth/me';
+
+  // User Endpoints
+  static const String users = '/users';
+  static String userById(String id) => '/users/$id';
+  static const String updateProfile = '/users/profile';
+  static const String changePassword = '/users/change-password';
+
+  // Headers
+  static const String authHeader = 'Authorization';
+  static const String contentType = 'Content-Type';
+  static const String accept = 'Accept';
+  static const String applicationJson = 'application/json';
+
+  // Error Codes
+  static const String unauthorized = 'UNAUTHORIZED';
+  static const String forbidden = 'FORBIDDEN';
+  static const String notFound = 'NOT_FOUND';
+  static const String validationError = 'VALIDATION_ERROR';
+  static const String serverError = 'SERVER_ERROR';
+  static const String networkError = 'NETWORK_ERROR';
+}

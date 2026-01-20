@@ -1,0 +1,252 @@
+/**
+ * Token Service for {{PROJECT_NAME}}
+ * Manages ERC-20 token operations
+ *
+ * @author {{AUTHOR}}
+ */
+
+import { Contract } from "web3";
+import { web3Provider } from "./web3-provider";
+import { getContractAddress, getContractABI } from "../config/contracts";
+
+export interface TokenInfo {
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;
+  address: string;
+}
+
+export interface TokenBalance {
+  balance: string;
+  balanceFormatted: string;
+  decimals: number;
+}
+
+export class TokenService {
+  private contract: Contract<any> | null = null;
+  private chainId: number | null = null;
+
+  /**
+   * Initialize token contract
+   */
+  async initialize(chainId?: number): Promise<void> {
+    const web3 = web3Provider.getWeb3();
+    this.chainId = chainId || (await web3Provider.getChainId());
+
+    const address = getContractAddress(this.chainId, "Token");
+    const abi = getContractABI("Token");
+
+    this.contract = new web3.eth.Contract(abi, address);
+  }
+
+  /**
+   * Get contract instance
+   */
+  private getContract(): Contract<any> {
+    if (!this.contract) {
+      throw new Error("Token contract not initialized. Call initialize() first.");
+    }
+    return this.contract;
+  }
+
+  /**
+   * Get token information
+   */
+  async getTokenInfo(): Promise<TokenInfo> {
+    const contract = this.getContract();
+
+    const [name, symbol, decimals, totalSupply] = await Promise.all([
+      contract.methods.name().call(),
+      contract.methods.symbol().call(),
+      contract.methods.decimals().call(),
+      contract.methods.totalSupply().call(),
+    ]);
+
+    return {
+      name: name as string,
+      symbol: symbol as string,
+      decimals: Number(decimals),
+      totalSupply: totalSupply as string,
+      address: contract.options.address as string,
+    };
+  }
+
+  /**
+   * Get token balance for an address
+   */
+  async getBalance(address: string): Promise<string> {
+    const contract = this.getContract();
+    return (await contract.methods.balanceOf(address).call()) as string;
+  }
+
+  /**
+   * Get token balance with formatted value
+   */
+  async getBalanceInfo(address: string): Promise<TokenBalance> {
+    const web3 = web3Provider.getWeb3();
+    const contract = this.getContract();
+
+    const [balance, decimals] = await Promise.all([
+      contract.methods.balanceOf(address).call(),
+      contract.methods.decimals().call(),
+    ]);
+
+    const balanceStr = balance as string;
+    const decimalsNum = Number(decimals);
+    const balanceFormatted = web3.utils.fromWei(balanceStr, "ether");
+
+    return {
+      balance: balanceStr,
+      balanceFormatted,
+      decimals: decimalsNum,
+    };
+  }
+
+  /**
+   * Transfer tokens
+   */
+  async transfer(from: string, to: string, amount: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.transfer(to, amount).send({
+      from,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Transfer tokens with formatted amount (in ETH units)
+   */
+  async transferFormatted(from: string, to: string, amount: string): Promise<string> {
+    const web3 = web3Provider.getWeb3();
+    const amountWei = web3.utils.toWei(amount, "ether");
+    return this.transfer(from, to, amountWei);
+  }
+
+  /**
+   * Approve spender to use tokens
+   */
+  async approve(owner: string, spender: string, amount: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.approve(spender, amount).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Get allowance
+   */
+  async getAllowance(owner: string, spender: string): Promise<string> {
+    const contract = this.getContract();
+    return (await contract.methods.allowance(owner, spender).call()) as string;
+  }
+
+  /**
+   * Transfer tokens from another address (requires approval)
+   */
+  async transferFrom(
+    spender: string,
+    from: string,
+    to: string,
+    amount: string
+  ): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.transferFrom(from, to, amount).send({
+      from: spender,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Mint tokens (only owner)
+   */
+  async mint(owner: string, to: string, amount: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.mint(to, amount).send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Burn tokens
+   */
+  async burn(from: string, amount: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.burn(amount).send({
+      from,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Pause token transfers (only owner)
+   */
+  async pause(owner: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.pause().send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Unpause token transfers (only owner)
+   */
+  async unpause(owner: string): Promise<string> {
+    const contract = this.getContract();
+
+    const tx = await contract.methods.unpause().send({
+      from: owner,
+    });
+
+    return tx.transactionHash as string;
+  }
+
+  /**
+   * Listen to Transfer events
+   */
+  subscribeToTransfers(
+    callback: (from: string, to: string, value: string) => void,
+    options?: { fromBlock?: number; filter?: any }
+  ): void {
+    const contract = this.getContract();
+
+    contract.events
+      .Transfer(options || {})
+      .on("data", (event: any) => {
+        callback(event.returnValues.from, event.returnValues.to, event.returnValues.value);
+      })
+      .on("error", (error: Error) => {
+        console.error("Transfer event error:", error);
+      });
+  }
+
+  /**
+   * Get past Transfer events
+   */
+  async getPastTransfers(fromBlock: number, toBlock: number | "latest" = "latest"): Promise<any[]> {
+    const contract = this.getContract();
+
+    return await contract.getPastEvents("Transfer", {
+      fromBlock,
+      toBlock,
+    });
+  }
+}
+
+// Export singleton instance
+export const tokenService = new TokenService();

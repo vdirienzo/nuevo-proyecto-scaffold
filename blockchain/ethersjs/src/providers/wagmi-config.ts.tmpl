@@ -1,0 +1,54 @@
+/**
+ * @fileoverview wagmi configuration
+ * @author {{AUTHOR}}
+ */
+
+import { createConfig, http } from 'wagmi';
+import { injected, walletConnect, coinbaseWallet } from 'wagmi/connectors';
+import { supportedChains, defaultChain, rpcUrls } from '../config/chains';
+
+/**
+ * WalletConnect project ID (get from https://cloud.walletconnect.com)
+ */
+const walletConnectProjectId = process.env.WALLETCONNECT_PROJECT_ID || '';
+
+if (!walletConnectProjectId) {
+  console.warn('WalletConnect project ID not set. Some features may not work.');
+}
+
+/**
+ * wagmi configuration
+ */
+export const wagmiConfig = createConfig({
+  chains: supportedChains,
+  connectors: [
+    injected({
+      shimDisconnect: true,
+    }),
+    walletConnect({
+      projectId: walletConnectProjectId,
+      showQrModal: true,
+    }),
+    coinbaseWallet({
+      appName: '{{PROJECT_NAME}}',
+      darkMode: true,
+    }),
+  ],
+  transports: supportedChains.reduce(
+    (acc, chain) => {
+      acc[chain.id] = http(rpcUrls[chain.id]);
+      return acc;
+    },
+    {} as Record<number, ReturnType<typeof http>>
+  ),
+  ssr: typeof window === 'undefined',
+});
+
+/**
+ * Default wagmi config options
+ */
+export const wagmiOptions = {
+  defaultChain,
+  autoConnect: true,
+  syncConnectedChain: true,
+};

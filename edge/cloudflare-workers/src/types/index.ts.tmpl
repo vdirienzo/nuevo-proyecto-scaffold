@@ -1,0 +1,114 @@
+/**
+ * Type definitions for {{PROJECT_NAME}} Cloudflare Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+export interface Env {
+  // Environment variables
+  ENVIRONMENT: string;
+  LOG_LEVEL: string;
+  JWT_SECRET: string;
+  API_KEY: string;
+  ALLOWED_ORIGINS: string;
+
+  // KV Namespaces
+  CACHE: KVNamespace;
+  SESSIONS: KVNamespace;
+  RATE_LIMIT: KVNamespace;
+
+  // D1 Database
+  DB: D1Database;
+
+  // R2 Buckets
+  ASSETS: R2Bucket;
+  UPLOADS: R2Bucket;
+
+  // Durable Objects
+  COUNTER: DurableObjectNamespace;
+  CHAT_ROOM: DurableObjectNamespace;
+
+  // Queues
+  EMAIL_QUEUE: Queue<EmailQueueMessage>;
+
+  // Analytics
+  ANALYTICS?: AnalyticsEngineDataset;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: "user" | "admin";
+  createdAt: string;
+}
+
+export interface Session {
+  userId: string;
+  expiresAt: number;
+  metadata?: Record<string, unknown>;
+}
+
+export interface JWTPayload {
+  sub: string;
+  email: string;
+  role: string;
+  iat: number;
+  exp: number;
+}
+
+export interface APIResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
+
+export interface RateLimitInfo {
+  requests: number;
+  resetAt: number;
+}
+
+export interface EmailQueueMessage {
+  to: string;
+  subject: string;
+  body: string;
+  html?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface CronEvent {
+  cron: string;
+  scheduledTime: Date;
+}
+
+export interface WebSocketMessage {
+  type: string;
+  payload: unknown;
+  timestamp: number;
+}
+
+// Request context type
+export type RequestContext = {
+  env: Env;
+  executionCtx: ExecutionContext;
+  user?: User;
+  session?: Session;
+};
+
+// Middleware type
+export type Middleware = (
+  c: RequestContext,
+  next: () => Promise<Response>
+) => Promise<Response>;
+
+// Handler type
+export type Handler = (c: RequestContext) => Promise<Response> | Response;
+
+// Durable Object state
+export interface DurableObjectState {
+  id: DurableObjectId;
+  storage: DurableObjectStorage;
+  blockConcurrencyWhile<T>(callback: () => Promise<T>): Promise<T>;
+  waitUntil(promise: Promise<unknown>): void;
+}

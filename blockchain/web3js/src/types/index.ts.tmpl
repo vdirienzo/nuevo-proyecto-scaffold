@@ -1,0 +1,254 @@
+/**
+ * Type definitions for {{PROJECT_NAME}}
+ * Common types and interfaces for blockchain integration
+ *
+ * @author {{AUTHOR}}
+ */
+
+/**
+ * Supported wallet providers
+ */
+export type WalletProvider = "metamask" | "walletconnect" | "coinbase" | "injected";
+
+/**
+ * Transaction status
+ */
+export type TransactionStatus = "pending" | "success" | "failed" | "unknown";
+
+/**
+ * Network type
+ */
+export type NetworkType = "mainnet" | "testnet" | "localhost";
+
+/**
+ * Contract type
+ */
+export type ContractType = "Token" | "NFT" | "Marketplace";
+
+/**
+ * Token standard
+ */
+export type TokenStandard = "ERC20" | "ERC721" | "ERC1155";
+
+/**
+ * Gas estimation strategy
+ */
+export type GasStrategy = "slow" | "average" | "fast" | "custom";
+
+/**
+ * Provider event types
+ */
+export interface ProviderEvents {
+  accountsChanged: (accounts: string[]) => void;
+  chainChanged: (chainId: string) => void;
+  connect: (connectInfo: { chainId: string }) => void;
+  disconnect: (error: { code: number; message: string }) => void;
+  message: (message: { type: string; data: unknown }) => void;
+}
+
+/**
+ * Transaction request
+ */
+export interface TransactionRequest {
+  from?: string;
+  to?: string;
+  value?: string | bigint;
+  data?: string;
+  gas?: bigint;
+  gasPrice?: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  nonce?: number;
+  chainId?: number;
+}
+
+/**
+ * Transaction response
+ */
+export interface TransactionResponse {
+  hash: string;
+  blockNumber?: number;
+  blockHash?: string;
+  timestamp?: number;
+  confirmations: number;
+  from: string;
+  to: string | null;
+  value: string;
+  gasPrice: string;
+  gasLimit: string;
+  gasUsed?: string;
+  status?: boolean;
+  data?: string;
+}
+
+/**
+ * Block information
+ */
+export interface BlockInfo {
+  number: number;
+  hash: string;
+  parentHash: string;
+  timestamp: number;
+  transactions: string[];
+  gasLimit: bigint;
+  gasUsed: bigint;
+  baseFeePerGas?: bigint;
+  miner: string;
+}
+
+/**
+ * Token metadata
+ */
+export interface TokenMetadata {
+  name: string;
+  symbol: string;
+  decimals: number;
+  totalSupply: string;
+  address: string;
+  logoURI?: string;
+  description?: string;
+}
+
+/**
+ * NFT metadata (OpenSea standard)
+ */
+export interface NFTMetadata {
+  name: string;
+  description: string;
+  image: string;
+  external_url?: string;
+  attributes?: Array<{
+    trait_type: string;
+    value: string | number;
+    display_type?: string;
+  }>;
+  background_color?: string;
+  animation_url?: string;
+  youtube_url?: string;
+}
+
+/**
+ * Wallet connection options
+ */
+export interface WalletConnectionOptions {
+  provider?: WalletProvider;
+  chainId?: number;
+  autoConnect?: boolean;
+  cacheProvider?: boolean;
+}
+
+/**
+ * Gas estimation result
+ */
+export interface GasEstimation {
+  gasLimit: bigint;
+  gasPrice: bigint;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  totalCost: bigint;
+  totalCostFormatted: string;
+}
+
+/**
+ * Error with code
+ */
+export interface CodedError extends Error {
+  code: number;
+  data?: unknown;
+}
+
+/**
+ * Contract event
+ */
+export interface ContractEvent<T = any> {
+  event: string;
+  address: string;
+  returnValues: T;
+  logIndex: number;
+  transactionIndex: number;
+  transactionHash: string;
+  blockHash: string;
+  blockNumber: number;
+  raw?: {
+    data: string;
+    topics: string[];
+  };
+}
+
+/**
+ * Marketplace listing
+ */
+export interface MarketplaceListing {
+  listingId: number;
+  seller: string;
+  nftContract: string;
+  tokenId: number;
+  price: string;
+  paymentToken: string;
+  active: boolean;
+  timestamp?: number;
+}
+
+/**
+ * Marketplace offer
+ */
+export interface MarketplaceOffer {
+  offerId: number;
+  buyer: string;
+  price: string;
+  paymentToken: string;
+  expiresAt: number;
+  active: boolean;
+}
+
+/**
+ * User preferences
+ */
+export interface UserPreferences {
+  defaultNetwork?: number;
+  preferredWallet?: WalletProvider;
+  gasStrategy?: GasStrategy;
+  slippageTolerance?: number;
+  theme?: "light" | "dark";
+  currency?: "USD" | "EUR" | "GBP";
+}
+
+/**
+ * Contract call options
+ */
+export interface ContractCallOptions {
+  from?: string;
+  value?: string | bigint;
+  gas?: bigint;
+  gasPrice?: bigint;
+}
+
+/**
+ * Event filter options
+ */
+export interface EventFilterOptions {
+  fromBlock?: number | "earliest" | "latest";
+  toBlock?: number | "latest";
+  filter?: Record<string, any>;
+}
+
+/**
+ * Pagination options
+ */
+export interface PaginationOptions {
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+}
+
+/**
+ * Paginated response
+ */
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasMore: boolean;
+}

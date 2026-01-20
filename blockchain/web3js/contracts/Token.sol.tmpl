@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/**
+ * @title {{PROJECT_NAME}} Token
+ * @dev ERC20 Token with burn, pause, and mint capabilities
+ * @author {{AUTHOR}}
+ */
+contract {{PROJECT_NAME}}Token is ERC20, ERC20Burnable, ERC20Pausable, Ownable {
+    uint256 public constant MAX_SUPPLY = 1_000_000_000 * 10**18; // 1 billion tokens
+
+    event TokensMinted(address indexed to, uint256 amount);
+    event TokensBurned(address indexed from, uint256 amount);
+
+    /**
+     * @dev Constructor that mints initial supply to the deployer
+     * @param initialSupply Initial token supply (in wei)
+     */
+    constructor(uint256 initialSupply) ERC20("{{PROJECT_NAME}} Token", "{{PROJECT_NAME}}") Ownable(msg.sender) {
+        require(initialSupply <= MAX_SUPPLY, "Initial supply exceeds max supply");
+        _mint(msg.sender, initialSupply);
+    }
+
+    /**
+     * @dev Mint new tokens (only owner)
+     * @param to Address to receive tokens
+     * @param amount Amount of tokens to mint
+     */
+    function mint(address to, uint256 amount) external onlyOwner {
+        require(totalSupply() + amount <= MAX_SUPPLY, "Minting would exceed max supply");
+        _mint(to, amount);
+        emit TokensMinted(to, amount);
+    }
+
+    /**
+     * @dev Pause token transfers (only owner)
+     */
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    /**
+     * @dev Unpause token transfers (only owner)
+     */
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    /**
+     * @dev Burn tokens from caller's account
+     * @param amount Amount of tokens to burn
+     */
+    function burn(uint256 amount) public override {
+        super.burn(amount);
+        emit TokensBurned(msg.sender, amount);
+    }
+
+    /**
+     * @dev Required override for pausable functionality
+     */
+    function _update(address from, address to, uint256 value)
+        internal
+        override(ERC20, ERC20Pausable)
+    {
+        super._update(from, to, value);
+    }
+}

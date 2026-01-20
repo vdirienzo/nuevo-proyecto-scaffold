@@ -1,0 +1,21 @@
+/**
+ * login.tsx - Login page route
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import AuthForm from "../islands/AuthForm.tsx";
+
+export default function Login() {
+  return (
+    <div class="page">
+      <header>
+        <h1>{{PROJECT_NAME}}</h1>
+      </header>
+
+      <main>
+        <AuthForm mode="login" />
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,208 @@
+/**
+ * @fileoverview Staking panel component
+ * @author {{AUTHOR}}
+ */
+
+import React, { useState } from 'react';
+import { parseUnits, formatUnits } from 'ethers';
+import { useEthers } from '../hooks/useEthers';
+import { useStaking } from '../hooks/useStaking';
+import { createStakingService } from '../services/staking-service';
+
+/**
+ * Component props
+ */
+export interface StakingPanelProps {
+  stakingAddress: string;
+  chainId: number;
+  onStake?: () => void;
+  onUnstake?: () => void;
+  className?: string;
+}
+
+/**
+ * Staking panel component
+ */
+export const StakingPanel: React.FC<StakingPanelProps> = ({
+  stakingAddress,
+  chainId,
+  onStake,
+  onUnstake,
+  className = '',
+}) => {
+  const { account, isConnected } = useEthers();
+  const { stakingInfo, userStake, apr, timeUntilWithdraw, isLoading, refetch } = useStaking({
+    stakingAddress,
+    userAddress: account,
+    chainId,
+  });
+
+  const [amount, setAmount] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleStake = async () => {
+    if (!amount) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const service = createStakingService(stakingAddress, chainId);
+      const amountWei = parseUnits(amount, 18); // Assuming 18 decimals
+
+      const tx = await service.stake(amountWei);
+      await service.waitForTransaction(tx);
+
+      await refetch();
+      setAmount('');
+      onStake?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Stake failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUnstake = async () => {
+    if (!userStake?.amount) return;
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const service = createStakingService(stakingAddress, chainId);
+      const tx = await service.withdraw(userStake.amount);
+      await service.waitForTransaction(tx);
+
+      await refetch();
+      onUnstake?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unstake failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleClaimRewards = async () => {
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      const service = createStakingService(stakingAddress, chainId);
+      const tx = await service.claimReward();
+      await service.waitForTransaction(tx);
+
+      await refetch();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Claim failed');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (!isConnected) {
+    return <div className={className}>Please connect wallet</div>;
+  }
+
+  if (isLoading) {
+    return <div className={className}>Loading staking info...</div>;
+  }
+
+  const formatTime = (seconds: bigint): string => {
+    const secs = Number(seconds);
+    const days = Math.floor(secs / 86400);
+    const hours = Math.floor((secs % 86400) / 3600);
+    const mins = Math.floor((secs % 3600) / 60);
+
+    if (days > 0) return `${days}d ${hours}h`;
+    if (hours > 0) return `${hours}h ${mins}m`;
+    return `${mins}m`;
+  };
+
+  return (
+    <div className={`staking-panel ${className}`}>
+      <h3>Staking</h3>
+
+      {stakingInfo && (
+        <div className="staking-info">
+          <div className="info-row">
+            <span>Total Staked:</span>
+            <span>{formatUnits(stakingInfo.totalStaked, 18)}</span>
+          </div>
+          <div className="info-row">
+            <span>APR:</span>
+            <span>{apr?.toFixed(2)}%</span>
+          </div>
+          <div className="info-row">
+            <span>Lock Period:</span>
+            <span>{formatTime(stakingInfo.lockPeriod)}</span>
+          </div>
+        </div>
+      )}
+
+      {userStake && (
+        <div className="user-stake">
+          <h4>Your Stake</h4>
+          <div className="info-row">
+            <span>Staked Amount:</span>
+            <span>{formatUnits(userStake.amount, 18)}</span>
+          </div>
+          <div className="info-row">
+            <span>Pending Rewards:</span>
+            <span>{formatUnits(userStake.rewards, 18)}</span>
+          </div>
+          {timeUntilWithdraw !== null && timeUntilWithdraw > 0n && (
+            <div className="info-row">
+              <span>Time until withdraw:</span>
+              <span>{formatTime(timeUntilWithdraw)}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="staking-actions">
+        <div className="stake-form">
+          <input
+            type="number"
+            placeholder="Amount to stake"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="amount-input"
+            step="any"
+          />
+          <button
+            onClick={handleStake}
+            disabled={isProcessing || !amount}
+            className="stake-button"
+          >
+            {isProcessing ? 'Processing...' : 'Stake'}
+          </button>
+        </div>
+
+        {userStake && userStake.amount > 0n && (
+          <div className="unstake-actions">
+            <button
+              onClick={handleUnstake}
+              disabled={isProcessing || !userStake.canWithdraw}
+              className="unstake-button"
+            >
+              Unstake All
+            </button>
+            {userStake.rewards > 0n && (
+              <button
+                onClick={handleClaimRewards}
+                disabled={isProcessing}
+                className="claim-button"
+              >
+                Claim Rewards
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+    </div>
+  );
+};

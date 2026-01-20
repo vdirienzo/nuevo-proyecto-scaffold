@@ -1,0 +1,51 @@
+/**
+ * router.ts - URL routing configuration
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { Router } from "oak";
+import * as apiHandlers from "./handlers/api.ts";
+import * as authHandlers from "./handlers/auth.ts";
+import * as staticHandlers from "./handlers/static.ts";
+import * as wsHandlers from "./handlers/websocket.ts";
+
+const router = new Router();
+
+// Health check
+router.get("/health", (ctx) => {
+  ctx.response.body = {
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    service: "{{PROJECT_NAME}}",
+  };
+});
+
+// API routes
+router
+  .get("/api/items", apiHandlers.listItems)
+  .get("/api/items/:id", apiHandlers.getItem)
+  .post("/api/items", apiHandlers.createItem)
+  .put("/api/items/:id", apiHandlers.updateItem)
+  .delete("/api/items/:id", apiHandlers.deleteItem);
+
+// Auth routes
+router
+  .post("/auth/register", authHandlers.register)
+  .post("/auth/login", authHandlers.login)
+  .post("/auth/refresh", authHandlers.refresh)
+  .get("/auth/me", authHandlers.getProfile);
+
+// WebSocket upgrade
+router.get("/ws", wsHandlers.handleWebSocket);
+
+// Static files
+router.get("/static/:path*", staticHandlers.serveStatic);
+
+// Catch-all 404
+router.all("/(.*)", (ctx) => {
+  ctx.response.status = 404;
+  ctx.response.body = { error: "Not Found" };
+});
+
+export { router };

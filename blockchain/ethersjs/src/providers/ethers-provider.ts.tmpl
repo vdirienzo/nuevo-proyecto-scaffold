@@ -1,0 +1,205 @@
+/**
+ * @fileoverview Ethers.js provider setup
+ * @author {{AUTHOR}}
+ */
+
+import { ethers, JsonRpcProvider, BrowserProvider, WebSocketProvider } from 'ethers';
+import { rpcUrls } from '../config/chains';
+
+/**
+ * Create JSON-RPC provider for a specific chain
+ */
+export function createProvider(chainId: number): JsonRpcProvider {
+  const rpcUrl = rpcUrls[chainId];
+  if (!rpcUrl) {
+    throw new Error(`No RPC URL configured for chain ${chainId}`);
+  }
+
+  return new JsonRpcProvider(rpcUrl, chainId);
+}
+
+/**
+ * Create browser provider from window.ethereum
+ */
+export function createBrowserProvider(): BrowserProvider {
+  if (typeof window === 'undefined' || !window.ethereum) {
+    throw new Error('No Ethereum provider found. Install MetaMask or another wallet.');
+  }
+
+  return new BrowserProvider(window.ethereum);
+}
+
+/**
+ * Create WebSocket provider for real-time updates
+ */
+export function createWebSocketProvider(chainId: number): WebSocketProvider {
+  const rpcUrl = rpcUrls[chainId];
+  if (!rpcUrl) {
+    throw new Error(`No RPC URL configured for chain ${chainId}`);
+  }
+
+  // Convert HTTP to WS
+  const wsUrl = rpcUrl.replace(/^https?:/, 'wss:').replace(/^http:/, 'ws:');
+  return new WebSocketProvider(wsUrl, chainId);
+}
+
+/**
+ * Get signer from browser provider
+ */
+export async function getSigner(): Promise<ethers.Signer> {
+  const provider = createBrowserProvider();
+  return await provider.getSigner();
+}
+
+/**
+ * Provider cache to avoid creating multiple instances
+ */
+const providerCache = new Map<number, JsonRpcProvider>();
+
+/**
+ * Get cached provider or create new one
+ */
+export function getProvider(chainId: number): JsonRpcProvider {
+  if (!providerCache.has(chainId)) {
+    providerCache.set(chainId, createProvider(chainId));
+  }
+  return providerCache.get(chainId)!;
+}
+
+/**
+ * Clear provider cache
+ */
+export function clearProviderCache(): void {
+  providerCache.clear();
+}
+
+/**
+ * Utilities for common provider operations
+ */
+export const providerUtils = {
+  /**
+   * Get current block number
+   */
+  async getBlockNumber(chainId: number): Promise<number> {
+    const provider = getProvider(chainId);
+    return await provider.getBlockNumber();
+  },
+
+  /**
+   * Get gas price
+   */
+  async getGasPrice(chainId: number): Promise<bigint> {
+    const provider = getProvider(chainId);
+    const feeData = await provider.getFeeData();
+    return feeData.gasPrice || 0n;
+  },
+
+  /**
+   * Get balance of address
+   */
+  async getBalance(chainId: number, address: string): Promise<bigint> {
+    const provider = getProvider(chainId);
+    return await provider.getBalance(address);
+  },
+
+  /**
+   * Resolve ENS name to address
+   */
+  async resolveENS(name: string): Promise<string | null> {
+    const provider = getProvider(1); // Mainnet only
+    return await provider.resolveName(name);
+  },
+
+  /**
+   * Lookup address to ENS name
+   */
+  async lookupAddress(address: string): Promise<string | null> {
+    const provider = getProvider(1); // Mainnet only
+    return await provider.lookupAddress(address);
+  },
+
+  /**
+   * Wait for transaction confirmation
+   */
+  async waitForTransaction(
+    chainId: number,
+    txHash: string,
+    confirmations: number = 1
+  ): Promise<ethers.TransactionReceipt | null> {
+    const provider = getProvider(chainId);
+    return await provider.waitForTransaction(txHash, confirmations);
+  },
+
+  /**
+   * Estimate gas for transaction
+   */
+  async estimateGas(
+    chainId: number,
+    tx: ethers.TransactionRequest
+  ): Promise<bigint> {
+    const provider = getProvider(chainId);
+    return await provider.estimateGas(tx);
+  },
+};
+
+/**
+ * Network event listeners
+ */
+export class NetworkMonitor {
+  private provider: BrowserProvider;
+
+  constructor() {
+    this.provider = createBrowserProvider();
+  }
+
+  /**
+   * Listen for chain changes
+   */
+  onChainChanged(callback: (chainId: number) => void): void {
+    if (window.ethereum) {
+      window.ethereum.on('chainChanged', (chainIdHex: string) => {
+        callback(parseInt(chainIdHex, 16));
+      });
+    }
+  }
+
+  /**
+   * Listen for account changes
+   */
+  onAccountsChanged(callback: (accounts: string[]) => void): void {
+    if (window.ethereum) {
+      window.ethereum.on('accountsChanged', callback);
+    }
+  }
+
+  /**
+   * Listen for disconnect
+   */
+  onDisconnect(callback: () => void): void {
+    if (window.ethereum) {
+      window.ethereum.on('disconnect', callback);
+    }
+  }
+
+  /**
+   * Remove all listeners
+   */
+  removeAllListeners(): void {
+    if (window.ethereum) {
+      window.ethereum.removeAllListeners();
+    }
+  }
+}
+
+// Type augmentation for window.ethereum
+declare global {
+  interface Window {
+    ethereum?: {
+      isMetaMask?: boolean;
+      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+      on: (event: string, callback: (...args: unknown[]) => void) => void;
+      removeListener: (event: string, callback: (...args: unknown[]) => void) => void;
+      removeAllListeners: () => void;
+    };
+  }
+}

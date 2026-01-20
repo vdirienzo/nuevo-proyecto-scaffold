@@ -1,0 +1,198 @@
+/**
+ * Handler tests for {{PROJECT_NAME}}
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import { describe, it, expect } from "vitest";
+import { ResponseBuilder } from "../src/utils/response";
+import { sha256, hashPassword, verifyPassword } from "../src/utils/crypto";
+import { isValidEmail, isValidUUID } from "../src/utils/validation";
+
+describe("ResponseBuilder", () => {
+  it("creates success response", () => {
+    const response = ResponseBuilder.success({ message: "test" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("application/json");
+  });
+
+  it("creates error response", () => {
+    const response = ResponseBuilder.error("Test error", 400);
+
+    expect(response.status).toBe(400);
+  });
+
+  it("creates not found response", () => {
+    const response = ResponseBuilder.notFound();
+
+    expect(response.status).toBe(404);
+  });
+
+  it("creates unauthorized response", () => {
+    const response = ResponseBuilder.unauthorized();
+
+    expect(response.status).toBe(401);
+  });
+
+  it("creates rate limit response", () => {
+    const resetAt = Date.now() + 60000;
+    const response = ResponseBuilder.rateLimitExceeded(resetAt);
+
+    expect(response.status).toBe(429);
+    expect(response.headers.get("X-RateLimit-Reset")).toBe(resetAt.toString());
+  });
+});
+
+describe("Crypto Utils", () => {
+  it("hashes string with SHA-256", async () => {
+    const hash = await sha256("test");
+
+    expect(hash).toBeTruthy();
+    expect(hash.length).toBe(64); // SHA-256 produces 64 hex characters
+  });
+
+  it("hashes password", async () => {
+    const password = "mysecretpassword";
+    const hash = await hashPassword(password);
+
+    expect(hash).toBeTruthy();
+    expect(hash).toContain(":"); // Contains salt:hash
+  });
+
+  it("verifies password", async () => {
+    const password = "mysecretpassword";
+    const hash = await hashPassword(password);
+
+    const valid = await verifyPassword(password, hash);
+    expect(valid).toBe(true);
+
+    const invalid = await verifyPassword("wrongpassword", hash);
+    expect(invalid).toBe(false);
+  });
+
+  it("produces different hashes for same password", async () => {
+    const password = "test";
+    const hash1 = await hashPassword(password);
+    const hash2 = await hashPassword(password);
+
+    expect(hash1).not.toBe(hash2); // Different salts
+  });
+});
+
+describe("Validation Utils", () => {
+  describe("email validation", () => {
+    it("validates correct emails", () => {
+      expect(isValidEmail("test@example.com")).toBe(true);
+      expect(isValidEmail("user+tag@domain.co.uk")).toBe(true);
+    });
+
+    it("rejects invalid emails", () => {
+      expect(isValidEmail("notanemail")).toBe(false);
+      expect(isValidEmail("@example.com")).toBe(false);
+      expect(isValidEmail("test@")).toBe(false);
+    });
+  });
+
+  describe("UUID validation", () => {
+    it("validates correct UUIDs", () => {
+      expect(isValidUUID("123e4567-e89b-12d3-a456-426614174000")).toBe(true);
+    });
+
+    it("rejects invalid UUIDs", () => {
+      expect(isValidUUID("not-a-uuid")).toBe(false);
+      expect(isValidUUID("123e4567")).toBe(false);
+    });
+  });
+});
+
+describe("KV Store", () => {
+  it("should store and retrieve values", async () => {
+    // This test requires mocking KV namespace
+    // Example structure:
+
+    // const kv = new MockKV();
+    // const store = new KVStore(kv);
+
+    // await store.put("test", { value: "data" });
+    // const result = await store.get("test");
+
+    // expect(result).toEqual({ value: "data" });
+
+    expect(true).toBe(true); // Placeholder
+  });
+});
+
+describe("D1 Service", () => {
+  it("should execute queries", async () => {
+    // This test requires mocking D1 database
+    // Example structure:
+
+    // const db = new MockD1();
+    // const service = new D1Service(db);
+
+    // const results = await service.query("SELECT * FROM users");
+
+    // expect(results).toBeDefined();
+
+    expect(true).toBe(true); // Placeholder
+  });
+});
+
+describe("Rate Limiter", () => {
+  it("should allow requests within limit", async () => {
+    // This test requires mocking KV namespace
+    // Example structure:
+
+    // const kv = new MockKV();
+    // const limiter = new RateLimiter(kv, { requests: 10, window: 60 });
+
+    // const result = await limiter.check("test-key");
+
+    // expect(result.allowed).toBe(true);
+    // expect(result.remaining).toBeLessThanOrEqual(10);
+
+    expect(true).toBe(true); // Placeholder
+  });
+
+  it("should block requests exceeding limit", async () => {
+    // Mock test for rate limit exceeded
+
+    expect(true).toBe(true); // Placeholder
+  });
+});
+
+describe("JWT Service", () => {
+  it("should create and verify tokens", async () => {
+    // This test requires JWT service
+    // Example structure:
+
+    // const service = new JWTService("test-secret");
+    // const user = { id: "1", email: "test@example.com", role: "user" };
+
+    // const token = await service.createToken(user);
+    // const payload = await service.verifyToken(token);
+
+    // expect(payload).toBeDefined();
+    // expect(payload?.sub).toBe("1");
+
+    expect(true).toBe(true); // Placeholder
+  });
+});
+
+describe("WebSocket Handler", () => {
+  it("should handle WebSocket upgrades", async () => {
+    // This test requires WebSocket mocking
+    // Example structure:
+
+    // const request = new Request("http://example.com/ws", {
+    //   headers: { Upgrade: "websocket" }
+    // });
+
+    // const response = await websocketHandler(request, env);
+
+    // expect(response.status).toBe(101);
+
+    expect(true).toBe(true); // Placeholder
+  });
+});

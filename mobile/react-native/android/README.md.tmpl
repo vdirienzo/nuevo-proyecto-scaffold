@@ -1,0 +1,82 @@
+# Android Configuration
+
+This directory contains Android-specific configuration files.
+
+## Structure
+
+```
+android/
+├── app/
+│   ├── src/
+│   │   └── main/
+│   │       ├── AndroidManifest.xml
+│   │       ├── java/
+│   │       └── res/
+│   ├── build.gradle
+│   └── proguard-rules.pro
+├── gradle/
+├── build.gradle
+└── settings.gradle
+```
+
+## Setup
+
+The Android project is generated automatically by React Native CLI. After cloning:
+
+```bash
+cd android
+./gradlew clean
+```
+
+## Running on Android
+
+```bash
+# From project root
+npm run android
+
+# Or directly with adb
+cd android
+./gradlew installDebug
+```
+
+## Build Release APK
+
+```bash
+cd android
+./gradlew assembleRelease
+```
+
+The APK will be at: `android/app/build/outputs/apk/release/app-release.apk`
+
+## Signing Configuration
+
+For production builds, configure signing in `android/app/build.gradle`:
+
+```gradle
+signingConfigs {
+    release {
+        storeFile file('your-release-key.keystore')
+        storePassword 'password'
+        keyAlias 'your-key-alias'
+        keyPassword 'password'
+    }
+}
+```
+
+## Common Issues
+
+### Port 8081 already in use
+```bash
+lsof -ti:8081 | xargs kill
+```
+
+### Clean build
+```bash
+cd android
+./gradlew clean
+```
+
+## Resources
+
+- [React Native Android Setup](https://reactnative.dev/docs/environment-setup)
+- [Android Developer Guide](https://developer.android.com/)

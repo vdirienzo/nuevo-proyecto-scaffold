@@ -1,0 +1,166 @@
+/**
+ * Contract addresses configuration for {{PROJECT_NAME}}
+ * @author {{AUTHOR}}
+ */
+
+export interface ContractAddresses {
+  Token: string;
+  NFT: string;
+  Marketplace: string;
+}
+
+// Contract addresses by chain ID
+export const CONTRACT_ADDRESSES: Record<number, ContractAddresses> = {
+  // Ethereum Mainnet
+  1: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+
+  // Sepolia Testnet
+  11155111: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+
+  // Polygon Mainnet
+  137: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+
+  // Mumbai Testnet
+  80001: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+
+  // BSC Mainnet
+  56: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+
+  // BSC Testnet
+  97: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+
+  // Localhost
+  1337: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+
+  // Hardhat
+  31337: {
+    Token: "",
+    NFT: "",
+    Marketplace: "",
+  },
+};
+
+// Contract ABIs (import from compiled artifacts)
+export const TOKEN_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function decimals() view returns (uint8)",
+  "function totalSupply() view returns (uint256)",
+  "function balanceOf(address) view returns (uint256)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function approve(address spender, uint256 amount) returns (bool)",
+  "function allowance(address owner, address spender) view returns (uint256)",
+  "function transferFrom(address from, address to, uint256 amount) returns (bool)",
+  "function mint(address to, uint256 amount)",
+  "function burn(uint256 amount)",
+  "function pause()",
+  "function unpause()",
+  "event Transfer(address indexed from, address indexed to, uint256 value)",
+  "event Approval(address indexed owner, address indexed spender, uint256 value)",
+  "event TokensMinted(address indexed to, uint256 amount)",
+  "event TokensBurned(address indexed from, uint256 amount)",
+];
+
+export const NFT_ABI = [
+  "function name() view returns (string)",
+  "function symbol() view returns (string)",
+  "function balanceOf(address owner) view returns (uint256)",
+  "function ownerOf(uint256 tokenId) view returns (address)",
+  "function tokenURI(uint256 tokenId) view returns (string)",
+  "function mint(address to, string uri) payable",
+  "function ownerMint(address to, string uri)",
+  "function batchMint(address[] recipients, string[] uris)",
+  "function burn(uint256 tokenId)",
+  "function maxSupply() view returns (uint256)",
+  "function mintPrice() view returns (uint256)",
+  "function totalMinted() view returns (uint256)",
+  "function setMintPrice(uint256 newPrice)",
+  "function setMaxSupply(uint256 newMaxSupply)",
+  "function withdraw()",
+  "function approve(address to, uint256 tokenId)",
+  "function setApprovalForAll(address operator, bool approved)",
+  "function getApproved(uint256 tokenId) view returns (address)",
+  "function isApprovedForAll(address owner, address operator) view returns (bool)",
+  "function transferFrom(address from, address to, uint256 tokenId)",
+  "function safeTransferFrom(address from, address to, uint256 tokenId)",
+  "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+  "event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId)",
+  "event ApprovalForAll(address indexed owner, address indexed operator, bool approved)",
+  "event NFTMinted(address indexed to, uint256 indexed tokenId, string tokenURI)",
+];
+
+export const MARKETPLACE_ABI = [
+  "function listNFT(address nftContract, uint256 tokenId, uint256 price, address paymentToken)",
+  "function buyNFT(uint256 listingId) payable",
+  "function cancelListing(uint256 listingId)",
+  "function makeOffer(uint256 listingId, uint256 price, address paymentToken, uint256 duration)",
+  "function acceptOffer(uint256 listingId, uint256 offerId) payable",
+  "function cancelOffer(uint256 listingId, uint256 offerId)",
+  "function setFeePercent(uint256 newFee)",
+  "function withdrawFees()",
+  "function feePercent() view returns (uint256)",
+  "function listingCounter() view returns (uint256)",
+  "function getListing(uint256 listingId) view returns (tuple(address seller, address nftContract, uint256 tokenId, uint256 price, address paymentToken, bool active))",
+  "function getOffer(uint256 listingId, uint256 offerId) view returns (tuple(address buyer, uint256 price, address paymentToken, uint256 expiresAt, bool active))",
+  "event NFTListed(uint256 indexed listingId, address indexed seller, address indexed nftContract, uint256 tokenId, uint256 price, address paymentToken)",
+  "event NFTSold(uint256 indexed listingId, address indexed buyer, address indexed seller, uint256 price)",
+  "event ListingCancelled(uint256 indexed listingId)",
+  "event OfferMade(uint256 indexed listingId, uint256 indexed offerId, address indexed buyer, uint256 price)",
+  "event OfferAccepted(uint256 indexed listingId, uint256 indexed offerId)",
+  "event OfferCancelled(uint256 indexed listingId, uint256 indexed offerId)",
+];
+
+export function getContractAddress(chainId: number, contract: keyof ContractAddresses): string {
+  const addresses = CONTRACT_ADDRESSES[chainId];
+  if (!addresses) {
+    throw new Error(`No contract addresses configured for chain ID ${chainId}`);
+  }
+
+  const address = addresses[contract];
+  if (!address) {
+    throw new Error(`No address configured for contract ${contract} on chain ID ${chainId}`);
+  }
+
+  return address;
+}
+
+export function getContractABI(contract: "Token" | "NFT" | "Marketplace"): string[] {
+  switch (contract) {
+    case "Token":
+      return TOKEN_ABI;
+    case "NFT":
+      return NFT_ABI;
+    case "Marketplace":
+      return MARKETPLACE_ABI;
+    default:
+      throw new Error(`Unknown contract: ${contract}`);
+  }
+}

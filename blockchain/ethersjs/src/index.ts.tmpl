@@ -1,0 +1,32 @@
+/**
+ * @fileoverview {{PROJECT_NAME}} Blockchain Integration Entry Point
+ * @author {{AUTHOR}}
+ */
+
+// Export all modules
+export * from './config/chains';
+export * from './config/abis';
+export * from './providers/ethers-provider';
+export * from './providers/wagmi-config';
+export * from './services/contract-service';
+export * from './services/wallet-service';
+export * from './services/erc20-service';
+export * from './services/erc721-service';
+export * from './services/staking-service';
+export * from './services/multicall-service';
+export * from './hooks/useEthers';
+export * from './hooks/useTokenBalance';
+export * from './hooks/useNFT';
+export * from './hooks/useStaking';
+export * from './components/WalletConnect';
+export * from './components/ChainSelector';
+export * from './components/TokenTransfer';
+export * from './components/NFTGallery';
+export * from './components/StakingPanel';
+export * from './utils/format';
+export * from './utils/signatures';
+export * from './utils/multicall';
+export * from './types';
+
+// Version
+export const VERSION = '1.0.0';

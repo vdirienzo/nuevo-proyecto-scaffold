@@ -1,0 +1,60 @@
+{
+  "name": "{{PROJECT_NAME}}-blockchain",
+  "version": "1.0.0",
+  "description": "Web3.js blockchain integration for {{PROJECT_NAME}}",
+  "author": "{{AUTHOR}}",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist artifacts cache",
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test:coverage": "hardhat coverage",
+    "deploy:localhost": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:polygon": "hardhat run scripts/deploy.ts --network polygon",
+    "deploy:bsc": "hardhat run scripts/deploy.ts --network bsc",
+    "verify:sepolia": "hardhat run scripts/verify.ts --network sepolia",
+    "verify:polygon": "hardhat run scripts/verify.ts --network polygon",
+    "verify:bsc": "hardhat run scripts/verify.ts --network bsc",
+    "node": "hardhat node",
+    "lint": "eslint . --ext .ts,.tsx",
+    "lint:fix": "eslint . --ext .ts,.tsx --fix",
+    "format": "prettier --write \"**/*.{ts,tsx,sol,json,md}\""
+  },
+  "dependencies": {
+    "web3": "^4.3.0",
+    "@walletconnect/web3-provider": "^1.8.0",
+    "@metamask/detect-provider": "^2.0.0",
+    "ethers": "^6.9.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@openzeppelin/contracts": "^5.0.1",
+    "@types/node": "^20.10.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "dotenv": "^16.3.1",
+    "eslint": "^8.54.0",
+    "hardhat": "^2.19.0",
+    "hardhat-gas-reporter": "^1.0.9",
+    "prettier": "^3.1.0",
+    "prettier-plugin-solidity": "^1.2.0",
+    "solidity-coverage": "^0.8.5",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

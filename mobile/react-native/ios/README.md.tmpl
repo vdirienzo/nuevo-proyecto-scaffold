@@ -1,0 +1,82 @@
+# iOS Configuration
+
+This directory contains iOS-specific configuration files.
+
+## Structure
+
+```
+ios/
+├── {{PROJECT_NAME}}/
+│   ├── AppDelegate.h
+│   ├── AppDelegate.mm
+│   ├── Info.plist
+│   └── LaunchScreen.storyboard
+├── {{PROJECT_NAME}}.xcodeproj/
+├── {{PROJECT_NAME}}.xcworkspace/
+├── Podfile
+└── Pods/
+```
+
+## Setup
+
+Install CocoaPods dependencies:
+
+```bash
+cd ios
+pod install
+```
+
+## Running on iOS
+
+```bash
+# From project root
+npm run ios
+
+# Specific simulator
+npm run ios -- --simulator="iPhone 15 Pro"
+```
+
+## Build for Release
+
+1. Open Xcode:
+```bash
+open ios/{{PROJECT_NAME}}.xcworkspace
+```
+
+2. Select "Product" > "Archive"
+3. Follow Apple's distribution guide
+
+## Signing
+
+Configure signing in Xcode:
+1. Open workspace in Xcode
+2. Select project in navigator
+3. Select target
+4. Go to "Signing & Capabilities"
+5. Select your team and provisioning profile
+
+## Common Issues
+
+### Pod install fails
+```bash
+cd ios
+pod deintegrate
+pod install
+```
+
+### Clean build
+```bash
+cd ios
+rm -rf build
+rm -rf ~/Library/Developer/Xcode/DerivedData
+```
+
+### Simulator issues
+```bash
+xcrun simctl erase all
+```
+
+## Resources
+
+- [React Native iOS Setup](https://reactnative.dev/docs/environment-setup)
+- [Apple Developer](https://developer.apple.com/)

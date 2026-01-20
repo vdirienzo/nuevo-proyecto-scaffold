@@ -1,0 +1,187 @@
+/**
+ * Response utilities for {{PROJECT_NAME}} Worker
+ *
+ * Author: {{AUTHOR}}
+ */
+
+import type { APIResponse } from "../types";
+
+export class ResponseBuilder {
+  /**
+   * Create success JSON response
+   */
+  static success<T>(data: T, status = 200): Response {
+    const response: APIResponse<T> = {
+      success: true,
+      data
+    };
+
+    return new Response(JSON.stringify(response), {
+      status,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+  }
+
+  /**
+   * Create error JSON response
+   */
+  static error(message: string, status = 400): Response {
+    const response: APIResponse = {
+      success: false,
+      error: message
+    };
+
+    return new Response(JSON.stringify(response), {
+      status,
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+  }
+
+  /**
+   * Create not found response
+   */
+  static notFound(message = "Resource not found"): Response {
+    return this.error(message, 404);
+  }
+
+  /**
+   * Create unauthorized response
+   */
+  static unauthorized(message = "Unauthorized"): Response {
+    return this.error(message, 401);
+  }
+
+  /**
+   * Create forbidden response
+   */
+  static forbidden(message = "Forbidden"): Response {
+    return this.error(message, 403);
+  }
+
+  /**
+   * Create rate limit exceeded response
+   */
+  static rateLimitExceeded(resetAt?: number): Response {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    };
+
+    if (resetAt) {
+      headers["X-RateLimit-Reset"] = resetAt.toString();
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Rate limit exceeded"
+      }),
+      {
+        status: 429,
+        headers
+      }
+    );
+  }
+
+  /**
+   * Create validation error response
+   */
+  static validationError(errors: Record<string, string>): Response {
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Validation failed",
+        errors
+      }),
+      {
+        status: 422,
+        headers: {
+          "Content-Type": "application/json"
+        }
+      }
+    );
+  }
+
+  /**
+   * Create internal server error response
+   */
+  static internalError(message = "Internal server error"): Response {
+    return this.error(message, 500);
+  }
+
+  /**
+   * Create redirect response
+   */
+  static redirect(url: string, status = 302): Response {
+    return Response.redirect(url, status);
+  }
+
+  /**
+   * Create no content response
+   */
+  static noContent(): Response {
+    return new Response(null, { status: 204 });
+  }
+
+  /**
+   * Create HTML response
+   */
+  static html(content: string, status = 200): Response {
+    return new Response(content, {
+      status,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8"
+      }
+    });
+  }
+
+  /**
+   * Create text response
+   */
+  static text(content: string, status = 200): Response {
+    return new Response(content, {
+      status,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8"
+      }
+    });
+  }
+
+  /**
+   * Add headers to response
+   */
+  static withHeaders(response: Response, headers: Record<string, string>): Response {
+    const newResponse = new Response(response.body, response);
+    Object.entries(headers).forEach(([key, value]) => {
+      newResponse.headers.set(key, value);
+    });
+    return newResponse;
+  }
+
+  /**
+   * Add cache control header
+   */
+  static withCache(response: Response, maxAge: number): Response {
+    return this.withHeaders(response, {
+      "Cache-Control": `public, max-age=${maxAge}`
+    });
+  }
+
+  /**
+   * Create CORS preflight response
+   */
+  static corsPreFlight(allowedOrigin: string): Response {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400"
+      }
+    });
+  }
+}

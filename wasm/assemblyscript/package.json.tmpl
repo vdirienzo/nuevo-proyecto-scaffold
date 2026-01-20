@@ -1,0 +1,19 @@
+{
+  "name": "{{PROJECT_NAME}}-assemblyscript",
+  "version": "0.1.0",
+  "description": "AssemblyScript WebAssembly module for {{PROJECT_NAME}}",
+  "author": "{{AUTHOR}}",
+  "type": "module",
+  "scripts": {
+    "asbuild:debug": "asc assembly/index.ts --target debug --outFile build/debug.wasm --bindings esm --exportRuntime --sourceMap",
+    "asbuild:release": "asc assembly/index.ts --target release --outFile build/release.wasm --bindings esm --exportRuntime --optimize --sourceMap",
+    "asbuild": "npm run asbuild:debug && npm run asbuild:release",
+    "test": "node tests/index.js",
+    "clean": "rimraf build"
+  },
+  "devDependencies": {
+    "@assemblyscript/loader": "^0.27.0",
+    "assemblyscript": "^0.27.0",
+    "rimraf": "^5.0.0"
+  }
+}

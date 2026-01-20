@@ -1,6 +1,6 @@
 # Nuevo Proyecto Scaffold
 
-[![Version](https://img.shields.io/badge/version-4.0.0-blue.svg)](https://github.com/vdirienzo/nuevo-proyecto-scaffold)
+[![Version](https://img.shields.io/badge/version-6.0.0-blue.svg)](https://github.com/vdirienzo/nuevo-proyecto-scaffold)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Stars](https://img.shields.io/github/stars/vdirienzo/nuevo-proyecto-scaffold?style=social)](https://github.com/vdirienzo/nuevo-proyecto-scaffold/stargazers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
@@ -13,10 +13,14 @@
 
 ## Features
 
-- **Interactive Wizard** - 10-phase guided setup with intelligent recommendations
+- **Interactive Wizard** - 11-phase guided setup with intelligent recommendations
 - **Multi-Scale Ready** - From MVP to Netflix-scale with one command
-- **420 Templates** - Battle-tested templates for every component and scenario
-- **Full Stack Support** - FastAPI, NestJS, Go, Gin backends + Next.js, React SPA frontends
+- **828 Templates** - Battle-tested templates for every component and scenario
+- **Full Stack Support** - FastAPI, NestJS, Go, Rust (Actix/Rocket) backends + Next.js, React SPA, Vue.js 3, Angular 17+, jQuery frontends
+- **Mobile Apps** - React Native and Flutter cross-platform templates
+- **Edge Computing** - Cloudflare Workers and Deno Deploy for global edge deployment
+- **WebAssembly** - Rust-WASM and AssemblyScript modules for high-performance computation
+- **Blockchain/Web3** - Web3.js and Ethers.js integration with smart contracts
 - **Security First** - 4-tier security levels from Standard to Zero-Trust
 - **Complete Observability** - OpenTelemetry, Prometheus, Grafana, Jaeger, Sentry
 - **CI/CD Batteries Included** - 5 GitHub Actions workflows ready to deploy
@@ -35,18 +39,57 @@
 
 ---
 
-## What's New in v4.0.0
+## What's New
 
-### 🚀 Major Additions
+### v6.0.0 - Next Generation Release 🚀
 
-**420 Templates** - Nearly 3x expansion from 148 to 420 templates covering every modern development scenario.
+**294 New Templates** - Expanding from 534 to **828 templates** with cutting-edge technologies.
+
+**🦀 Rust Backend (41 templates)**
+- **Actix-web** - Maximum performance async web framework
+- **Rocket** - Type-safe routing with ergonomic API
+- Features: JWT auth, sqlx PostgreSQL, OpenAPI docs, Docker multi-stage
+
+**📱 Mobile Apps (83 templates)**
+- **React Native** (46 templates) - Redux Toolkit, React Navigation 6, TypeScript
+- **Flutter** (37 templates) - Riverpod 2.0, GoRouter, Material 3, Clean Architecture
+
+**🌐 Edge Computing (69 templates)**
+- **Cloudflare Workers** (27 templates) - KV, D1, R2, Durable Objects, Queues
+- **Deno Deploy** (42 templates) - Deno KV, Fresh framework, Oak/Hono
+
+**🔧 WebAssembly (27 templates)**
+- **Rust → WASM** - wasm-pack, wasm-bindgen, crypto/image processing
+- **AssemblyScript** - TypeScript-like syntax to WASM
+- Integration examples for React, Vanilla JS, Node.js
+
+**⛓️ Blockchain/Web3 (74 templates)**
+- **Web3.js** (35 templates) - Hardhat, ERC-20/721, MetaMask, WalletConnect
+- **Ethers.js** (39 templates) - Foundry, wagmi, RainbowKit, Staking, Governance
+
+---
+
+### v5.0.0
+
+**114 New Frontend Templates** - Expanding frontend options from 2 to 6 frameworks.
+
+**New Frontend Options**
+- **Vue.js 3** - Composition API + Pinia state management + Vite (42 templates)
+- **Angular 17+** - Standalone components + Signals + NgRx (43 templates)
+- **jQuery** - Bootstrap 5 + Parcel for rapid prototyping (29 templates)
+
+---
+
+### v4.0.0 - Major Additions
+
+**534 Templates** - Nearly 3.6x expansion from 148 to 534 templates covering every modern development scenario.
 
 **New Backend Options**
 - Go with Gin framework for high-performance APIs
 - Enhanced Go standard library templates
 - Python Strawberry for GraphQL
 
-**New Frontend Options**
+**Frontend Options**
 - React SPA with Vite for blazing-fast development
 - Enhanced Next.js templates with App Router best practices
 
@@ -89,10 +132,11 @@
 
 ### 📊 By the Numbers
 
-| Metric | v3.0.0 | v4.0.0 | Change |
+| Metric | v3.0.0 | v5.0.0 | Change |
 |--------|--------|--------|--------|
-| **Total Templates** | 148 | 420 | +184% |
+| **Total Templates** | 148 | 534 | +261% |
 | **Backend Options** | 3 | 4 | +33% |
+| **Frontend Options** | 2 | 6 | +200% |
 | **Auth Providers** | 2 | 5 | +150% |
 | **API Styles** | 1 | 4 | +300% |
 | **Template Categories** | 25 | 35 | +40% |
@@ -144,7 +188,7 @@ graph TD
     Phase9 -.->|DevContainers, Storybook, MSW, Hot Reload| DX
     Phase10 -.->|API Styles, AI/LLM, Payments, Search, i18n| Features
 
-    Generate --> Output[420 Files Generated]
+    Generate --> Output[534 Files Generated]
     Output --> Done[Project Ready]
 
     style Start fill:#e1f5ff
@@ -192,6 +236,9 @@ graph LR
 |------------|----------|----------|
 | **Next.js** | SSR, SSG, API routes, App Router | SEO-critical apps, full-stack, production |
 | **React SPA (Vite)** | CSR, Fast HMR, Modern tooling | Admin panels, internal tools, dashboards |
+| **Vue.js 3** | Composition API, Pinia, Vite | Progressive apps, component-driven design |
+| **Angular 17+** | Standalone, Signals, NgRx | Enterprise apps, large teams, complex domains |
+| **jQuery** | Bootstrap 5, Parcel, Simple setup | Legacy support, rapid prototyping, small projects |
 
 ### Database Options
 
@@ -264,7 +311,7 @@ templates/
 │       ├── middleware/           # Auth, CORS, Rate-limit (8)
 │       ├── models/               # Data models (6)
 │       └── tests/                # Testify suites (6)
-├── frontend/ (95 templates)
+├── frontend/ (209 templates)
 │   ├── nextjs/
 │   │   ├── app/                  # App Router pages (15)
 │   │   ├── components/
@@ -277,14 +324,38 @@ templates/
 │   │   ├── hooks/                # Custom hooks (8)
 │   │   ├── tests/                # Jest, Playwright (8)
 │   │   └── storybook/            # Stories (6)
-│   └── react-spa/
+│   ├── react-spa/
+│   │   ├── src/
+│   │   │   ├── components/       # React components (15)
+│   │   │   ├── hooks/            # Custom hooks (6)
+│   │   │   ├── services/         # API services (5)
+│   │   │   └── store/            # Zustand/Redux (4)
+│   │   ├── tests/                # Vitest, Testing Library (6)
+│   │   └── msw/                  # Mock Service Worker (3)
+│   ├── vue3/
+│   │   ├── src/
+│   │   │   ├── components/       # Vue components (12)
+│   │   │   ├── composables/      # Composition API (8)
+│   │   │   ├── stores/           # Pinia stores (5)
+│   │   │   └── views/            # Page views (8)
+│   │   ├── tests/                # Vitest, Testing Library (6)
+│   │   └── vite/                 # Vite config (3)
+│   ├── angular/
+│   │   ├── src/
+│   │   │   ├── app/
+│   │   │   │   ├── components/   # Standalone components (15)
+│   │   │   │   ├── services/     # Injectable services (8)
+│   │   │   │   ├── stores/       # NgRx stores (6)
+│   │   │   │   └── guards/       # Route guards (4)
+│   │   │   └── shared/           # Shared modules (6)
+│   │   └── tests/                # Jasmine, Karma (4)
+│   └── jquery/
 │       ├── src/
-│       │   ├── components/       # React components (15)
-│       │   ├── hooks/            # Custom hooks (6)
-│       │   ├── services/         # API services (5)
-│       │   └── store/            # Zustand/Redux (4)
-│       ├── tests/                # Vitest, Testing Library (6)
-│       └── msw/                  # Mock Service Worker (3)
+│       │   ├── js/               # jQuery modules (10)
+│       │   ├── pages/            # HTML pages (8)
+│       │   └── components/       # UI components (6)
+│       ├── styles/               # Bootstrap customization (3)
+│       └── tests/                # QUnit tests (2)
 ├── api-styles/ (45 templates)
 │   ├── graphql/
 │   │   ├── nestjs/               # NestJS GraphQL (10)
@@ -414,7 +485,7 @@ templates/
     ├── adrs/                     # Architecture decisions (2)
     └── runbooks/                 # Operational guides (2)
 
-Total: 420 templates across 35 categories
+Total: 534 templates across 35 categories
 ```
 
 ---
@@ -941,7 +1012,13 @@ docker-compose -f docker-compose.test.yml up
 
 ## Roadmap
 
-### v4.0.0 (Current) ✅
+### v5.0.0 (Current) ✅
+- [x] Vue.js 3 frontend option (Composition API + Pinia)
+- [x] Angular 17+ frontend option (Standalone + Signals)
+- [x] jQuery frontend option (Bootstrap 5 + Parcel)
+- [x] 534 total templates
+
+### v4.0.0 ✅
 - [x] GraphQL support (NestJS, Strawberry, Apollo)
 - [x] gRPC service templates (Go, Python, TypeScript)
 - [x] tRPC end-to-end type-safety
@@ -995,6 +1072,18 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ---
 
 ## Changelog
+
+### [5.0.0] - 2026-01-19
+
+#### Added
+- **114 new frontend templates** (420 → 534 total)
+- Vue.js 3 frontend option with Composition API, Pinia state management, and Vite (42 templates)
+- Angular 17+ frontend option with Standalone components, Signals, and NgRx (43 templates)
+- jQuery frontend option with Bootstrap 5 and Parcel bundler (29 templates)
+
+#### Changed
+- Expanded frontend options from 2 to 6 frameworks
+- Updated Frontend Options table with 3 new frameworks and their features
 
 ### [4.0.0] - 2026-01-19
 
