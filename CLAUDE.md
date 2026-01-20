@@ -16,23 +16,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 nuevo-proyecto-scaffold/
 ├── auth/              # Authentication templates (JWT, OAuth2, Auth0, Clerk, SAML, MFA)
-├── backend/           # Backend templates by framework
-│   ├── fastapi/       # Python 3.12+ async
-│   ├── nestjs/        # TypeScript enterprise
-│   ├── go/            # Gin/Echo high-performance
-│   ├── rust/          # Actix-web + Rocket
-│   ├── graphql/       # Apollo, Strawberry, gqlgen
-│   ├── grpc/          # Protobuf definitions
-│   └── trpc/          # End-to-end type-safe
-├── desktop/           # Desktop application templates
-│   └── tauri/         # Tauri v2 (Rust + Web frontend, 74 templates)
-├── frontend/          # Frontend templates + Design Systems
-│   ├── nextjs/        # Next.js 15 App Router
-│   ├── react-spa/     # React + Vite
-│   ├── vue/           # Vue 3 Composition API
-│   ├── angular/       # Angular 17+ Standalone
-│   ├── jquery/        # jQuery + Bootstrap 5
-│   └── design-systems/ # 5 UI design systems (86 templates)
+├── backend/           # Backend templates (fastapi, nestjs, go, rust, graphql, grpc, trpc)
+├── desktop/           # Desktop templates (tauri/)
+├── frontend/          # Frontend templates + design-systems/
 ├── mobile/            # React Native + Flutter templates
 ├── edge/              # Cloudflare Workers + Deno Deploy
 ├── wasm/              # Rust-WASM + AssemblyScript
@@ -41,68 +27,82 @@ nuevo-proyecto-scaffold/
 ├── observability/     # OpenTelemetry, Prometheus, Grafana, Jaeger
 ├── testing/           # Unit, integration, e2e, contract, load, chaos
 ├── security/          # Rate limiting, encryption, WAF, compliance
-├── wizard/            # questions.yaml - wizard configuration
+├── wizard/            # questions.yaml - wizard configuration (11 phases, 33 questions)
 ├── _meta/             # manifest.json, versions.json
 └── docs/              # ARCHITECTURE.md, TESTING.md, WIZARD-PHASES.md
 ```
 
-## Key Architecture Concepts
+## Template System
 
-### Template System
+### File Format
 - Templates use `.tmpl` extension (e.g., `main.py.tmpl`, `package.json.tmpl`)
-- Variable syntax: `{{PROJECT_NAME}}`, `{{AUTHOR}}`, `{{BUNDLE_ID}}`
-- Templates are organized by technology stack and feature
+- Variable syntax: `{{VARIABLE_NAME}}`
+- Templates organized by technology stack and feature
 
-### Wizard System (11 Phases)
-The wizard in `wizard/questions.yaml` defines 33 questions across phases:
-1. **Metadata** - project name, author, license
-2. **Scale & Compliance** - MVP → Netflix scale, GDPR/HIPAA/SOC2
-3. **Stack** - backend, frontend, mobile, **desktop (Tauri)**, API style, database, cache
-4. **Auth** - provider (Supabase/Firebase/Auth0/Clerk/JWT), MFA, RBAC/ABAC
-5. **Testing** - unit → chaos engineering (scale-dependent)
-6. **Security** - SAST → zero-trust (scale-dependent)
-7. **Infrastructure** - Vercel → Kubernetes, IaC
-8. **Observability** - logging → SLO monitoring
-9. **Developer Experience** - DevContainers, Storybook, MSW, **Design System**
-10. **Advanced** - Edge computing, WASM, Blockchain
-11. **Extras** - email, storage, AI/LLM, payments
+### Template Variables
 
-### Scale Tiers (affects defaults)
-| Scale | Team | Users | Testing | Security | Deploy |
-|-------|------|-------|---------|----------|--------|
-| MVP | 1-2 | <1K | unit+integration | SAST+secrets | Vercel |
-| Scale-up | 3-10 | 1K-100K | +e2e+contract | +SCA+container | Docker |
-| Enterprise | 10-50 | 100K-1M | +load+visual | +DAST+SBOM+WAF | K8s |
-| Netflix | 50+ | 1M+ | +chaos+mutation | +runtime+zero-trust | Multi-region K8s |
+Variables available in all templates (from wizard `questions.yaml`):
 
-## Usage
+| Variable | Source | Example |
+|----------|--------|---------|
+| `{{PROJECT_NAME}}` | Phase 1: project_name | `my-awesome-app` |
+| `{{PROJECT_NAME_SNAKE}}` | Derived | `my_awesome_app` |
+| `{{PROJECT_DESCRIPTION}}` | Phase 1: project_description | `A modern web app` |
+| `{{AUTHOR}}` | Phase 1: project_author | `Homero Thompson del Lago del Terror` |
+| `{{LICENSE}}` | Phase 1: project_license | `mit`, `apache-2.0`, `proprietary` |
+| `{{REPO_URL}}` | Phase 1: repo_url | `https://github.com/user/repo` |
 
-This scaffold is invoked via Claude Code, not directly:
+Tauri-specific variables (desktop templates):
+
+| Variable | Description |
+|----------|-------------|
+| `{{APP_TITLE}}` | Window title for desktop app |
+| `{{BUNDLE_ID}}` | Bundle identifier (e.g., `com.example.app`) |
+
+## Wizard Phases (11 total)
+
+The wizard in `wizard/questions.yaml` defines 33 questions:
+
+1. **Metadata** - project_name, project_description, project_author, project_license, repo_url
+2. **Scale & Compliance** - scale_level (mvp/scale-up/enterprise/netflix), compliance_requirements, data_sensitivity
+3. **Stack** - backend_framework, frontend_framework, mobile_platform, desktop_platform, api_style, database, cache_layer
+4. **Auth** - auth_provider, auth_methods, authorization_model
+5. **Testing** - testing_level, coverage_target
+6. **Security** - security_level, encryption
+7. **Infrastructure** - deploy_target, iac_tool, ci_cd
+8. **Observability** - observability_stack, alerting
+9. **Developer Experience** - dev_tools, code_quality, design_system
+10. **Advanced** - edge_computing, wasm_modules, blockchain_integration
+11. **Extras** - additional_features (email, storage, queues, ai-integration, etc.)
+
+### Scale Tiers (affects wizard defaults)
+
+| Scale | Team | Users | Defaults |
+|-------|------|-------|----------|
+| MVP | 1-2 | <1K | unit+integration, SAST+secrets, Vercel |
+| Scale-up | 3-10 | 1K-100K | +e2e+contract, +SCA+container, Docker |
+| Enterprise | 10-50 | 100K-1M | +load+visual, +DAST+SBOM+WAF, K8s |
+| Netflix | 50+ | 1M+ | +chaos+mutation, +runtime+zero-trust, Multi-region K8s |
+
+## Validation Commands
 
 ```bash
-# Inside Claude Code
-/nuevo-proyecto
-```
-
-The wizard guides through all 11 phases to generate a complete project.
-
-## Contributing to Templates
-
-Since this is a pure template repository, there is no build or test system. Contributions involve editing `.tmpl` files and `wizard/questions.yaml`.
-
-### Validation Commands
-
-```bash
-# Validate YAML syntax
+# Validate wizard YAML syntax
 python -c "import yaml; yaml.safe_load(open('wizard/questions.yaml'))"
 
-# Find all templates by category
+# Count templates by category
 find backend/ -name "*.tmpl" | wc -l
 find frontend/ -name "*.tmpl" | wc -l
 find desktop/ -name "*.tmpl" | wc -l
 
 # Check template variable usage
 grep -r "{{PROJECT_NAME}}" --include="*.tmpl" | head -20
+
+# Find all unique template variables used
+grep -rhoE '\{\{[A-Z_]+\}\}' --include="*.tmpl" | sort -u
+
+# Validate no syntax errors in templates (basic check)
+find . -name "*.tmpl" -exec grep -l "{{[^}]*$" {} \;
 ```
 
 ## Adding New Templates
@@ -112,12 +112,6 @@ grep -r "{{PROJECT_NAME}}" --include="*.tmpl" | head -20
 3. Update wizard options in `wizard/questions.yaml` if adding new framework/feature
 4. Update `_meta/manifest.json` with new template count
 5. Update `docs/WIZARD-PHASES.md` with new options
-
-## Code Style (for templates)
-
-- **Python templates**: PEP 8 style, 100 char line limit
-- **TypeScript templates**: ESLint/Prettier compatible
-- **Commits**: Conventional Commits format (`feat(wizard): add scale selection`)
 
 ### Author Attribution in Templates
 
@@ -131,6 +125,33 @@ Templates for new files should include author placeholder:
 Autor: {{AUTHOR}}
 """
 ```
+
+```typescript
+// For TypeScript templates
+/**
+ * @fileoverview Brief description
+ * @author {{AUTHOR}}
+ */
+```
+
+## Code Style (for templates)
+
+- **Python templates**: PEP 8 style, 100 char line limit
+- **TypeScript templates**: ESLint/Prettier compatible
+- **Commits**: Conventional Commits format (`feat(wizard): add scale selection`)
+
+Commit scopes: `wizard`, `templates`, `cli`, `config`, `docs`, `deps`
+
+## Key Files Reference
+
+| File | Purpose |
+|------|---------|
+| `wizard/questions.yaml` | All wizard phases and questions with scale-based defaults |
+| `_meta/manifest.json` | Project metadata and template counts |
+| `docs/ARCHITECTURE.md` | Monorepo architecture patterns |
+| `docs/TESTING.md` | Testing strategy by scale |
+| `docs/WIZARD-PHASES.md` | Detailed phase documentation |
+| `CONTRIBUTING.md` | Contribution guidelines with dev setup |
 
 ## Generated Project Structure
 
@@ -153,117 +174,25 @@ generated-project/
 └── .github/workflows/ # CI/CD pipelines
 ```
 
-## Tauri Desktop Templates
-
-When desktop platform is selected as `tauri`, `tauri-react`, or `tauri-vue`:
-
-```
-desktop/tauri/
-├── src-tauri/                    # Rust backend
-│   ├── Cargo.toml.tmpl          # Dependencies (Tauri v2, sqlx, argon2)
-│   ├── tauri.conf.json.tmpl     # App config, capabilities, bundle settings
-│   ├── build.rs.tmpl            # Build script
-│   ├── capabilities/            # Security permissions (Tauri v2)
-│   └── src/
-│       ├── main.rs.tmpl         # Entry point with plugin setup
-│       ├── lib.rs.tmpl          # Library exports
-│       ├── config.rs.tmpl       # App configuration
-│       ├── error.rs.tmpl        # Custom error types
-│       ├── commands/            # IPC handlers (app, auth, files, system)
-│       ├── state/               # Thread-safe app state
-│       ├── db/                  # SQLite with sqlx
-│       ├── models/              # User, Settings models
-│       └── services/            # Auth, Settings services
-├── src/lib/                     # Frontend integration
-│   ├── tauri.ts.tmpl           # Type-safe Tauri API wrapper
-│   ├── tauri-store.ts.tmpl     # Persistent store wrapper
-│   ├── hooks/useTauri.ts.tmpl  # React hooks
-│   └── composables/useTauri.ts.tmpl  # Vue composables
-├── tests/
-│   ├── rust/                    # Cargo tests
-│   └── e2e/                     # Playwright E2E tests
-├── Dockerfile.tmpl              # Multi-stage build
-├── docker-compose.yml.tmpl      # Dev environment
-└── .github/workflows/tauri-release.yml.tmpl  # Multi-platform CI/CD
-```
-
-### Tauri Template Variables
-- `{{PROJECT_NAME}}` - kebab-case identifier
-- `{{AUTHOR}}` - Author name
-- `{{APP_TITLE}}` - Window title
-- `{{BUNDLE_ID}}` - Bundle identifier (e.g., `com.example.app`)
-
 ## Design Systems (86 templates)
 
-When `design_system` is selected in wizard Phase 9:
+Available in `frontend/design-systems/`:
 
-```
-frontend/design-systems/
-├── README.md                 # Central documentation
-├── COMPARISON.md             # Detailed comparison guide
-├── index.ts.tmpl            # Design system selector
-├── design-tokens.ts.tmpl    # Shared design tokens
-├── preview-data.json.tmpl   # Wizard preview data
-│
-├── geist/                   # Vercel/Geist aesthetic (12 templates)
-│   ├── tailwind.config.geist.js.tmpl
-│   ├── globals.css.tmpl
-│   ├── components/react/    # Button, Card, Input, Modal, Navbar
-│   ├── components/vue/      # Button, Card, Input
-│   └── examples/LandingPage.tsx.tmpl
-│
-├── glassmorphism/           # Frosted glass effect (13 templates)
-│   ├── tailwind.config.glass.js.tmpl
-│   ├── globals.css.tmpl
-│   ├── components/react/    # GlassButton, GlassCard, GlassModal, etc.
-│   ├── components/vue/
-│   └── examples/LandingPage.tsx.tmpl
-│
-├── neumorphism/             # Soft UI (15 templates)
-│   ├── tailwind.config.neu.js.tmpl
-│   ├── globals.css.tmpl
-│   ├── components/react/    # NeuButton, NeuCard, NeuToggle, NeuSlider, etc.
-│   ├── components/vue/
-│   └── examples/LandingPage.tsx.tmpl
-│
-├── claymorphism/            # Clay/plasticine effect (15 templates)
-│   ├── tailwind.config.clay.js.tmpl
-│   ├── globals.css.tmpl
-│   ├── components/react/    # ClayButton, ClayCard, ClayAvatar, etc.
-│   ├── components/vue/
-│   └── examples/LandingPage.tsx.tmpl
-│
-├── neo-brutalism/           # Bold & chunky (16 templates)
-│   ├── tailwind.config.brutal.js.tmpl
-│   ├── globals.css.tmpl
-│   ├── components/react/    # BrutalButton, BrutalHeading, BrutalMarquee, etc.
-│   ├── components/vue/
-│   └── examples/LandingPage.tsx.tmpl
-│
-└── shared/                  # Shared utilities (10 templates)
-    ├── hooks/               # useDesignSystem, useTheme (React)
-    ├── composables/         # useDesignSystem, useTheme (Vue)
-    ├── context/             # DesignSystemProvider
-    ├── utils/               # cn(), animations
-    └── types/               # TypeScript interfaces
-```
+| System | Style | Templates |
+|--------|-------|-----------|
+| `geist` | Vercel aesthetic, sharp minimalism | 12 |
+| `glassmorphism` | Frosted glass, backdrop-blur | 13 |
+| `neumorphism` | Soft shadows, tactile feel | 15 |
+| `claymorphism` | Organic shapes, pastel colors | 15 |
+| `neo-brutalism` | Bold colors, chunky typography | 16 |
+| `shared` | React hooks, Vue composables, tokens | 10 |
 
-### Design System Options
+Each includes Tailwind config, React components, Vue components, and landing page example.
 
-| System | Style | Best For | Accessibility |
-|--------|-------|----------|---------------|
-| **Geist** | Sharp minimalism, gradients | Tech products, SaaS | ⭐⭐⭐⭐⭐ |
-| **Glassmorphism** | Frosted glass, blur | Futuristic apps, dark mode | ⭐⭐⭐⭐ |
-| **Neumorphism** | Soft shadows, tactile | Calm UIs, settings | ⭐⭐⭐ |
-| **Claymorphism** | Organic shapes, playful | Consumer apps, kids | ⭐⭐⭐⭐ |
-| **Neo-Brutalism** | Bold colors, chunky | Creative agencies, portfolios | ⭐⭐⭐⭐⭐ |
+## Desktop (Tauri) Templates (74 templates)
 
-## Key Files Reference
-
-| File | Purpose |
-|------|---------|
-| `wizard/questions.yaml` | All wizard phases and questions |
-| `_meta/manifest.json` | Project metadata |
-| `docs/ARCHITECTURE.md` | Monorepo architecture patterns |
-| `docs/TESTING.md` | Testing strategy by scale |
-| `docs/WIZARD-PHASES.md` | Detailed phase documentation |
+Located in `desktop/tauri/`:
+- `src-tauri/` - Rust backend (Cargo, commands, db, models, services)
+- `src/lib/` - Frontend integration (tauri.ts, hooks, composables)
+- `tests/` - Rust tests + Playwright E2E
+- CI/CD for multi-platform builds (Windows, macOS, Linux)

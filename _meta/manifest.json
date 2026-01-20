@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "nuevo-proyecto",
-  "version": "6.0.0",
-  "description": "Enterprise fullstack scaffold - Netflix-scale ready with 828 templates",
+  "version": "6.2.0",
+  "description": "Enterprise fullstack scaffold - Netflix-scale ready with 972 templates",
   "author": "Homero Thompson del Lago del Terror",
   "license": "MIT",
   "engines": {
@@ -36,7 +36,7 @@
     "observability": ["logging", "error-tracking", "apm", "tracing", "metrics", "slo", "real-user"],
     "extras": ["email", "storage", "queues", "feature-flags", "analytics", "search", "ai-integration", "i18n", "cms", "payments"]
   },
-  "templateCount": 828,
+  "templateCount": 972,
   "templateBreakdown": {
     "backend_fastapi": 27,
     "backend_nestjs": 32,
@@ -73,7 +73,9 @@
     "devex": 26,
     "extras": 30,
     "packages": 5,
-    "core": 3
+    "core": 3,
+    "desktop_tauri": 74,
+    "design_systems": 86
   },
   "completionStatus": {
     "fastapi": "complete",
@@ -106,10 +108,12 @@
     "ci_cd": "complete",
     "observability": "complete",
     "devex": "complete",
-    "extras": "complete"
+    "extras": "complete",
+    "tauri": "complete",
+    "design-systems": "complete"
   },
-  "wizardVersion": "4.0.0",
+  "wizardVersion": "6.2.0",
   "wizardPhases": 11,
-  "wizardQuestions": 31,
-  "lastUpdated": "2026-01-19"
+  "wizardQuestions": 33,
+  "lastUpdated": "2026-01-20"
 }
