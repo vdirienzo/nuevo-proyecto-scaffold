@@ -1,0 +1,387 @@
+/**
+ * datatable.js - DataTable wrapper component
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import { formatDate, formatDateTime, truncate } from '../utils.js';
+
+/**
+ * DataTable component
+ */
+export class DataTable {
+    constructor(container, options = {}) {
+        this.container = container;
+        this.columns = options.columns || [];
+        this.data = options.data || [];
+        this.pagination = options.pagination !== false;
+        this.search = options.search !== false;
+        this.perPage = options.perPage || 10;
+        this.currentPage = 1;
+        this.sortColumn = options.sortColumn || null;
+        this.sortDirection = options.sortDirection || 'asc';
+        this.onRowClick = options.onRowClick || null;
+        this.actions = options.actions || null;
+        this.$el = null;
+        this.filteredData = [];
+    }
+
+    /**
+     * Render table
+     */
+    render() {
+        this.filteredData = [...this.data];
+
+        const html = `
+            <div class="datatable-wrapper">
+                ${this.search ? `
+                    <div class="datatable-header mb-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control"
+                                       placeholder="Search..."
+                                       id="datatable-search">
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <span class="text-muted">
+                                    Showing ${this.getPageStart()} to ${this.getPageEnd()}
+                                    of ${this.filteredData.length} entries
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                ${this.renderTableHeaders()}
+                            </tr>
+                        </thead>
+                        <tbody id="datatable-body">
+                            ${this.renderTableRows()}
+                        </tbody>
+                    </table>
+                </div>
+
+                ${this.pagination ? `
+                    <div class="datatable-footer mt-3">
+                        <nav>
+                            <ul class="pagination justify-content-center" id="datatable-pagination">
+                                ${this.renderPagination()}
+                            </ul>
+                        </nav>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+
+        $(this.container).html(html);
+        this.$el = $(this.container).find('.datatable-wrapper');
+
+        this.attachEventListeners();
+    }
+
+    /**
+     * Render table headers
+     * @returns {string}
+     */
+    renderTableHeaders() {
+        const headers = this.columns.map(col => {
+            const sortable = col.sortable !== false;
+            const sortIcon = this.sortColumn === col.field
+                ? (this.sortDirection === 'asc' ? '↑' : '↓')
+                : '';
+
+            return `
+                <th class="${sortable ? 'sortable' : ''}"
+                    data-field="${col.field}">
+                    ${col.label} ${sortIcon}
+                </th>
+            `;
+        }).join('');
+
+        return headers + (this.actions ? '<th>Actions</th>' : '');
+    }
+
+    /**
+     * Render table rows
+     * @returns {string}
+     */
+    renderTableRows() {
+        const pageData = this.getPageData();
+
+        if (pageData.length === 0) {
+            return `
+                <tr>
+                    <td colspan="${this.columns.length + (this.actions ? 1 : 0)}"
+                        class="text-center text-muted py-4">
+                        No data available
+                    </td>
+                </tr>
+            `;
+        }
+
+        return pageData.map((row, index) => {
+            const cells = this.columns.map(col => {
+                const value = this.getCellValue(row, col);
+                return `<td>${value}</td>`;
+            }).join('');
+
+            const actionsCell = this.actions
+                ? `<td>${this.renderActions(row, index)}</td>`
+                : '';
+
+            return `<tr data-index="${index}">${cells}${actionsCell}</tr>`;
+        }).join('');
+    }
+
+    /**
+     * Get cell value with formatting
+     * @param {object} row - Row data
+     * @param {object} column - Column config
+     * @returns {string}
+     */
+    getCellValue(row, column) {
+        let value = row[column.field];
+
+        // Apply formatter if provided
+        if (column.formatter) {
+            return column.formatter(value, row);
+        }
+
+        // Default formatters
+        if (column.type === 'date') {
+            return formatDate(value);
+        }
+        if (column.type === 'datetime') {
+            return formatDateTime(value);
+        }
+        if (column.type === 'truncate') {
+            return truncate(value, column.length || 50);
+        }
+
+        return value ?? '';
+    }
+
+    /**
+     * Render action buttons
+     * @param {object} row - Row data
+     * @param {number} index - Row index
+     * @returns {string}
+     */
+    renderActions(row, index) {
+        if (typeof this.actions === 'function') {
+            return this.actions(row, index);
+        }
+        return '';
+    }
+
+    /**
+     * Render pagination
+     * @returns {string}
+     */
+    renderPagination() {
+        const totalPages = this.getTotalPages();
+        const pages = [];
+
+        // Previous button
+        pages.push(`
+            <li class="page-item ${this.currentPage === 1 ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${this.currentPage - 1}">
+                    Previous
+                </a>
+            </li>
+        `);
+
+        // Page numbers
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || Math.abs(i - this.currentPage) <= 2) {
+                pages.push(`
+                    <li class="page-item ${i === this.currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>
+                `);
+            } else if (Math.abs(i - this.currentPage) === 3) {
+                pages.push('<li class="page-item disabled"><span class="page-link">...</span></li>');
+            }
+        }
+
+        // Next button
+        pages.push(`
+            <li class="page-item ${this.currentPage === totalPages ? 'disabled' : ''}">
+                <a class="page-link" href="#" data-page="${this.currentPage + 1}">
+                    Next
+                </a>
+            </li>
+        `);
+
+        return pages.join('');
+    }
+
+    /**
+     * Attach event listeners
+     */
+    attachEventListeners() {
+        // Search
+        if (this.search) {
+            $('#datatable-search').on('input', (e) => {
+                this.handleSearch($(e.target).val());
+            });
+        }
+
+        // Sort
+        this.$el.find('th.sortable').on('click', (e) => {
+            const field = $(e.currentTarget).data('field');
+            this.handleSort(field);
+        });
+
+        // Pagination
+        if (this.pagination) {
+            $('#datatable-pagination').on('click', 'a', (e) => {
+                e.preventDefault();
+                const page = parseInt($(e.currentTarget).data('page'));
+                if (!isNaN(page) && page >= 1 && page <= this.getTotalPages()) {
+                    this.goToPage(page);
+                }
+            });
+        }
+
+        // Row click
+        if (this.onRowClick) {
+            this.$el.find('tbody tr').on('click', (e) => {
+                const index = parseInt($(e.currentTarget).data('index'));
+                const row = this.getPageData()[index];
+                this.onRowClick(row, index);
+            });
+        }
+    }
+
+    /**
+     * Handle search
+     * @param {string} query - Search query
+     */
+    handleSearch(query) {
+        if (!query) {
+            this.filteredData = [...this.data];
+        } else {
+            query = query.toLowerCase();
+            this.filteredData = this.data.filter(row => {
+                return this.columns.some(col => {
+                    const value = String(row[col.field] || '').toLowerCase();
+                    return value.includes(query);
+                });
+            });
+        }
+
+        this.currentPage = 1;
+        this.refresh();
+    }
+
+    /**
+     * Handle sort
+     * @param {string} field - Field to sort by
+     */
+    handleSort(field) {
+        if (this.sortColumn === field) {
+            this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            this.sortColumn = field;
+            this.sortDirection = 'asc';
+        }
+
+        this.filteredData.sort((a, b) => {
+            const aVal = a[field];
+            const bVal = b[field];
+
+            if (aVal === bVal) return 0;
+
+            const comparison = aVal < bVal ? -1 : 1;
+            return this.sortDirection === 'asc' ? comparison : -comparison;
+        });
+
+        this.refresh();
+    }
+
+    /**
+     * Go to specific page
+     * @param {number} page - Page number
+     */
+    goToPage(page) {
+        this.currentPage = page;
+        this.refresh();
+    }
+
+    /**
+     * Refresh table
+     */
+    refresh() {
+        this.$el.find('tbody').html(this.renderTableRows());
+        if (this.pagination) {
+            this.$el.find('#datatable-pagination').html(this.renderPagination());
+        }
+        this.attachEventListeners();
+    }
+
+    /**
+     * Update data
+     * @param {Array} data - New data
+     */
+    setData(data) {
+        this.data = data;
+        this.filteredData = [...data];
+        this.currentPage = 1;
+        this.refresh();
+    }
+
+    /**
+     * Get page data
+     * @returns {Array}
+     */
+    getPageData() {
+        if (!this.pagination) {
+            return this.filteredData;
+        }
+
+        const start = (this.currentPage - 1) * this.perPage;
+        const end = start + this.perPage;
+        return this.filteredData.slice(start, end);
+    }
+
+    /**
+     * Get total pages
+     * @returns {number}
+     */
+    getTotalPages() {
+        return Math.ceil(this.filteredData.length / this.perPage);
+    }
+
+    /**
+     * Get page start index
+     * @returns {number}
+     */
+    getPageStart() {
+        return (this.currentPage - 1) * this.perPage + 1;
+    }
+
+    /**
+     * Get page end index
+     * @returns {number}
+     */
+    getPageEnd() {
+        return Math.min(this.currentPage * this.perPage, this.filteredData.length);
+    }
+
+    /**
+     * Destroy table
+     */
+    destroy() {
+        if (this.$el) {
+            this.$el.remove();
+        }
+    }
+}
+
+export default DataTable;

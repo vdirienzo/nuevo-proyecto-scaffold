@@ -1,0 +1,134 @@
+/**
+ * auth.service.ts - Authentication service
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { Injectable, inject, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { Observable, tap } from 'rxjs';
+import { ApiService } from './api.service';
+import { StorageService } from './storage.service';
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  email: string;
+  password: string;
+  username: string;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: string;
+  expires_in: number;
+  user: User;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  username: string;
+}
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthService {
+  private api = inject(ApiService);
+  private storage = inject(StorageService);
+  private router = inject(Router);
+
+  // Signals for reactive state
+  currentUser = signal<User | null>(null);
+  isLoggedIn = signal<boolean>(false);
+
+  constructor() {
+    this.checkAuthStatus();
+  }
+
+  /**
+   * Login user
+   */
+  login(credentials: LoginCredentials): Observable<AuthResponse> {
+    return this.api.post<AuthResponse>('/auth/login', credentials).pipe(
+      tap(response => this.handleAuthSuccess(response))
+    );
+  }
+
+  /**
+   * Register new user
+   */
+  register(data: RegisterData): Observable<AuthResponse> {
+    return this.api.post<AuthResponse>('/auth/register', data).pipe(
+      tap(response => this.handleAuthSuccess(response))
+    );
+  }
+
+  /**
+   * Logout user
+   */
+  logout(): void {
+    this.storage.clearToken();
+    this.currentUser.set(null);
+    this.isLoggedIn.set(false);
+    this.router.navigate(['/auth/login']);
+  }
+
+  /**
+   * Check if user is authenticated
+   */
+  isAuthenticated(): boolean {
+    const token = this.storage.getToken();
+    if (!token) {
+      return false;
+    }
+
+    // Check token expiry
+    const expiry = this.storage.getTokenExpiry();
+    if (expiry && new Date().getTime() > expiry) {
+      this.logout();
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Get current user
+   */
+  getCurrentUser(): Observable<User> {
+    return this.api.get<User>('/auth/me').pipe(
+      tap(user => this.currentUser.set(user))
+    );
+  }
+
+  /**
+   * Handle successful authentication
+   */
+  private handleAuthSuccess(response: AuthResponse): void {
+    this.storage.saveToken(response.access_token);
+    this.storage.saveRefreshToken(response.refresh_token);
+
+    // Calculate and save token expiry
+    const expiryTime = new Date().getTime() + (response.expires_in * 1000);
+    this.storage.saveTokenExpiry(expiryTime);
+
+    this.currentUser.set(response.user);
+    this.isLoggedIn.set(true);
+  }
+
+  /**
+   * Check authentication status on init
+   */
+  private checkAuthStatus(): void {
+    if (this.isAuthenticated()) {
+      this.isLoggedIn.set(true);
+      this.getCurrentUser().subscribe();
+    }
+  }
+}

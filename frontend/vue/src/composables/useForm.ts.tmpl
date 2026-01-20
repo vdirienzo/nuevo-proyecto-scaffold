@@ -1,0 +1,140 @@
+/**
+ * useForm.ts - Form handling with validation
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { ref, reactive, computed } from 'vue'
+import type { Ref } from 'vue'
+
+export type ValidationRule<T = any> = (value: T) => string | undefined
+
+export interface FieldConfig<T = any> {
+  initialValue: T
+  rules?: ValidationRule<T>[]
+}
+
+export interface FormConfig {
+  [key: string]: FieldConfig
+}
+
+export function useForm<T extends Record<string, any>>(config: FormConfig) {
+  const formData = reactive<T>({} as T)
+  const errors = reactive<Record<string, string>>({})
+  const touched = reactive<Record<string, boolean>>({})
+  const submitting = ref(false)
+
+  // Initialize form data
+  Object.keys(config).forEach((key) => {
+    formData[key as keyof T] = config[key].initialValue
+    errors[key] = ''
+    touched[key] = false
+  })
+
+  const validateField = (field: string): boolean => {
+    const fieldConfig = config[field]
+    if (!fieldConfig || !fieldConfig.rules) return true
+
+    const value = formData[field as keyof T]
+
+    for (const rule of fieldConfig.rules) {
+      const error = rule(value)
+      if (error) {
+        errors[field] = error
+        return false
+      }
+    }
+
+    errors[field] = ''
+    return true
+  }
+
+  const validateAll = (): boolean => {
+    let isValid = true
+
+    Object.keys(config).forEach((field) => {
+      if (!validateField(field)) {
+        isValid = false
+      }
+    })
+
+    return isValid
+  }
+
+  const handleBlur = (field: string) => {
+    touched[field] = true
+    validateField(field)
+  }
+
+  const handleChange = (field: string) => {
+    if (touched[field]) {
+      validateField(field)
+    }
+  }
+
+  const reset = () => {
+    Object.keys(config).forEach((key) => {
+      formData[key as keyof T] = config[key].initialValue
+      errors[key] = ''
+      touched[key] = false
+    })
+    submitting.value = false
+  }
+
+  const setFieldValue = <K extends keyof T>(field: K, value: T[K]) => {
+    formData[field] = value
+    handleChange(field as string)
+  }
+
+  const setFieldError = (field: string, error: string) => {
+    errors[field] = error
+  }
+
+  const isValid = computed(() => {
+    return Object.values(errors).every(error => !error)
+  })
+
+  const isDirty = computed(() => {
+    return Object.keys(config).some(key => {
+      return formData[key as keyof T] !== config[key].initialValue
+    })
+  })
+
+  const handleSubmit = async (
+    onSubmit: (data: T) => Promise<void> | void
+  ) => {
+    // Mark all fields as touched
+    Object.keys(config).forEach(key => {
+      touched[key] = true
+    })
+
+    if (!validateAll()) {
+      return
+    }
+
+    submitting.value = true
+
+    try {
+      await onSubmit(formData)
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  return {
+    formData,
+    errors,
+    touched,
+    submitting,
+    isValid,
+    isDirty,
+    validateField,
+    validateAll,
+    handleBlur,
+    handleChange,
+    handleSubmit,
+    setFieldValue,
+    setFieldError,
+    reset
+  }
+}

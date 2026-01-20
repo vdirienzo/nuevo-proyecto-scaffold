@@ -1,0 +1,153 @@
+/**
+ * register.component.ts - User registration page
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { Component, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { Router, RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { AuthService, RegisterData } from '@core/services/auth.service';
+import { ButtonComponent } from '@shared/components/button/button.component';
+import { InputComponent } from '@shared/components/input/input.component';
+import { CardComponent } from '@shared/components/card/card.component';
+
+@Component({
+  selector: 'app-register',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    ButtonComponent,
+    InputComponent,
+    CardComponent
+  ],
+  template: `
+    <div class="min-h-screen flex items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-md w-full">
+        <div class="text-center mb-8">
+          <h2 class="text-3xl font-bold text-gray-900">Create your account</h2>
+          <p class="mt-2 text-sm text-gray-600">
+            Already have an account?
+            <a routerLink="/auth/login" class="font-medium text-blue-600 hover:text-blue-500">
+              Sign in
+            </a>
+          </p>
+        </div>
+
+        <app-card>
+          <form (ngSubmit)="onSubmit()" class="space-y-6">
+            @if (error()) {
+              <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                {{ error() }}
+              </div>
+            }
+
+            <app-input
+              id="username"
+              type="text"
+              label="Username"
+              placeholder="johndoe"
+              [required]="true"
+              [(ngModel)]="registerData.username"
+              name="username"
+            />
+
+            <app-input
+              id="email"
+              type="email"
+              label="Email address"
+              placeholder="you@example.com"
+              [required]="true"
+              [(ngModel)]="registerData.email"
+              name="email"
+            />
+
+            <app-input
+              id="password"
+              type="password"
+              label="Password"
+              placeholder="••••••••"
+              [required]="true"
+              hint="Minimum 8 characters"
+              [(ngModel)]="registerData.password"
+              name="password"
+            />
+
+            <div class="flex items-center">
+              <input
+                id="terms"
+                type="checkbox"
+                [(ngModel)]="acceptTerms"
+                name="terms"
+                class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label for="terms" class="ml-2 block text-sm text-gray-900">
+                I agree to the
+                <a href="#" class="text-blue-600 hover:text-blue-500">Terms of Service</a>
+                and
+                <a href="#" class="text-blue-600 hover:text-blue-500">Privacy Policy</a>
+              </label>
+            </div>
+
+            <app-button
+              type="submit"
+              variant="primary"
+              size="lg"
+              [fullWidth]="true"
+              [loading]="loading()"
+              [disabled]="!isFormValid()"
+            >
+              Create account
+            </app-button>
+          </form>
+        </app-card>
+      </div>
+    </div>
+  `,
+  styles: []
+})
+export class RegisterComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
+  registerData: RegisterData = {
+    email: '',
+    password: '',
+    username: ''
+  };
+
+  acceptTerms = false;
+  loading = signal(false);
+  error = signal('');
+
+  isFormValid(): boolean {
+    return !!(
+      this.registerData.email &&
+      this.registerData.password &&
+      this.registerData.username &&
+      this.acceptTerms
+    );
+  }
+
+  onSubmit(): void {
+    if (!this.isFormValid()) {
+      return;
+    }
+
+    this.loading.set(true);
+    this.error.set('');
+
+    this.authService.register(this.registerData).subscribe({
+      next: () => {
+        this.router.navigate(['/dashboard']);
+      },
+      error: (err) => {
+        this.error.set(err.message || 'Registration failed. Please try again.');
+        this.loading.set(false);
+      }
+    });
+  }
+}

@@ -1,0 +1,161 @@
+/**
+ * auth.service.spec.ts - Authentication service tests
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { Router } from '@angular/router';
+import { AuthService, LoginCredentials, RegisterData, AuthResponse } from './auth.service';
+import { StorageService } from './storage.service';
+import { ApiService } from './api.service';
+
+describe('AuthService', () => {
+  let service: AuthService;
+  let httpMock: HttpTestingController;
+  let storageService: jasmine.SpyObj<StorageService>;
+  let router: jasmine.SpyObj<Router>;
+
+  const mockAuthResponse: AuthResponse = {
+    access_token: 'mock-token',
+    refresh_token: 'mock-refresh-token',
+    token_type: 'Bearer',
+    expires_in: 3600,
+    user: {
+      id: 1,
+      email: 'test@example.com',
+      username: 'testuser'
+    }
+  };
+
+  beforeEach(() => {
+    const storageServiceSpy = jasmine.createSpyObj('StorageService', [
+      'saveToken',
+      'getToken',
+      'saveRefreshToken',
+      'saveTokenExpiry',
+      'getTokenExpiry',
+      'clearToken'
+    ]);
+    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        AuthService,
+        ApiService,
+        { provide: StorageService, useValue: storageServiceSpy },
+        { provide: Router, useValue: routerSpy }
+      ]
+    });
+
+    service = TestBed.inject(AuthService);
+    httpMock = TestBed.inject(HttpTestingController);
+    storageService = TestBed.inject(StorageService) as jasmine.SpyObj<StorageService>;
+    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('should be created', () => {
+    expect(service).toBeTruthy();
+  });
+
+  describe('login', () => {
+    it('should login user and save tokens', (done) => {
+      const credentials: LoginCredentials = {
+        email: 'test@example.com',
+        password: 'password123'
+      };
+
+      service.login(credentials).subscribe(response => {
+        expect(response).toEqual(mockAuthResponse);
+        expect(storageService.saveToken).toHaveBeenCalledWith(mockAuthResponse.access_token);
+        expect(storageService.saveRefreshToken).toHaveBeenCalledWith(mockAuthResponse.refresh_token);
+        expect(service.currentUser()).toEqual(mockAuthResponse.user);
+        expect(service.isLoggedIn()).toBe(true);
+        done();
+      });
+
+      const req = httpMock.expectOne('http://localhost:8000/api/v1/auth/login');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual(credentials);
+      req.flush(mockAuthResponse);
+    });
+
+    it('should handle login error', (done) => {
+      const credentials: LoginCredentials = {
+        email: 'test@example.com',
+        password: 'wrong-password'
+      };
+
+      service.login(credentials).subscribe({
+        error: (error) => {
+          expect(error).toBeTruthy();
+          expect(service.isLoggedIn()).toBe(false);
+          done();
+        }
+      });
+
+      const req = httpMock.expectOne('http://localhost:8000/api/v1/auth/login');
+      req.error(new ProgressEvent('error'), { status: 401 });
+    });
+  });
+
+  describe('register', () => {
+    it('should register new user', (done) => {
+      const registerData: RegisterData = {
+        email: 'newuser@example.com',
+        password: 'password123',
+        username: 'newuser'
+      };
+
+      service.register(registerData).subscribe(response => {
+        expect(response).toEqual(mockAuthResponse);
+        expect(storageService.saveToken).toHaveBeenCalled();
+        done();
+      });
+
+      const req = httpMock.expectOne('http://localhost:8000/api/v1/auth/register');
+      expect(req.request.method).toBe('POST');
+      req.flush(mockAuthResponse);
+    });
+  });
+
+  describe('logout', () => {
+    it('should clear tokens and redirect to login', () => {
+      service.logout();
+
+      expect(storageService.clearToken).toHaveBeenCalled();
+      expect(service.currentUser()).toBeNull();
+      expect(service.isLoggedIn()).toBe(false);
+      expect(router.navigate).toHaveBeenCalledWith(['/auth/login']);
+    });
+  });
+
+  describe('isAuthenticated', () => {
+    it('should return true when token is valid', () => {
+      storageService.getToken.and.returnValue('valid-token');
+      storageService.getTokenExpiry.and.returnValue(Date.now() + 3600000);
+
+      expect(service.isAuthenticated()).toBe(true);
+    });
+
+    it('should return false when token is expired', () => {
+      storageService.getToken.and.returnValue('expired-token');
+      storageService.getTokenExpiry.and.returnValue(Date.now() - 1000);
+
+      expect(service.isAuthenticated()).toBe(false);
+      expect(storageService.clearToken).toHaveBeenCalled();
+    });
+
+    it('should return false when no token', () => {
+      storageService.getToken.and.returnValue(null);
+
+      expect(service.isAuthenticated()).toBe(false);
+    });
+  });
+});

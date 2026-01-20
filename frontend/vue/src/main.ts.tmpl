@@ -1,0 +1,32 @@
+/**
+ * main.ts - Application bootstrap
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { createApp } from 'vue'
+import { createPinia } from 'pinia'
+import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+
+import App from './App.vue'
+import router from './router'
+
+import './assets/css/main.css'
+
+const app = createApp(App)
+
+// Pinia setup with persistence
+const pinia = createPinia()
+pinia.use(piniaPluginPersistedstate)
+
+app.use(pinia)
+app.use(router)
+
+// Global error handler
+app.config.errorHandler = (err, instance, info) => {
+  console.error('Global error:', err)
+  console.error('Component:', instance)
+  console.error('Error info:', info)
+}
+
+app.mount('#app')

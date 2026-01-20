@@ -1,0 +1,65 @@
+/**
+ * date-format.pipe.ts - Custom date formatting pipe
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { Pipe, PipeTransform } from '@angular/core';
+
+@Pipe({
+  name: 'dateFormat',
+  standalone: true
+})
+export class DateFormatPipe implements PipeTransform {
+  transform(value: string | Date, format: 'short' | 'medium' | 'long' | 'relative' = 'medium'): string {
+    if (!value) return '';
+
+    const date = typeof value === 'string' ? new Date(value) : value;
+
+    if (isNaN(date.getTime())) {
+      return '';
+    }
+
+    switch (format) {
+      case 'short':
+        return date.toLocaleDateString();
+      case 'long':
+        return date.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      case 'relative':
+        return this.getRelativeTime(date);
+      case 'medium':
+      default:
+        return date.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        });
+    }
+  }
+
+  private getRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffSec < 60) {
+      return 'just now';
+    } else if (diffMin < 60) {
+      return `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`;
+    } else if (diffHour < 24) {
+      return `${diffHour} hour${diffHour > 1 ? 's' : ''} ago`;
+    } else if (diffDay < 30) {
+      return `${diffDay} day${diffDay > 1 ? 's' : ''} ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  }
+}

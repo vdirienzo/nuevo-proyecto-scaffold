@@ -1,0 +1,115 @@
+/**
+ * stores/users.ts - Users store
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
+import type { User } from '@/types'
+import { apiClient } from '@/services/api'
+
+export const useUsersStore = defineStore('users', () => {
+  const users = ref<User[]>([])
+  const currentUser = ref<User | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  const fetchUsers = async () => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await apiClient.get<User[]>('/users')
+      users.value = response.data
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch users'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const fetchUserById = async (id: number) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await apiClient.get<User>(`/users/${id}`)
+      currentUser.value = response.data
+      return response.data
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch user'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const createUser = async (userData: Partial<User>) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await apiClient.post<User>('/users', userData)
+      users.value.push(response.data)
+      return response.data
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to create user'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateUser = async (id: number, userData: Partial<User>) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await apiClient.put<User>(`/users/${id}`, userData)
+      const index = users.value.findIndex(u => u.id === id)
+      if (index !== -1) {
+        users.value[index] = response.data
+      }
+      return response.data
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update user'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const deleteUser = async (id: number) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      await apiClient.delete(`/users/${id}`)
+      users.value = users.value.filter(u => u.id !== id)
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to delete user'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const clearError = () => {
+    error.value = null
+  }
+
+  return {
+    users,
+    currentUser,
+    loading,
+    error,
+    fetchUsers,
+    fetchUserById,
+    createUser,
+    updateUser,
+    deleteUser,
+    clearError
+  }
+})

@@ -1,0 +1,88 @@
+/**
+ * stores/ui.ts - UI state (sidebar, theme, modals)
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export type Theme = 'light' | 'dark' | 'auto'
+
+export const useUiStore = defineStore('ui', () => {
+  const sidebarOpen = ref(true)
+  const theme = ref<Theme>('light')
+  const activeModal = ref<string | null>(null)
+
+  const isDarkMode = computed(() => {
+    if (theme.value === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches
+    }
+    return theme.value === 'dark'
+  })
+
+  const toggleSidebar = () => {
+    sidebarOpen.value = !sidebarOpen.value
+  }
+
+  const closeSidebar = () => {
+    sidebarOpen.value = false
+  }
+
+  const openSidebar = () => {
+    sidebarOpen.value = true
+  }
+
+  const setTheme = (newTheme: Theme) => {
+    theme.value = newTheme
+    applyTheme()
+  }
+
+  const applyTheme = () => {
+    if (isDarkMode.value) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+  }
+
+  const openModal = (modalId: string) => {
+    activeModal.value = modalId
+  }
+
+  const closeModal = () => {
+    activeModal.value = null
+  }
+
+  const isModalOpen = (modalId: string) => {
+    return activeModal.value === modalId
+  }
+
+  // Initialize theme on store creation
+  applyTheme()
+
+  // Watch for system theme changes
+  if (theme.value === 'auto') {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme)
+  }
+
+  return {
+    sidebarOpen,
+    theme,
+    activeModal,
+    isDarkMode,
+    toggleSidebar,
+    closeSidebar,
+    openSidebar,
+    setTheme,
+    openModal,
+    closeModal,
+    isModalOpen
+  }
+}, {
+  persist: {
+    key: 'ui-store',
+    storage: localStorage,
+    paths: ['theme', 'sidebarOpen']
+  }
+})

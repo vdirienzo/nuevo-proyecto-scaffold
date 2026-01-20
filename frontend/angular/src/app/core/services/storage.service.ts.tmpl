@@ -1,0 +1,98 @@
+/**
+ * storage.service.ts - Local storage wrapper service
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { Injectable } from '@angular/core';
+import { environment } from '@environments/environment';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class StorageService {
+  private readonly TOKEN_KEY = environment.tokenKey;
+  private readonly REFRESH_TOKEN_KEY = environment.refreshTokenKey;
+  private readonly TOKEN_EXPIRY_KEY = environment.tokenExpiryKey;
+
+  /**
+   * Save authentication token
+   */
+  saveToken(token: string): void {
+    localStorage.setItem(this.TOKEN_KEY, token);
+  }
+
+  /**
+   * Get authentication token
+   */
+  getToken(): string | null {
+    return localStorage.getItem(this.TOKEN_KEY);
+  }
+
+  /**
+   * Save refresh token
+   */
+  saveRefreshToken(token: string): void {
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
+  }
+
+  /**
+   * Get refresh token
+   */
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  /**
+   * Save token expiry time
+   */
+  saveTokenExpiry(expiry: number): void {
+    localStorage.setItem(this.TOKEN_EXPIRY_KEY, expiry.toString());
+  }
+
+  /**
+   * Get token expiry time
+   */
+  getTokenExpiry(): number | null {
+    const expiry = localStorage.getItem(this.TOKEN_EXPIRY_KEY);
+    return expiry ? parseInt(expiry, 10) : null;
+  }
+
+  /**
+   * Clear all tokens
+   */
+  clearToken(): void {
+    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    localStorage.removeItem(this.TOKEN_EXPIRY_KEY);
+  }
+
+  /**
+   * Save generic data
+   */
+  set(key: string, value: any): void {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  /**
+   * Get generic data
+   */
+  get<T>(key: string): T | null {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : null;
+  }
+
+  /**
+   * Remove item
+   */
+  remove(key: string): void {
+    localStorage.removeItem(key);
+  }
+
+  /**
+   * Clear all storage
+   */
+  clear(): void {
+    localStorage.clear();
+  }
+}

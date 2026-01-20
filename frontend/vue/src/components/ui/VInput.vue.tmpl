@@ -1,0 +1,89 @@
+<!--
+  VInput.vue - Reusable input component
+  @author {{AUTHOR}}
+  @project {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+export interface VInputProps {
+  modelValue: string | number
+  label?: string
+  type?: string
+  placeholder?: string
+  error?: string
+  disabled?: boolean
+  required?: boolean
+  autocomplete?: string
+}
+
+const props = withDefaults(defineProps<VInputProps>(), {
+  type: 'text',
+  placeholder: '',
+  error: '',
+  disabled: false,
+  required: false,
+  autocomplete: 'off'
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: string | number]
+  blur: []
+  focus: []
+}>()
+
+const inputClasses = computed(() => {
+  const classes = [
+    'block w-full px-3 py-2 border rounded-lg',
+    'focus:outline-none focus:ring-2 focus:ring-offset-1',
+    'transition-colors',
+    'disabled:bg-gray-100 disabled:cursor-not-allowed'
+  ]
+
+  if (props.error) {
+    classes.push('border-red-500 focus:ring-red-500')
+  } else {
+    classes.push('border-gray-300 focus:ring-blue-500 focus:border-blue-500')
+  }
+
+  return classes.join(' ')
+})
+
+const handleInput = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  emit('update:modelValue', target.value)
+}
+
+const handleBlur = () => {
+  emit('blur')
+}
+
+const handleFocus = () => {
+  emit('focus')
+}
+</script>
+
+<template>
+  <div class="w-full">
+    <label v-if="label" class="block text-sm font-medium text-gray-700 mb-1">
+      {{ label }}
+      <span v-if="required" class="text-red-500">*</span>
+    </label>
+    <input
+      :type="type"
+      :value="modelValue"
+      :placeholder="placeholder"
+      :disabled="disabled"
+      :required="required"
+      :autocomplete="autocomplete"
+      :class="inputClasses"
+      @input="handleInput"
+      @blur="handleBlur"
+      @focus="handleFocus"
+    />
+    <p v-if="error" class="mt-1 text-sm text-red-600">
+      {{ error }}
+    </p>
+  </div>
+</template>

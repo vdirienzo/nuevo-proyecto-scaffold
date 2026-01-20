@@ -1,0 +1,83 @@
+/**
+ * useNotification.ts - Toast notifications composable
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { ref } from 'vue'
+
+export type NotificationType = 'success' | 'error' | 'warning' | 'info'
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  message: string
+  duration?: number
+}
+
+const notifications = ref<Notification[]>([])
+
+export function useNotification() {
+  const show = (
+    message: string,
+    type: NotificationType = 'info',
+    duration: number = 5000
+  ) => {
+    const id = Math.random().toString(36).substring(2, 9)
+
+    const notification: Notification = {
+      id,
+      type,
+      message,
+      duration
+    }
+
+    notifications.value.push(notification)
+
+    if (duration > 0) {
+      setTimeout(() => {
+        remove(id)
+      }, duration)
+    }
+
+    return id
+  }
+
+  const remove = (id: string) => {
+    const index = notifications.value.findIndex(n => n.id === id)
+    if (index > -1) {
+      notifications.value.splice(index, 1)
+    }
+  }
+
+  const clear = () => {
+    notifications.value = []
+  }
+
+  const showSuccess = (message: string, duration?: number) => {
+    return show(message, 'success', duration)
+  }
+
+  const showError = (message: string, duration?: number) => {
+    return show(message, 'error', duration)
+  }
+
+  const showWarning = (message: string, duration?: number) => {
+    return show(message, 'warning', duration)
+  }
+
+  const showInfo = (message: string, duration?: number) => {
+    return show(message, 'info', duration)
+  }
+
+  return {
+    notifications,
+    show,
+    remove,
+    clear,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo
+  }
+}

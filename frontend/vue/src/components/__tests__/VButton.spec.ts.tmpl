@@ -1,0 +1,148 @@
+/**
+ * __tests__/VButton.spec.ts - VButton component tests
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { describe, it, expect, vi } from 'vitest'
+import { mount } from '@vue/test-utils'
+import VButton from '../ui/VButton.vue'
+
+describe('VButton', () => {
+  it('renders default button correctly', () => {
+    const wrapper = mount(VButton, {
+      slots: {
+        default: 'Click me'
+      }
+    })
+
+    expect(wrapper.text()).toBe('Click me')
+    expect(wrapper.find('button').exists()).toBe(true)
+  })
+
+  it('applies primary variant classes', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        variant: 'primary'
+      }
+    })
+
+    expect(wrapper.classes()).toContain('bg-blue-600')
+  })
+
+  it('applies secondary variant classes', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        variant: 'secondary'
+      }
+    })
+
+    expect(wrapper.classes()).toContain('bg-gray-200')
+  })
+
+  it('applies danger variant classes', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        variant: 'danger'
+      }
+    })
+
+    expect(wrapper.classes()).toContain('bg-red-600')
+  })
+
+  it('applies small size classes', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        size: 'sm'
+      }
+    })
+
+    expect(wrapper.classes()).toContain('px-3')
+    expect(wrapper.classes()).toContain('py-1.5')
+  })
+
+  it('applies large size classes', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        size: 'lg'
+      }
+    })
+
+    expect(wrapper.classes()).toContain('px-6')
+    expect(wrapper.classes()).toContain('py-3')
+  })
+
+  it('disables button when disabled prop is true', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        disabled: true
+      }
+    })
+
+    expect(wrapper.attributes('disabled')).toBeDefined()
+  })
+
+  it('shows loading spinner when loading', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        loading: true
+      }
+    })
+
+    expect(wrapper.find('svg').exists()).toBe(true)
+    expect(wrapper.attributes('disabled')).toBeDefined()
+  })
+
+  it('emits click event when clicked', async () => {
+    const wrapper = mount(VButton)
+
+    await wrapper.trigger('click')
+
+    expect(wrapper.emitted('click')).toBeTruthy()
+    expect(wrapper.emitted('click')?.length).toBe(1)
+  })
+
+  it('does not emit click when disabled', async () => {
+    const wrapper = mount(VButton, {
+      props: {
+        disabled: true
+      }
+    })
+
+    await wrapper.trigger('click')
+
+    expect(wrapper.emitted('click')).toBeFalsy()
+  })
+
+  it('does not emit click when loading', async () => {
+    const wrapper = mount(VButton, {
+      props: {
+        loading: true
+      }
+    })
+
+    await wrapper.trigger('click')
+
+    expect(wrapper.emitted('click')).toBeFalsy()
+  })
+
+  it('applies full width class when fullWidth is true', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        fullWidth: true
+      }
+    })
+
+    expect(wrapper.classes()).toContain('w-full')
+  })
+
+  it('sets correct button type', () => {
+    const wrapper = mount(VButton, {
+      props: {
+        type: 'submit'
+      }
+    })
+
+    expect(wrapper.attributes('type')).toBe('submit')
+  })
+})

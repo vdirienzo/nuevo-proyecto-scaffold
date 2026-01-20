@@ -1,0 +1,99 @@
+/**
+ * useApi.ts - API composable with fetch wrapper
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { ref } from 'vue'
+import type { Ref } from 'vue'
+import { apiClient } from '@/services/api'
+
+interface UseApiOptions {
+  immediate?: boolean
+}
+
+export function useApi<T>(
+  endpoint: string,
+  options: UseApiOptions = { immediate: false }
+) {
+  const data: Ref<T | null> = ref(null)
+  const error: Ref<Error | null> = ref(null)
+  const loading: Ref<boolean> = ref(false)
+
+  const execute = async (params?: Record<string, any>) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await apiClient.get<T>(endpoint, { params })
+      data.value = response.data
+      return response.data
+    } catch (err) {
+      error.value = err instanceof Error ? err : new Error('Unknown error')
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const post = async <D = any>(body: D) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await apiClient.post<T>(endpoint, body)
+      data.value = response.data
+      return response.data
+    } catch (err) {
+      error.value = err instanceof Error ? err : new Error('Unknown error')
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const put = async <D = any>(body: D) => {
+    loading.value = true
+    error.value = null
+
+    try {
+      const response = await apiClient.put<T>(endpoint, body)
+      data.value = response.data
+      return response.data
+    } catch (err) {
+      error.value = err instanceof Error ? err : new Error('Unknown error')
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const del = async () => {
+    loading.value = true
+    error.value = null
+
+    try {
+      await apiClient.delete(endpoint)
+      data.value = null
+    } catch (err) {
+      error.value = err instanceof Error ? err : new Error('Unknown error')
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
+  if (options.immediate) {
+    execute()
+  }
+
+  return {
+    data,
+    error,
+    loading,
+    execute,
+    post,
+    put,
+    delete: del
+  }
+}

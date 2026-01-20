@@ -1,0 +1,143 @@
+/**
+ * sidebar.js - Sidebar component
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import { router } from '../modules/router.js';
+import { auth } from '../modules/auth.js';
+
+/**
+ * Sidebar component
+ */
+export class Sidebar {
+    constructor(container) {
+        this.container = container;
+        this.$el = null;
+        this.menuItems = this.getMenuItems();
+    }
+
+    /**
+     * Get menu items based on user permissions
+     * @returns {Array} Menu items
+     */
+    getMenuItems() {
+        const items = [
+            {
+                label: 'Dashboard',
+                icon: 'speedometer2',
+                route: 'dashboard',
+                visible: true
+            },
+            {
+                label: 'Users',
+                icon: 'people',
+                route: 'users',
+                visible: auth.hasPermission('users.view')
+            },
+            {
+                label: 'Analytics',
+                icon: 'graph-up',
+                route: 'analytics',
+                visible: true
+            },
+            {
+                label: 'Reports',
+                icon: 'file-earmark-text',
+                route: 'reports',
+                visible: true
+            },
+            {
+                label: 'Settings',
+                icon: 'gear',
+                route: 'settings',
+                visible: true
+            }
+        ];
+
+        return items.filter(item => item.visible);
+    }
+
+    /**
+     * Render sidebar
+     */
+    async render() {
+        const menuHtml = this.menuItems.map(item => `
+            <li class="nav-item">
+                <a class="nav-link ${router.getCurrentRoute() === item.route ? 'active' : ''}"
+                   href="#${item.route}"
+                   data-route="${item.route}">
+                    <i class="bi bi-${item.icon} me-2"></i>
+                    <span class="menu-text">${item.label}</span>
+                </a>
+            </li>
+        `).join('');
+
+        const html = `
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        ${menuHtml}
+                    </ul>
+
+                    <hr>
+
+                    <div class="px-3">
+                        <small class="text-muted">Version 1.0.0</small>
+                    </div>
+                </div>
+            </nav>
+        `;
+
+        $(this.container).html(html);
+        this.$el = $(this.container).find('#sidebar');
+
+        this.attachEventListeners();
+    }
+
+    /**
+     * Attach event listeners
+     */
+    attachEventListeners() {
+        // Handle menu item clicks
+        this.$el.find('.nav-link').on('click', (e) => {
+            e.preventDefault();
+            const route = $(e.currentTarget).data('route');
+
+            // Update active state
+            this.$el.find('.nav-link').removeClass('active');
+            $(e.currentTarget).addClass('active');
+
+            // Navigate
+            router.navigate(route);
+        });
+    }
+
+    /**
+     * Set active menu item
+     * @param {string} route - Route name
+     */
+    setActive(route) {
+        this.$el.find('.nav-link').removeClass('active');
+        this.$el.find(`[data-route="${route}"]`).addClass('active');
+    }
+
+    /**
+     * Toggle sidebar collapse
+     */
+    toggle() {
+        this.$el.toggleClass('collapsed');
+    }
+
+    /**
+     * Destroy component
+     */
+    destroy() {
+        if (this.$el) {
+            this.$el.remove();
+        }
+    }
+}
+
+export default Sidebar;

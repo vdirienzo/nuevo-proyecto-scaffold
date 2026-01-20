@@ -1,0 +1,131 @@
+<!--
+  RegisterView.vue - Registration page
+  @author {{AUTHOR}}
+  @project {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { useAuth } from '@/composables/useAuth'
+import { useForm } from '@/composables/useForm'
+import { required, email, minLength, matchField } from '@/utils/validators'
+import AppLayout from '@/components/layout/AppLayout.vue'
+import VButton from '@/components/ui/VButton.vue'
+import VInput from '@/components/ui/VInput.vue'
+import VCard from '@/components/ui/VCard.vue'
+import type { RegisterData } from '@/types'
+
+const { register, isLoading } = useAuth()
+
+const {
+  formData,
+  errors,
+  handleSubmit,
+  handleBlur,
+  setFieldValue
+} = useForm<RegisterData & { confirmPassword: string }>({
+  name: {
+    initialValue: '',
+    rules: [required('Name is required')]
+  },
+  email: {
+    initialValue: '',
+    rules: [required('Email is required'), email('Invalid email format')]
+  },
+  password: {
+    initialValue: '',
+    rules: [
+      required('Password is required'),
+      minLength(8, 'Password must be at least 8 characters')
+    ]
+  },
+  confirmPassword: {
+    initialValue: '',
+    rules: [
+      required('Please confirm your password'),
+      matchField('password', 'Passwords do not match')
+    ]
+  }
+})
+
+const onSubmit = async () => {
+  const { confirmPassword, ...registerData } = formData
+  await register(registerData as RegisterData)
+}
+</script>
+
+<template>
+  <AppLayout>
+    <div class="max-w-md mx-auto mt-16">
+      <VCard title="Create your account" padding="lg">
+        <form @submit.prevent="handleSubmit(onSubmit)" class="space-y-4">
+          <VInput
+            :model-value="formData.name"
+            label="Name"
+            type="text"
+            placeholder="John Doe"
+            :error="errors.name"
+            required
+            autocomplete="name"
+            @update:model-value="setFieldValue('name', $event)"
+            @blur="handleBlur('name')"
+          />
+
+          <VInput
+            :model-value="formData.email"
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            :error="errors.email"
+            required
+            autocomplete="email"
+            @update:model-value="setFieldValue('email', $event)"
+            @blur="handleBlur('email')"
+          />
+
+          <VInput
+            :model-value="formData.password"
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            :error="errors.password"
+            required
+            autocomplete="new-password"
+            @update:model-value="setFieldValue('password', $event)"
+            @blur="handleBlur('password')"
+          />
+
+          <VInput
+            :model-value="formData.confirmPassword"
+            label="Confirm Password"
+            type="password"
+            placeholder="••••••••"
+            :error="errors.confirmPassword"
+            required
+            autocomplete="new-password"
+            @update:model-value="setFieldValue('confirmPassword', $event)"
+            @blur="handleBlur('confirmPassword')"
+          />
+
+          <VButton
+            type="submit"
+            variant="primary"
+            size="lg"
+            :loading="isLoading"
+            full-width
+          >
+            Create Account
+          </VButton>
+        </form>
+
+        <template #footer>
+          <p class="text-sm text-gray-600">
+            Already have an account?
+            <RouterLink to="/login" class="text-blue-600 hover:text-blue-700 font-medium">
+              Sign in
+            </RouterLink>
+          </p>
+        </template>
+      </VCard>
+    </div>
+  </AppLayout>
+</template>

@@ -1,0 +1,82 @@
+<!--
+  DashboardView.vue - Dashboard page
+  @author {{AUTHOR}}
+  @project {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { useAuthStore } from '@/stores/auth'
+import AppLayout from '@/components/layout/AppLayout.vue'
+import VCard from '@/components/ui/VCard.vue'
+
+const authStore = useAuthStore()
+</script>
+
+<template>
+  <AppLayout>
+    <div>
+      <h1 class="text-3xl font-bold text-gray-900 mb-8">
+        Dashboard
+      </h1>
+
+      <div class="mb-6">
+        <VCard>
+          <p class="text-gray-600">
+            Welcome back, <strong>{{ authStore.user?.name || authStore.user?.email }}</strong>!
+          </p>
+        </VCard>
+      </div>
+
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <VCard title="Total Users" hover>
+          <div class="text-3xl font-bold text-blue-600">
+            1,234
+          </div>
+          <p class="text-sm text-gray-500 mt-2">
+            +12% from last month
+          </p>
+        </VCard>
+
+        <VCard title="Active Sessions" hover>
+          <div class="text-3xl font-bold text-green-600">
+            567
+          </div>
+          <p class="text-sm text-gray-500 mt-2">
+            +8% from last month
+          </p>
+        </VCard>
+
+        <VCard title="Total Revenue" hover>
+          <div class="text-3xl font-bold text-purple-600">
+            $45,678
+          </div>
+          <p class="text-sm text-gray-500 mt-2">
+            +23% from last month
+          </p>
+        </VCard>
+      </div>
+
+      <div class="mt-8">
+        <VCard title="Recent Activity">
+          <div class="space-y-4">
+            <div v-for="i in 5" :key="i" class="flex items-center gap-4 py-3 border-b border-gray-100 last:border-0">
+              <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-900">
+                  User Activity {{ i }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  {{ Math.floor(Math.random() * 60) }} minutes ago
+                </p>
+              </div>
+            </div>
+          </div>
+        </VCard>
+      </div>
+    </div>
+  </AppLayout>
+</template>

@@ -1,0 +1,138 @@
+/**
+ * main.js - Application entry point
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import 'bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import 'toastify-js/src/toastify.css';
+
+import { config } from './config.js';
+import { api } from './api.js';
+import { router } from './modules/router.js';
+import { auth } from './modules/auth.js';
+import { notifications } from './modules/notifications.js';
+import { Header } from './components/header.js';
+import { Sidebar } from './components/sidebar.js';
+
+/**
+ * Application class - Main controller
+ */
+class App {
+    constructor() {
+        this.initialized = false;
+        this.header = null;
+        this.sidebar = null;
+    }
+
+    /**
+     * Initialize the application
+     */
+    async init() {
+        try {
+            console.log(`${config.APP_NAME} v1.0.0 - Initializing...`);
+
+            // Setup global error handler
+            this.setupErrorHandlers();
+
+            // Initialize API client
+            api.init();
+
+            // Initialize modules
+            auth.init();
+            router.init();
+            notifications.init();
+
+            // Check authentication
+            if (auth.isAuthenticated()) {
+                await this.initializeAuthenticatedApp();
+            } else {
+                router.navigate('login');
+            }
+
+            // Hide loading spinner
+            this.hideLoading();
+
+            this.initialized = true;
+            console.log('Application initialized successfully');
+
+        } catch (error) {
+            console.error('Application initialization failed:', error);
+            notifications.error('Failed to initialize application');
+            this.hideLoading();
+        }
+    }
+
+    /**
+     * Initialize authenticated application components
+     */
+    async initializeAuthenticatedApp() {
+        // Load and render header
+        this.header = new Header('#header-container');
+        await this.header.render();
+
+        // Load and render sidebar
+        this.sidebar = new Sidebar('#sidebar-container');
+        await this.sidebar.render();
+
+        // Show app container
+        $('#app').removeClass('d-none');
+
+        // Navigate to current route or home
+        const currentHash = window.location.hash.slice(1) || 'dashboard';
+        router.navigate(currentHash);
+    }
+
+    /**
+     * Setup global error handlers
+     */
+    setupErrorHandlers() {
+        // Handle unhandled promise rejections
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+            notifications.error('An unexpected error occurred');
+        });
+
+        // Handle global errors
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+        });
+
+        // Handle AJAX errors
+        $(document).ajaxError((event, jqXHR, settings, thrownError) => {
+            console.error('AJAX error:', {
+                url: settings.url,
+                status: jqXHR.status,
+                error: thrownError
+            });
+        });
+    }
+
+    /**
+     * Hide loading spinner
+     */
+    hideLoading() {
+        $('#app-loading').fadeOut(300);
+    }
+
+    /**
+     * Show loading spinner
+     */
+    showLoading() {
+        $('#app-loading').fadeIn(300);
+    }
+}
+
+// Initialize application when DOM is ready
+$(() => {
+    const app = new App();
+    app.init();
+
+    // Make app globally accessible
+    window.app = app;
+});
+
+export default App;

@@ -1,0 +1,22 @@
+/**
+ * types/api.ts - API response types
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+export interface ApiError {
+  message: string
+  status: number
+  errors?: Record<string, string[]>
+}
+
+export interface ApiResponse<T = any> {
+  success: boolean
+  data?: T
+  error?: string
+}
+
+export interface ValidationError {
+  field: string
+  message: string
+}

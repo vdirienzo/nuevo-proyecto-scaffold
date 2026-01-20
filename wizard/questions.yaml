@@ -173,7 +173,16 @@ phases:
             description: "React 19 + SSR/SSG + Server Actions"
           - value: react-spa
             label: "React SPA (Vite)"
-            description: "Client-side only, simpler deployment"
+            description: "React client-side only, simpler deployment"
+          - value: vue
+            label: "Vue.js 3 (Composition API)"
+            description: "Vite + Pinia + TypeScript, progressive framework"
+          - value: angular
+            label: "Angular 17+ (Standalone)"
+            description: "Enterprise-grade, signals, NgRx, full framework"
+          - value: jquery
+            label: "jQuery + Bootstrap"
+            description: "Classic stack, fast development, legacy support"
           - value: none
             label: "No frontend (API only)"
             description: "Backend service or CLI tool"

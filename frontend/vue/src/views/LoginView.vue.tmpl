@@ -1,0 +1,92 @@
+<!--
+  LoginView.vue - Login page
+  @author {{AUTHOR}}
+  @project {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { useAuth } from '@/composables/useAuth'
+import { useForm } from '@/composables/useForm'
+import { required, email } from '@/utils/validators'
+import AppLayout from '@/components/layout/AppLayout.vue'
+import VButton from '@/components/ui/VButton.vue'
+import VInput from '@/components/ui/VInput.vue'
+import VCard from '@/components/ui/VCard.vue'
+import type { LoginCredentials } from '@/types'
+
+const { login, isLoading } = useAuth()
+
+const {
+  formData,
+  errors,
+  handleSubmit,
+  handleBlur,
+  setFieldValue
+} = useForm<LoginCredentials>({
+  email: {
+    initialValue: '',
+    rules: [required('Email is required'), email('Invalid email format')]
+  },
+  password: {
+    initialValue: '',
+    rules: [required('Password is required')]
+  }
+})
+
+const onSubmit = async () => {
+  await login(formData)
+}
+</script>
+
+<template>
+  <AppLayout>
+    <div class="max-w-md mx-auto mt-16">
+      <VCard title="Login to your account" padding="lg">
+        <form @submit.prevent="handleSubmit(onSubmit)" class="space-y-4">
+          <VInput
+            :model-value="formData.email"
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            :error="errors.email"
+            required
+            autocomplete="email"
+            @update:model-value="setFieldValue('email', $event)"
+            @blur="handleBlur('email')"
+          />
+
+          <VInput
+            :model-value="formData.password"
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            :error="errors.password"
+            required
+            autocomplete="current-password"
+            @update:model-value="setFieldValue('password', $event)"
+            @blur="handleBlur('password')"
+          />
+
+          <VButton
+            type="submit"
+            variant="primary"
+            size="lg"
+            :loading="isLoading"
+            full-width
+          >
+            Sign In
+          </VButton>
+        </form>
+
+        <template #footer>
+          <p class="text-sm text-gray-600">
+            Don't have an account?
+            <RouterLink to="/register" class="text-blue-600 hover:text-blue-700 font-medium">
+              Sign up
+            </RouterLink>
+          </p>
+        </template>
+      </VCard>
+    </div>
+  </AppLayout>
+</template>

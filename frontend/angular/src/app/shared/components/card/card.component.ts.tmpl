@@ -1,0 +1,58 @@
+/**
+ * card.component.ts - Reusable card component
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { Component, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+
+@Component({
+  selector: 'app-card',
+  standalone: true,
+  imports: [CommonModule],
+  template: `
+    <div [class]="cardClasses">
+      @if (title || action) {
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="flex items-center justify-between">
+            @if (title) {
+              <h3 class="text-lg font-semibold text-gray-900">{{ title }}</h3>
+            }
+            @if (action) {
+              <div class="ml-4">
+                <ng-content select="[card-action]"></ng-content>
+              </div>
+            }
+          </div>
+        </div>
+      }
+      <div [class]="contentClasses">
+        <ng-content></ng-content>
+      </div>
+      @if (footer) {
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+          <ng-content select="[card-footer]"></ng-content>
+        </div>
+      }
+    </div>
+  `,
+  styles: []
+})
+export class CardComponent {
+  @Input() title = '';
+  @Input() action = false;
+  @Input() footer = false;
+  @Input() padding = true;
+  @Input() hoverable = false;
+
+  get cardClasses(): string {
+    const baseClasses = 'bg-white rounded-lg shadow';
+    const hoverClass = this.hoverable ? 'hover:shadow-lg transition-shadow' : '';
+    return `${baseClasses} ${hoverClass}`;
+  }
+
+  get contentClasses(): string {
+    return this.padding ? 'px-6 py-4' : '';
+  }
+}

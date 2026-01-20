@@ -1,0 +1,213 @@
+/**
+ * dashboard.js - Dashboard page
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import { auth } from '../modules/auth.js';
+import { DataTable } from '../components/datatable.js';
+
+/**
+ * DashboardPage class
+ */
+export class DashboardPage {
+    constructor() {
+        this.container = '#main-content';
+        this.table = null;
+    }
+
+    /**
+     * Render dashboard page
+     */
+    async render() {
+        const user = auth.getCurrentUser();
+
+        const html = `
+            <div class="dashboard-page py-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h2>Dashboard</h2>
+                        <p class="text-muted mb-0">Welcome back, ${user?.name || 'User'}!</p>
+                    </div>
+                    <button class="btn btn-primary" id="refresh-btn">
+                        <i class="bi bi-arrow-clockwise"></i>
+                        Refresh
+                    </button>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="row g-4 mb-4">
+                    <div class="col-md-3">
+                        <div class="card bg-primary text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-1">Total Users</h6>
+                                        <h3 class="mb-0">1,234</h3>
+                                    </div>
+                                    <i class="bi bi-people fs-1 opacity-50"></i>
+                                </div>
+                                <small class="text-white-50 mt-2 d-block">
+                                    <i class="bi bi-arrow-up"></i> 12% from last month
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card bg-success text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-1">Revenue</h6>
+                                        <h3 class="mb-0">$45.2k</h3>
+                                    </div>
+                                    <i class="bi bi-graph-up fs-1 opacity-50"></i>
+                                </div>
+                                <small class="text-white-50 mt-2 d-block">
+                                    <i class="bi bi-arrow-up"></i> 8% from last month
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card bg-warning text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-1">Active Sessions</h6>
+                                        <h3 class="mb-0">567</h3>
+                                    </div>
+                                    <i class="bi bi-activity fs-1 opacity-50"></i>
+                                </div>
+                                <small class="text-white-50 mt-2 d-block">
+                                    <i class="bi bi-arrow-down"></i> 3% from yesterday
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <div class="card bg-info text-white">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="text-white-50 mb-1">Conversions</h6>
+                                        <h3 class="mb-0">23.5%</h3>
+                                    </div>
+                                    <i class="bi bi-trophy fs-1 opacity-50"></i>
+                                </div>
+                                <small class="text-white-50 mt-2 d-block">
+                                    <i class="bi bi-arrow-up"></i> 5% from last week
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="activity-table"></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $(this.container).html(html);
+        this.initializeTable();
+        this.attachEventListeners();
+    }
+
+    /**
+     * Initialize activity table
+     */
+    initializeTable() {
+        const sampleData = [
+            { id: 1, user: 'John Doe', action: 'Login', timestamp: new Date().toISOString(), status: 'Success' },
+            { id: 2, user: 'Jane Smith', action: 'Update Profile', timestamp: new Date(Date.now() - 3600000).toISOString(), status: 'Success' },
+            { id: 3, user: 'Bob Johnson', action: 'Delete Item', timestamp: new Date(Date.now() - 7200000).toISOString(), status: 'Success' },
+            { id: 4, user: 'Alice Williams', action: 'Create Record', timestamp: new Date(Date.now() - 10800000).toISOString(), status: 'Failed' },
+            { id: 5, user: 'Charlie Brown', action: 'Export Data', timestamp: new Date(Date.now() - 14400000).toISOString(), status: 'Success' }
+        ];
+
+        this.table = new DataTable('#activity-table', {
+            columns: [
+                { field: 'id', label: 'ID' },
+                { field: 'user', label: 'User' },
+                { field: 'action', label: 'Action' },
+                {
+                    field: 'timestamp',
+                    label: 'Time',
+                    type: 'datetime'
+                },
+                {
+                    field: 'status',
+                    label: 'Status',
+                    formatter: (value) => {
+                        const badgeClass = value === 'Success' ? 'bg-success' : 'bg-danger';
+                        return `<span class="badge ${badgeClass}">${value}</span>`;
+                    }
+                }
+            ],
+            data: sampleData,
+            perPage: 5,
+            actions: (row) => `
+                <button class="btn btn-sm btn-outline-primary" data-action="view" data-id="${row.id}">
+                    <i class="bi bi-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" data-action="delete" data-id="${row.id}">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `
+        });
+
+        this.table.render();
+    }
+
+    /**
+     * Attach event listeners
+     */
+    attachEventListeners() {
+        // Refresh button
+        $('#refresh-btn').on('click', () => {
+            this.refreshData();
+        });
+
+        // Table actions
+        $(this.container).on('click', '[data-action="view"]', (e) => {
+            const id = $(e.currentTarget).data('id');
+            console.log('View item:', id);
+        });
+
+        $(this.container).on('click', '[data-action="delete"]', (e) => {
+            const id = $(e.currentTarget).data('id');
+            console.log('Delete item:', id);
+        });
+    }
+
+    /**
+     * Refresh dashboard data
+     */
+    async refreshData() {
+        console.log('Refreshing dashboard data...');
+        // Implement data refresh logic here
+    }
+
+    /**
+     * Destroy page
+     */
+    destroy() {
+        if (this.table) {
+            this.table.destroy();
+        }
+        $(this.container).empty();
+    }
+}
+
+export default DashboardPage;

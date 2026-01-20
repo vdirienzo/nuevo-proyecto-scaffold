@@ -1,0 +1,72 @@
+<!--
+  HomeView.vue - Home page
+  @author {{AUTHOR}}
+  @project {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { useAuthStore } from '@/stores/auth'
+import AppLayout from '@/components/layout/AppLayout.vue'
+import VButton from '@/components/ui/VButton.vue'
+import VCard from '@/components/ui/VCard.vue'
+
+const authStore = useAuthStore()
+</script>
+
+<template>
+  <AppLayout>
+    <div class="max-w-4xl mx-auto">
+      <VCard padding="lg">
+        <div class="text-center">
+          <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            Welcome to {{PROJECT_NAME}}
+          </h1>
+          <p class="text-lg text-gray-600 mb-8">
+            A modern Vue 3 application built with TypeScript, Pinia, and Tailwind CSS
+          </p>
+
+          <div v-if="!authStore.isAuthenticated" class="flex gap-4 justify-center">
+            <RouterLink to="/login">
+              <VButton variant="primary" size="lg">
+                Get Started
+              </VButton>
+            </RouterLink>
+            <RouterLink to="/register">
+              <VButton variant="secondary" size="lg">
+                Sign Up
+              </VButton>
+            </RouterLink>
+          </div>
+
+          <div v-else>
+            <RouterLink to="/dashboard">
+              <VButton variant="primary" size="lg">
+                Go to Dashboard
+              </VButton>
+            </RouterLink>
+          </div>
+        </div>
+      </VCard>
+
+      <div class="grid md:grid-cols-3 gap-6 mt-8">
+        <VCard title="⚡ Fast" hover>
+          <p class="text-gray-600">
+            Built with Vite for lightning-fast development and optimized builds
+          </p>
+        </VCard>
+
+        <VCard title="🎨 Modern" hover>
+          <p class="text-gray-600">
+            Beautiful UI components with Tailwind CSS and Vue 3 Composition API
+          </p>
+        </VCard>
+
+        <VCard title="🔒 Secure" hover>
+          <p class="text-gray-600">
+            JWT authentication with refresh tokens and protected routes
+          </p>
+        </VCard>
+      </div>
+    </div>
+  </AppLayout>
+</template>

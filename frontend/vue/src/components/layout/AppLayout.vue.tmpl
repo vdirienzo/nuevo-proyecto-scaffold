@@ -1,0 +1,40 @@
+<!--
+  AppLayout.vue - Main application layout
+  @author {{AUTHOR}}
+  @project {{PROJECT_NAME}}
+-->
+
+<script setup lang="ts">
+import { useAuthStore } from '@/stores/auth'
+import { useUiStore } from '@/stores/ui'
+import { computed } from 'vue'
+import AppHeader from './AppHeader.vue'
+import AppSidebar from './AppSidebar.vue'
+
+const authStore = useAuthStore()
+const uiStore = useUiStore()
+
+const mainClasses = computed(() => {
+  const classes = ['flex-1 transition-all duration-300']
+
+  if (authStore.isAuthenticated && uiStore.sidebarOpen) {
+    classes.push('ml-64')
+  }
+
+  return classes.join(' ')
+})
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50">
+    <AppHeader />
+
+    <AppSidebar v-if="authStore.isAuthenticated" />
+
+    <main :class="mainClasses">
+      <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <slot />
+      </div>
+    </main>
+  </div>
+</template>

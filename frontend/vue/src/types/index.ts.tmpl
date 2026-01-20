@@ -1,0 +1,39 @@
+/**
+ * types/index.ts - Main TypeScript interfaces
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+export interface User {
+  id: number
+  name: string
+  email: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface RegisterData {
+  name: string
+  email: string
+  password: string
+}
+
+export interface AuthResponse {
+  user: User
+  access_token: string
+  refresh_token?: string
+  token_type: string
+}
+
+export interface PaginatedResponse<T> {
+  data: T[]
+  total: number
+  page: number
+  per_page: number
+  total_pages: number
+}

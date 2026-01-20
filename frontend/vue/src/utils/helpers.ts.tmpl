@@ -1,0 +1,134 @@
+/**
+ * utils/helpers.ts - Helper utility functions
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+/**
+ * Format date to locale string
+ */
+export function formatDate(date: string | Date, locale = 'en-US'): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleDateString(locale, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+/**
+ * Format date with time
+ */
+export function formatDateTime(date: string | Date, locale = 'en-US'): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  return d.toLocaleString(locale, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+/**
+ * Debounce function
+ */
+export function debounce<T extends (...args: any[]) => any>(
+  func: T,
+  wait: number
+): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null
+
+  return function executedFunction(...args: Parameters<T>) {
+    const later = () => {
+      timeout = null
+      func(...args)
+    }
+
+    if (timeout) {
+      clearTimeout(timeout)
+    }
+    timeout = setTimeout(later, wait)
+  }
+}
+
+/**
+ * Throttle function
+ */
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle: boolean
+
+  return function executedFunction(...args: Parameters<T>) {
+    if (!inThrottle) {
+      func(...args)
+      inThrottle = true
+      setTimeout(() => (inThrottle = false), limit)
+    }
+  }
+}
+
+/**
+ * Sleep/delay function
+ */
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/**
+ * Generate random ID
+ */
+export function generateId(): string {
+  return Math.random().toString(36).substring(2, 9)
+}
+
+/**
+ * Capitalize first letter
+ */
+export function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1)
+}
+
+/**
+ * Truncate string
+ */
+export function truncate(str: string, length: number, suffix = '...'): string {
+  if (str.length <= length) return str
+  return str.substring(0, length) + suffix
+}
+
+/**
+ * Format number with commas
+ */
+export function formatNumber(num: number): string {
+  return num.toLocaleString()
+}
+
+/**
+ * Format currency
+ */
+export function formatCurrency(amount: number, currency = 'USD', locale = 'en-US'): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'currency',
+    currency
+  }).format(amount)
+}
+
+/**
+ * Deep clone object
+ */
+export function deepClone<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj))
+}
+
+/**
+ * Check if object is empty
+ */
+export function isEmpty(obj: any): boolean {
+  if (obj === null || obj === undefined) return true
+  if (typeof obj === 'string' || Array.isArray(obj)) return obj.length === 0
+  if (typeof obj === 'object') return Object.keys(obj).length === 0
+  return false
+}

@@ -1,0 +1,98 @@
+/**
+ * home.js - Home page
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+
+/**
+ * HomePage class
+ */
+export class HomePage {
+    constructor() {
+        this.container = '#main-content';
+    }
+
+    /**
+     * Render home page
+     */
+    async render() {
+        const html = `
+            <div class="home-page">
+                <div class="py-5">
+                    <div class="text-center mb-5">
+                        <h1 class="display-4">Welcome to {{PROJECT_NAME}}</h1>
+                        <p class="lead text-muted">
+                            Your modern web application built with jQuery
+                        </p>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-lightning-charge fs-1 text-primary mb-3"></i>
+                                    <h5 class="card-title">Fast & Lightweight</h5>
+                                    <p class="card-text text-muted">
+                                        Built with modern jQuery and optimized for performance
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-shield-check fs-1 text-success mb-3"></i>
+                                    <h5 class="card-title">Secure</h5>
+                                    <p class="card-text text-muted">
+                                        JWT authentication and secure API communication
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-palette fs-1 text-info mb-3"></i>
+                                    <h5 class="card-title">Beautiful UI</h5>
+                                    <p class="card-text text-muted">
+                                        Bootstrap 5 with custom components and styling
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-5">
+                        <a href="#dashboard" class="btn btn-primary btn-lg">
+                            Go to Dashboard
+                            <i class="bi bi-arrow-right ms-2"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $(this.container).html(html);
+        this.attachEventListeners();
+    }
+
+    /**
+     * Attach event listeners
+     */
+    attachEventListeners() {
+        // Add any page-specific event listeners here
+    }
+
+    /**
+     * Destroy page
+     */
+    destroy() {
+        $(this.container).empty();
+    }
+}
+
+export default HomePage;

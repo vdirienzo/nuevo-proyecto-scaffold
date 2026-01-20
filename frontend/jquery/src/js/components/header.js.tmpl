@@ -1,0 +1,116 @@
+/**
+ * header.js - Header component
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import { auth } from '../modules/auth.js';
+import { router } from '../modules/router.js';
+
+/**
+ * Header component
+ */
+export class Header {
+    constructor(container) {
+        this.container = container;
+        this.$el = null;
+    }
+
+    /**
+     * Render header
+     */
+    async render() {
+        const user = auth.getCurrentUser();
+
+        const html = `
+            <nav class="navbar navbar-dark bg-dark sticky-top shadow-sm">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="#dashboard">
+                        <i class="bi bi-grid-3x3-gap-fill me-2"></i>
+                        {{PROJECT_NAME}}
+                    </a>
+
+                    <div class="d-flex align-items-center">
+                        <button class="btn btn-link text-white me-3" id="toggle-sidebar">
+                            <i class="bi bi-list fs-4"></i>
+                        </button>
+
+                        <div class="dropdown">
+                            <button class="btn btn-dark dropdown-toggle" type="button"
+                                    id="user-menu" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-circle me-1"></i>
+                                <span id="user-name">${user?.name || 'User'}</span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="user-menu">
+                                <li>
+                                    <h6 class="dropdown-header">
+                                        ${user?.email || ''}
+                                    </h6>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="#profile">
+                                        <i class="bi bi-person me-2"></i>Profile
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item" href="#settings">
+                                        <i class="bi bi-gear me-2"></i>Settings
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" id="logout-btn">
+                                        <i class="bi bi-box-arrow-right me-2"></i>Logout
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        `;
+
+        $(this.container).html(html);
+        this.$el = $(this.container).find('.navbar');
+
+        this.attachEventListeners();
+    }
+
+    /**
+     * Attach event listeners
+     */
+    attachEventListeners() {
+        // Toggle sidebar
+        $('#toggle-sidebar').on('click', (e) => {
+            e.preventDefault();
+            $('#sidebar-container').toggleClass('collapsed');
+        });
+
+        // Logout
+        $('#logout-btn').on('click', async (e) => {
+            e.preventDefault();
+            await auth.logout();
+        });
+    }
+
+    /**
+     * Update user info
+     * @param {object} user - User object
+     */
+    updateUser(user) {
+        $('#user-name').text(user.name || 'User');
+    }
+
+    /**
+     * Destroy component
+     */
+    destroy() {
+        if (this.$el) {
+            this.$el.remove();
+        }
+    }
+}
+
+export default Header;

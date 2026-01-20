@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="description" content="{{PROJECT_DESCRIPTION}}">
+    <meta name="author" content="{{AUTHOR}}">
+
+    <title>{{PROJECT_NAME}}</title>
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="./src/css/main.css">
+
+    <!-- Preconnect to API -->
+    <link rel="preconnect" href="{{API_URL}}">
+</head>
+<body>
+    <!-- Loading Spinner -->
+    <div id="app-loading" class="loading-overlay">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="d-none">
+        <!-- Header (injected dynamically) -->
+        <div id="header-container"></div>
+
+        <!-- Main Content -->
+        <div class="container-fluid">
+            <div class="row">
+                <!-- Sidebar (injected dynamically) -->
+                <div id="sidebar-container"></div>
+
+                <!-- Page Content -->
+                <main id="main-content" class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                    <!-- Dynamic content loaded here -->
+                </main>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="./src/js/main.js"></script>
+</body>
+</html>

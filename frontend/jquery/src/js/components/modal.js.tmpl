@@ -1,0 +1,217 @@
+/**
+ * modal.js - Reusable modal component
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import { Modal as BootstrapModal } from 'bootstrap';
+import { generateId } from '../utils.js';
+
+/**
+ * Modal component
+ */
+export class Modal {
+    constructor(options = {}) {
+        this.id = options.id || `modal-${generateId()}`;
+        this.title = options.title || 'Modal';
+        this.body = options.body || '';
+        this.footer = options.footer || null;
+        this.size = options.size || ''; // sm, lg, xl
+        this.centered = options.centered !== false;
+        this.backdrop = options.backdrop !== false;
+        this.keyboard = options.keyboard !== false;
+        this.onShow = options.onShow || null;
+        this.onHide = options.onHide || null;
+
+        this.$el = null;
+        this.bsModal = null;
+    }
+
+    /**
+     * Render modal
+     */
+    render() {
+        const sizeClass = this.size ? `modal-${this.size}` : '';
+        const centeredClass = this.centered ? 'modal-dialog-centered' : '';
+
+        const html = `
+            <div class="modal fade" id="${this.id}" tabindex="-1"
+                 data-bs-backdrop="${this.backdrop ? 'true' : 'static'}"
+                 data-bs-keyboard="${this.keyboard}">
+                <div class="modal-dialog ${sizeClass} ${centeredClass}">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${this.title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${this.body}
+                        </div>
+                        ${this.footer ? `
+                            <div class="modal-footer">
+                                ${this.footer}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Remove existing modal if present
+        $(`#${this.id}`).remove();
+
+        // Append to body
+        $('body').append(html);
+        this.$el = $(`#${this.id}`);
+
+        // Initialize Bootstrap modal
+        this.bsModal = new BootstrapModal(this.$el[0], {
+            backdrop: this.backdrop,
+            keyboard: this.keyboard
+        });
+
+        this.attachEventListeners();
+
+        return this;
+    }
+
+    /**
+     * Attach event listeners
+     */
+    attachEventListeners() {
+        if (this.onShow) {
+            this.$el.on('show.bs.modal', this.onShow);
+        }
+
+        if (this.onHide) {
+            this.$el.on('hide.bs.modal', this.onHide);
+        }
+    }
+
+    /**
+     * Show modal
+     */
+    show() {
+        if (this.bsModal) {
+            this.bsModal.show();
+        }
+        return this;
+    }
+
+    /**
+     * Hide modal
+     */
+    hide() {
+        if (this.bsModal) {
+            this.bsModal.hide();
+        }
+        return this;
+    }
+
+    /**
+     * Update modal title
+     * @param {string} title - New title
+     */
+    setTitle(title) {
+        this.title = title;
+        if (this.$el) {
+            this.$el.find('.modal-title').text(title);
+        }
+        return this;
+    }
+
+    /**
+     * Update modal body
+     * @param {string} body - New body HTML
+     */
+    setBody(body) {
+        this.body = body;
+        if (this.$el) {
+            this.$el.find('.modal-body').html(body);
+        }
+        return this;
+    }
+
+    /**
+     * Update modal footer
+     * @param {string} footer - New footer HTML
+     */
+    setFooter(footer) {
+        this.footer = footer;
+        if (this.$el) {
+            const $footer = this.$el.find('.modal-footer');
+            if ($footer.length) {
+                $footer.html(footer);
+            } else {
+                this.$el.find('.modal-content').append(`
+                    <div class="modal-footer">${footer}</div>
+                `);
+            }
+        }
+        return this;
+    }
+
+    /**
+     * Get modal element
+     * @returns {jQuery}
+     */
+    getElement() {
+        return this.$el;
+    }
+
+    /**
+     * Destroy modal
+     */
+    destroy() {
+        if (this.bsModal) {
+            this.bsModal.dispose();
+        }
+        if (this.$el) {
+            this.$el.remove();
+        }
+    }
+}
+
+/**
+ * Show confirmation dialog
+ * @param {object} options - Dialog options
+ * @returns {Promise<boolean>}
+ */
+export const confirm = (options = {}) => {
+    return new Promise((resolve) => {
+        const modal = new Modal({
+            title: options.title || 'Confirm',
+            body: options.message || 'Are you sure?',
+            size: 'sm',
+            footer: `
+                <button type="button" class="btn btn-secondary" data-action="cancel">
+                    Cancel
+                </button>
+                <button type="button" class="btn btn-primary" data-action="confirm">
+                    ${options.confirmText || 'Confirm'}
+                </button>
+            `,
+            onHide: () => {
+                modal.destroy();
+                resolve(false);
+            }
+        });
+
+        modal.render();
+
+        modal.getElement().find('[data-action="confirm"]').on('click', () => {
+            modal.hide();
+            resolve(true);
+        });
+
+        modal.getElement().find('[data-action="cancel"]').on('click', () => {
+            modal.hide();
+            resolve(false);
+        });
+
+        modal.show();
+    });
+};
+
+export default Modal;

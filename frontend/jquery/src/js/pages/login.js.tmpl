@@ -1,0 +1,211 @@
+/**
+ * login.js - Login page
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import { auth } from '../modules/auth.js';
+import { router } from '../modules/router.js';
+import { notifications } from '../modules/notifications.js';
+import { FormValidator, Rules } from '../components/form-validator.js';
+
+/**
+ * LoginPage class
+ */
+export class LoginPage {
+    constructor() {
+        this.container = '#main-content';
+        this.validator = null;
+    }
+
+    /**
+     * Render login page
+     */
+    async render() {
+        const html = `
+            <div class="login-page">
+                <div class="row justify-content-center align-items-center min-vh-100">
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card shadow-lg">
+                            <div class="card-body p-5">
+                                <div class="text-center mb-4">
+                                    <h2>{{PROJECT_NAME}}</h2>
+                                    <p class="text-muted">Sign in to your account</p>
+                                </div>
+
+                                <form id="login-form">
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="bi bi-envelope"></i>
+                                            </span>
+                                            <input type="email"
+                                                   class="form-control"
+                                                   id="email"
+                                                   name="email"
+                                                   placeholder="Enter your email"
+                                                   autocomplete="email">
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">Password</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">
+                                                <i class="bi bi-lock"></i>
+                                            </span>
+                                            <input type="password"
+                                                   class="form-control"
+                                                   id="password"
+                                                   name="password"
+                                                   placeholder="Enter your password"
+                                                   autocomplete="current-password">
+                                            <button class="btn btn-outline-secondary"
+                                                    type="button"
+                                                    id="toggle-password">
+                                                <i class="bi bi-eye"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox"
+                                               class="form-check-input"
+                                               id="remember"
+                                               name="remember">
+                                        <label class="form-check-label" for="remember">
+                                            Remember me
+                                        </label>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary w-100 mb-3">
+                                        <span class="spinner-border spinner-border-sm d-none"
+                                              id="login-spinner"></span>
+                                        <span id="login-text">Sign In</span>
+                                    </button>
+
+                                    <div class="text-center">
+                                        <a href="#forgot-password" class="text-muted small">
+                                            Forgot password?
+                                        </a>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-3">
+                            <small class="text-muted">
+                                Don't have an account?
+                                <a href="#register">Sign up</a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        $(this.container).html(html);
+        this.initializeValidator();
+        this.attachEventListeners();
+    }
+
+    /**
+     * Initialize form validator
+     */
+    initializeValidator() {
+        this.validator = new FormValidator('#login-form', {
+            email: [
+                Rules.required('Email is required'),
+                Rules.email()
+            ],
+            password: [
+                Rules.required('Password is required'),
+                Rules.minLength(6, 'Password must be at least 6 characters')
+            ]
+        });
+
+        this.validator.enableRealTimeValidation();
+    }
+
+    /**
+     * Attach event listeners
+     */
+    attachEventListeners() {
+        // Form submit
+        $('#login-form').on('submit', async (e) => {
+            e.preventDefault();
+            await this.handleLogin();
+        });
+
+        // Toggle password visibility
+        $('#toggle-password').on('click', () => {
+            const $password = $('#password');
+            const $icon = $('#toggle-password i');
+
+            if ($password.attr('type') === 'password') {
+                $password.attr('type', 'text');
+                $icon.removeClass('bi-eye').addClass('bi-eye-slash');
+            } else {
+                $password.attr('type', 'password');
+                $icon.removeClass('bi-eye-slash').addClass('bi-eye');
+            }
+        });
+    }
+
+    /**
+     * Handle login
+     */
+    async handleLogin() {
+        if (!this.validator.validate()) {
+            return;
+        }
+
+        const email = $('#email').val();
+        const password = $('#password').val();
+
+        this.setLoading(true);
+
+        try {
+            await auth.login(email, password);
+            router.navigate('dashboard');
+
+        } catch (error) {
+            console.error('Login error:', error);
+            // Error notification handled by auth module
+
+        } finally {
+            this.setLoading(false);
+        }
+    }
+
+    /**
+     * Set loading state
+     * @param {boolean} loading - Loading state
+     */
+    setLoading(loading) {
+        const $button = $('#login-form button[type="submit"]');
+        const $spinner = $('#login-spinner');
+        const $text = $('#login-text');
+
+        if (loading) {
+            $button.prop('disabled', true);
+            $spinner.removeClass('d-none');
+            $text.text('Signing in...');
+        } else {
+            $button.prop('disabled', false);
+            $spinner.addClass('d-none');
+            $text.text('Sign In');
+        }
+    }
+
+    /**
+     * Destroy page
+     */
+    destroy() {
+        $(this.container).empty();
+    }
+}
+
+export default LoginPage;

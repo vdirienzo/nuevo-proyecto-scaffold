@@ -1,0 +1,218 @@
+/**
+ * auth.js - Authentication module
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { api } from '../api.js';
+import { config } from '../config.js';
+import { router } from './router.js';
+import { notifications } from './notifications.js';
+
+/**
+ * Authentication module
+ */
+class Auth {
+    constructor() {
+        this.user = null;
+        this.token = null;
+        this.refreshToken = null;
+    }
+
+    /**
+     * Initialize auth module
+     */
+    init() {
+        // Load tokens from storage
+        this.token = this.getStoredToken();
+        this.refreshToken = this.getStoredRefreshToken();
+
+        // Load user if token exists
+        if (this.token) {
+            this.loadCurrentUser();
+        }
+    }
+
+    /**
+     * Login with credentials
+     * @param {string} email - User email
+     * @param {string} password - User password
+     * @returns {Promise<object>} User object
+     */
+    async login(email, password) {
+        try {
+            const data = await api.post(config.endpoints.auth.login, {
+                email,
+                password
+            });
+
+            this.setToken(data.access_token);
+            this.setRefreshToken(data.refresh_token);
+            this.user = data.user;
+
+            notifications.success('Login successful');
+            return data.user;
+
+        } catch (error) {
+            notifications.error('Login failed. Please check your credentials.');
+            throw error;
+        }
+    }
+
+    /**
+     * Logout user
+     */
+    async logout() {
+        try {
+            await api.post(config.endpoints.auth.logout);
+        } catch (error) {
+            console.error('Logout error:', error);
+        } finally {
+            this.clearAuth();
+            notifications.info('You have been logged out');
+            router.navigate('login');
+        }
+    }
+
+    /**
+     * Refresh authentication token
+     * @returns {Promise<string>} New access token
+     */
+    async refreshToken() {
+        const refreshToken = this.getStoredRefreshToken();
+
+        if (!refreshToken) {
+            throw new Error('No refresh token available');
+        }
+
+        try {
+            const data = await api.post(config.endpoints.auth.refresh, {
+                refresh_token: refreshToken
+            });
+
+            this.setToken(data.access_token);
+            return data.access_token;
+
+        } catch (error) {
+            this.clearAuth();
+            router.navigate('login');
+            throw error;
+        }
+    }
+
+    /**
+     * Load current user from API
+     * @returns {Promise<object>} User object
+     */
+    async loadCurrentUser() {
+        try {
+            const data = await api.get(config.endpoints.auth.me);
+            this.user = data;
+            return data;
+        } catch (error) {
+            console.error('Failed to load current user:', error);
+            this.clearAuth();
+            throw error;
+        }
+    }
+
+    /**
+     * Get current user
+     * @returns {object|null} User object
+     */
+    getCurrentUser() {
+        return this.user;
+    }
+
+    /**
+     * Check if user is authenticated
+     * @returns {boolean}
+     */
+    isAuthenticated() {
+        return !!this.token;
+    }
+
+    /**
+     * Get authentication token
+     * @returns {string|null}
+     */
+    getToken() {
+        return this.token;
+    }
+
+    /**
+     * Set authentication token
+     * @param {string} token - JWT token
+     */
+    setToken(token) {
+        this.token = token;
+        localStorage.setItem(config.TOKEN_STORAGE_KEY, token);
+    }
+
+    /**
+     * Get refresh token
+     * @returns {string|null}
+     */
+    getRefreshToken() {
+        return this.refreshToken;
+    }
+
+    /**
+     * Set refresh token
+     * @param {string} token - Refresh token
+     */
+    setRefreshToken(token) {
+        this.refreshToken = token;
+        localStorage.setItem(config.REFRESH_TOKEN_KEY, token);
+    }
+
+    /**
+     * Get stored token from localStorage
+     * @returns {string|null}
+     */
+    getStoredToken() {
+        return localStorage.getItem(config.TOKEN_STORAGE_KEY);
+    }
+
+    /**
+     * Get stored refresh token from localStorage
+     * @returns {string|null}
+     */
+    getStoredRefreshToken() {
+        return localStorage.getItem(config.REFRESH_TOKEN_KEY);
+    }
+
+    /**
+     * Clear authentication data
+     */
+    clearAuth() {
+        this.user = null;
+        this.token = null;
+        this.refreshToken = null;
+        localStorage.removeItem(config.TOKEN_STORAGE_KEY);
+        localStorage.removeItem(config.REFRESH_TOKEN_KEY);
+    }
+
+    /**
+     * Check if user has specific role
+     * @param {string} role - Role name
+     * @returns {boolean}
+     */
+    hasRole(role) {
+        return this.user?.roles?.includes(role) || false;
+    }
+
+    /**
+     * Check if user has specific permission
+     * @param {string} permission - Permission name
+     * @returns {boolean}
+     */
+    hasPermission(permission) {
+        return this.user?.permissions?.includes(permission) || false;
+    }
+}
+
+// Create and export singleton instance
+export const auth = new Auth();
+
+export default auth;

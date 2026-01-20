@@ -1,0 +1,97 @@
+/**
+ * users.store.ts - Users state management with NgRx Signals
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { computed } from '@angular/core';
+import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  created_at: string;
+  is_active: boolean;
+}
+
+interface UsersState {
+  users: User[];
+  selectedUser: User | null;
+  loading: boolean;
+  error: string | null;
+  total: number;
+  page: number;
+  perPage: number;
+}
+
+const initialState: UsersState = {
+  users: [],
+  selectedUser: null,
+  loading: false,
+  error: null,
+  total: 0,
+  page: 1,
+  perPage: 20
+};
+
+export const UsersStore = signalStore(
+  { providedIn: 'root' },
+  withState(initialState),
+  withComputed((store) => ({
+    totalPages: computed(() => Math.ceil(store.total() / store.perPage())),
+    hasNextPage: computed(() => store.page() < Math.ceil(store.total() / store.perPage())),
+    hasPrevPage: computed(() => store.page() > 1),
+    activeUsers: computed(() => store.users().filter(u => u.is_active)),
+    inactiveUsers: computed(() => store.users().filter(u => !u.is_active))
+  })),
+  withMethods((store) => ({
+    setUsers(users: User[]): void {
+      patchState(store, { users, error: null });
+    },
+    setTotal(total: number): void {
+      patchState(store, { total });
+    },
+    setPage(page: number): void {
+      patchState(store, { page });
+    },
+    nextPage(): void {
+      patchState(store, (state) => ({ page: state.page + 1 }));
+    },
+    prevPage(): void {
+      patchState(store, (state) => ({ page: Math.max(1, state.page - 1) }));
+    },
+    selectUser(user: User | null): void {
+      patchState(store, { selectedUser: user });
+    },
+    addUser(user: User): void {
+      patchState(store, (state) => ({
+        users: [...state.users, user],
+        total: state.total + 1
+      }));
+    },
+    updateUser(updatedUser: User): void {
+      patchState(store, (state) => ({
+        users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u)
+      }));
+    },
+    removeUser(userId: number): void {
+      patchState(store, (state) => ({
+        users: state.users.filter(u => u.id !== userId),
+        total: state.total - 1
+      }));
+    },
+    setLoading(loading: boolean): void {
+      patchState(store, { loading });
+    },
+    setError(error: string): void {
+      patchState(store, { error, loading: false });
+    },
+    clearError(): void {
+      patchState(store, { error: null });
+    },
+    reset(): void {
+      patchState(store, initialState);
+    }
+  }))
+);

@@ -1,0 +1,124 @@
+/**
+ * notifications.js - Toast notification module
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import Toastify from 'toastify-js';
+
+/**
+ * Notifications module
+ */
+class Notifications {
+    constructor() {
+        this.defaultOptions = {
+            duration: 3000,
+            close: true,
+            gravity: 'top',
+            position: 'right',
+            stopOnFocus: true
+        };
+    }
+
+    /**
+     * Initialize notifications
+     */
+    init() {
+        // Nothing to initialize for Toastify
+    }
+
+    /**
+     * Show notification
+     * @param {string} message - Notification message
+     * @param {object} options - Toastify options
+     */
+    show(message, options = {}) {
+        Toastify({
+            text: message,
+            ...this.defaultOptions,
+            ...options
+        }).showToast();
+    }
+
+    /**
+     * Show success notification
+     * @param {string} message - Success message
+     * @param {object} options - Additional options
+     */
+    success(message, options = {}) {
+        this.show(message, {
+            style: {
+                background: 'linear-gradient(to right, #00b09b, #96c93d)'
+            },
+            ...options
+        });
+    }
+
+    /**
+     * Show error notification
+     * @param {string} message - Error message
+     * @param {object} options - Additional options
+     */
+    error(message, options = {}) {
+        this.show(message, {
+            duration: 5000,
+            style: {
+                background: 'linear-gradient(to right, #ff5f6d, #ffc371)'
+            },
+            ...options
+        });
+    }
+
+    /**
+     * Show warning notification
+     * @param {string} message - Warning message
+     * @param {object} options - Additional options
+     */
+    warning(message, options = {}) {
+        this.show(message, {
+            style: {
+                background: 'linear-gradient(to right, #f7971e, #ffd200)'
+            },
+            ...options
+        });
+    }
+
+    /**
+     * Show info notification
+     * @param {string} message - Info message
+     * @param {object} options - Additional options
+     */
+    info(message, options = {}) {
+        this.show(message, {
+            style: {
+                background: 'linear-gradient(to right, #4facfe, #00f2fe)'
+            },
+            ...options
+        });
+    }
+
+    /**
+     * Show confirmation notification with action
+     * @param {string} message - Confirmation message
+     * @param {Function} onConfirm - Callback on confirm
+     * @param {object} options - Additional options
+     */
+    confirm(message, onConfirm, options = {}) {
+        this.show(message, {
+            duration: -1, // Don't auto-close
+            close: false,
+            style: {
+                background: 'linear-gradient(to right, #667eea, #764ba2)'
+            },
+            onClick: () => {
+                if (onConfirm) onConfirm();
+            },
+            ...options
+        });
+    }
+}
+
+// Create and export singleton instance
+export const notifications = new Notifications();
+
+export default notifications;

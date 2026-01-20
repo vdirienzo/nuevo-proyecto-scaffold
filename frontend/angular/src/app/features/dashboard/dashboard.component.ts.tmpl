@@ -1,0 +1,170 @@
+/**
+ * dashboard.component.ts - Main dashboard page
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { Component, inject, signal, OnInit } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '@core/services/auth.service';
+import { CardComponent } from '@shared/components/card/card.component';
+import { ButtonComponent } from '@shared/components/button/button.component';
+
+interface StatCard {
+  title: string;
+  value: string;
+  change: string;
+  trend: 'up' | 'down';
+  icon: string;
+}
+
+@Component({
+  selector: 'app-dashboard',
+  standalone: true,
+  imports: [CommonModule, RouterLink, CardComponent, ButtonComponent],
+  template: `
+    <div class="space-y-6">
+      <!-- Welcome Section -->
+      <div class="bg-white rounded-lg shadow p-6">
+        <h1 class="text-2xl font-bold text-gray-900">
+          Welcome back, {{ authService.currentUser()?.username }}!
+        </h1>
+        <p class="mt-2 text-gray-600">
+          Here's what's happening with your account today.
+        </p>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        @for (stat of stats(); track stat.title) {
+          <app-card [padding]="true">
+            <div class="flex items-center">
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-600">{{ stat.title }}</p>
+                <p class="mt-2 text-3xl font-semibold text-gray-900">{{ stat.value }}</p>
+                <p class="mt-2 text-sm">
+                  <span
+                    [class]="stat.trend === 'up' ? 'text-green-600' : 'text-red-600'"
+                  >
+                    {{ stat.change }}
+                  </span>
+                  <span class="text-gray-600"> from last month</span>
+                </p>
+              </div>
+              <div class="ml-4 text-4xl">{{ stat.icon }}</div>
+            </div>
+          </app-card>
+        }
+      </div>
+
+      <!-- Quick Actions -->
+      <app-card title="Quick Actions">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            routerLink="/users"
+            class="flex flex-col items-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <svg class="h-12 w-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+            <span class="mt-3 text-sm font-medium text-gray-900">Manage Users</span>
+          </button>
+
+          <button class="flex flex-col items-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg class="h-12 w-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span class="mt-3 text-sm font-medium text-gray-900">View Reports</span>
+          </button>
+
+          <button class="flex flex-col items-center p-6 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+            <svg class="h-12 w-12 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span class="mt-3 text-sm font-medium text-gray-900">Settings</span>
+          </button>
+        </div>
+      </app-card>
+
+      <!-- Recent Activity -->
+      <app-card title="Recent Activity">
+        <div class="space-y-4">
+          @for (activity of recentActivity(); track $index) {
+            <div class="flex items-center py-3 border-b border-gray-200 last:border-0">
+              <div class="flex-1">
+                <p class="text-sm font-medium text-gray-900">{{ activity.title }}</p>
+                <p class="text-sm text-gray-600">{{ activity.description }}</p>
+              </div>
+              <span class="text-sm text-gray-500">{{ activity.time }}</span>
+            </div>
+          }
+        </div>
+      </app-card>
+    </div>
+  `,
+  styles: []
+})
+export class DashboardComponent implements OnInit {
+  authService = inject(AuthService);
+
+  stats = signal<StatCard[]>([
+    {
+      title: 'Total Users',
+      value: '2,543',
+      change: '+12%',
+      trend: 'up',
+      icon: '👥'
+    },
+    {
+      title: 'Revenue',
+      value: '$45,231',
+      change: '+8%',
+      trend: 'up',
+      icon: '💰'
+    },
+    {
+      title: 'Active Sessions',
+      value: '1,234',
+      change: '-3%',
+      trend: 'down',
+      icon: '⚡'
+    },
+    {
+      title: 'Avg. Response Time',
+      value: '234ms',
+      change: '+5%',
+      trend: 'up',
+      icon: '⏱️'
+    }
+  ]);
+
+  recentActivity = signal([
+    {
+      title: 'New user registered',
+      description: 'john.doe@example.com joined the platform',
+      time: '2 minutes ago'
+    },
+    {
+      title: 'Payment received',
+      description: 'Subscription payment of $99.00 processed',
+      time: '1 hour ago'
+    },
+    {
+      title: 'System update',
+      description: 'Version 2.1.0 deployed successfully',
+      time: '3 hours ago'
+    }
+  ]);
+
+  ngOnInit(): void {
+    // Load dashboard data
+    this.loadDashboardData();
+  }
+
+  private loadDashboardData(): void {
+    // Fetch real dashboard data from API
+    // This is a placeholder for demonstration
+  }
+}

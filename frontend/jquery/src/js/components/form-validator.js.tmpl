@@ -1,0 +1,325 @@
+/**
+ * form-validator.js - Form validation component
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import $ from 'jquery';
+import { isValidEmail } from '../utils.js';
+
+/**
+ * FormValidator class
+ */
+export class FormValidator {
+    constructor(form, rules = {}) {
+        this.$form = $(form);
+        this.rules = rules;
+        this.errors = {};
+    }
+
+    /**
+     * Validate form
+     * @returns {boolean} True if valid
+     */
+    validate() {
+        this.errors = {};
+        this.clearErrors();
+
+        Object.keys(this.rules).forEach(fieldName => {
+            const $field = this.$form.find(`[name="${fieldName}"]`);
+            const value = $field.val();
+            const fieldRules = this.rules[fieldName];
+
+            fieldRules.forEach(rule => {
+                if (!this.validateRule($field, value, rule)) {
+                    if (!this.errors[fieldName]) {
+                        this.errors[fieldName] = [];
+                    }
+                    this.errors[fieldName].push(rule.message);
+                }
+            });
+        });
+
+        this.displayErrors();
+        return Object.keys(this.errors).length === 0;
+    }
+
+    /**
+     * Validate single rule
+     * @param {jQuery} $field - Field element
+     * @param {*} value - Field value
+     * @param {object} rule - Validation rule
+     * @returns {boolean}
+     */
+    validateRule($field, value, rule) {
+        switch (rule.type) {
+            case 'required':
+                return this.validateRequired(value);
+
+            case 'email':
+                return this.validateEmail(value);
+
+            case 'min':
+                return this.validateMin(value, rule.value);
+
+            case 'max':
+                return this.validateMax(value, rule.value);
+
+            case 'minLength':
+                return this.validateMinLength(value, rule.value);
+
+            case 'maxLength':
+                return this.validateMaxLength(value, rule.value);
+
+            case 'pattern':
+                return this.validatePattern(value, rule.value);
+
+            case 'match':
+                const matchValue = this.$form.find(`[name="${rule.field}"]`).val();
+                return value === matchValue;
+
+            case 'custom':
+                return rule.validator(value, $field);
+
+            default:
+                return true;
+        }
+    }
+
+    /**
+     * Validate required field
+     * @param {*} value - Field value
+     * @returns {boolean}
+     */
+    validateRequired(value) {
+        if (Array.isArray(value)) {
+            return value.length > 0;
+        }
+        return value !== null && value !== undefined && value.toString().trim() !== '';
+    }
+
+    /**
+     * Validate email
+     * @param {string} value - Email value
+     * @returns {boolean}
+     */
+    validateEmail(value) {
+        if (!value) return true; // Let required rule handle empty values
+        return isValidEmail(value);
+    }
+
+    /**
+     * Validate minimum value
+     * @param {number} value - Value to validate
+     * @param {number} min - Minimum value
+     * @returns {boolean}
+     */
+    validateMin(value, min) {
+        if (!value) return true;
+        return parseFloat(value) >= min;
+    }
+
+    /**
+     * Validate maximum value
+     * @param {number} value - Value to validate
+     * @param {number} max - Maximum value
+     * @returns {boolean}
+     */
+    validateMax(value, max) {
+        if (!value) return true;
+        return parseFloat(value) <= max;
+    }
+
+    /**
+     * Validate minimum length
+     * @param {string} value - Value to validate
+     * @param {number} minLength - Minimum length
+     * @returns {boolean}
+     */
+    validateMinLength(value, minLength) {
+        if (!value) return true;
+        return value.length >= minLength;
+    }
+
+    /**
+     * Validate maximum length
+     * @param {string} value - Value to validate
+     * @param {number} maxLength - Maximum length
+     * @returns {boolean}
+     */
+    validateMaxLength(value, maxLength) {
+        if (!value) return true;
+        return value.length <= maxLength;
+    }
+
+    /**
+     * Validate pattern
+     * @param {string} value - Value to validate
+     * @param {RegExp|string} pattern - Pattern to match
+     * @returns {boolean}
+     */
+    validatePattern(value, pattern) {
+        if (!value) return true;
+        const regex = typeof pattern === 'string' ? new RegExp(pattern) : pattern;
+        return regex.test(value);
+    }
+
+    /**
+     * Display errors
+     */
+    displayErrors() {
+        Object.keys(this.errors).forEach(fieldName => {
+            const $field = this.$form.find(`[name="${fieldName}"]`);
+            const messages = this.errors[fieldName];
+
+            $field.addClass('is-invalid');
+
+            const errorHtml = `
+                <div class="invalid-feedback d-block">
+                    ${messages.join('<br>')}
+                </div>
+            `;
+
+            $field.parent().append(errorHtml);
+        });
+    }
+
+    /**
+     * Clear all errors
+     */
+    clearErrors() {
+        this.$form.find('.is-invalid').removeClass('is-invalid');
+        this.$form.find('.invalid-feedback').remove();
+    }
+
+    /**
+     * Get errors
+     * @returns {object}
+     */
+    getErrors() {
+        return this.errors;
+    }
+
+    /**
+     * Add real-time validation
+     */
+    enableRealTimeValidation() {
+        Object.keys(this.rules).forEach(fieldName => {
+            const $field = this.$form.find(`[name="${fieldName}"]`);
+
+            $field.on('blur', () => {
+                this.validateField(fieldName);
+            });
+
+            $field.on('input', () => {
+                if ($field.hasClass('is-invalid')) {
+                    this.validateField(fieldName);
+                }
+            });
+        });
+    }
+
+    /**
+     * Validate single field
+     * @param {string} fieldName - Field name
+     * @returns {boolean}
+     */
+    validateField(fieldName) {
+        const $field = this.$form.find(`[name="${fieldName}"]`);
+        const value = $field.val();
+        const fieldRules = this.rules[fieldName];
+
+        // Clear field errors
+        $field.removeClass('is-invalid');
+        $field.parent().find('.invalid-feedback').remove();
+
+        const fieldErrors = [];
+
+        fieldRules.forEach(rule => {
+            if (!this.validateRule($field, value, rule)) {
+                fieldErrors.push(rule.message);
+            }
+        });
+
+        if (fieldErrors.length > 0) {
+            $field.addClass('is-invalid');
+            const errorHtml = `
+                <div class="invalid-feedback d-block">
+                    ${fieldErrors.join('<br>')}
+                </div>
+            `;
+            $field.parent().append(errorHtml);
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Reset form validation
+     */
+    reset() {
+        this.errors = {};
+        this.clearErrors();
+        this.$form[0].reset();
+    }
+}
+
+/**
+ * Common validation rules
+ */
+export const Rules = {
+    required: (message = 'This field is required') => ({
+        type: 'required',
+        message
+    }),
+
+    email: (message = 'Please enter a valid email address') => ({
+        type: 'email',
+        message
+    }),
+
+    min: (value, message = `Value must be at least ${value}`) => ({
+        type: 'min',
+        value,
+        message
+    }),
+
+    max: (value, message = `Value must be at most ${value}`) => ({
+        type: 'max',
+        value,
+        message
+    }),
+
+    minLength: (value, message = `Must be at least ${value} characters`) => ({
+        type: 'minLength',
+        value,
+        message
+    }),
+
+    maxLength: (value, message = `Must be at most ${value} characters`) => ({
+        type: 'maxLength',
+        value,
+        message
+    }),
+
+    pattern: (pattern, message = 'Invalid format') => ({
+        type: 'pattern',
+        value: pattern,
+        message
+    }),
+
+    match: (field, message = 'Fields must match') => ({
+        type: 'match',
+        field,
+        message
+    }),
+
+    custom: (validator, message = 'Invalid value') => ({
+        type: 'custom',
+        validator,
+        message
+    })
+};
+
+export default FormValidator;

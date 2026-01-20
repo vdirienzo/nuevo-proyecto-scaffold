@@ -1,0 +1,114 @@
+/**
+ * stores/auth.ts - Auth store with persist
+ * @author {{AUTHOR}}
+ * @project {{PROJECT_NAME}}
+ */
+
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import type { User, LoginCredentials, RegisterData, AuthResponse } from '@/types'
+import { login as loginApi, register as registerApi, refreshToken as refreshApi } from '@/services/auth'
+
+const TOKEN_KEY = import.meta.env.VITE_JWT_TOKEN_KEY || 'auth_token'
+const REFRESH_KEY = import.meta.env.VITE_JWT_REFRESH_KEY || 'refresh_token'
+
+export const useAuthStore = defineStore('auth', () => {
+  const user = ref<User | null>(null)
+  const token = ref<string | null>(null)
+  const refreshToken = ref<string | null>(null)
+  const loading = ref(false)
+
+  const isAuthenticated = computed(() => !!token.value && !!user.value)
+
+  const setAuth = (data: AuthResponse) => {
+    user.value = data.user
+    token.value = data.access_token
+    refreshToken.value = data.refresh_token || null
+
+    // Store tokens in localStorage
+    localStorage.setItem(TOKEN_KEY, data.access_token)
+    if (data.refresh_token) {
+      localStorage.setItem(REFRESH_KEY, data.refresh_token)
+    }
+  }
+
+  const clearAuth = () => {
+    user.value = null
+    token.value = null
+    refreshToken.value = null
+
+    localStorage.removeItem(TOKEN_KEY)
+    localStorage.removeItem(REFRESH_KEY)
+  }
+
+  const login = async (credentials: LoginCredentials) => {
+    loading.value = true
+    try {
+      const data = await loginApi(credentials)
+      setAuth(data)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const register = async (data: RegisterData) => {
+    loading.value = true
+    try {
+      const response = await registerApi(data)
+      setAuth(response)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const logout = async () => {
+    clearAuth()
+  }
+
+  const refreshTokenAction = async () => {
+    const currentRefreshToken = refreshToken.value || localStorage.getItem(REFRESH_KEY)
+
+    if (!currentRefreshToken) {
+      throw new Error('No refresh token available')
+    }
+
+    try {
+      const data = await refreshApi(currentRefreshToken)
+      setAuth(data)
+    } catch (error) {
+      clearAuth()
+      throw error
+    }
+  }
+
+  const initializeAuth = () => {
+    const storedToken = localStorage.getItem(TOKEN_KEY)
+    const storedRefresh = localStorage.getItem(REFRESH_KEY)
+
+    if (storedToken) {
+      token.value = storedToken
+      refreshToken.value = storedRefresh
+      // Optionally fetch user data here
+    }
+  }
+
+  return {
+    user,
+    token,
+    refreshToken,
+    loading,
+    isAuthenticated,
+    login,
+    register,
+    logout,
+    refreshToken: refreshTokenAction,
+    initializeAuth,
+    clearAuth
+  }
+}, {
+  persist: {
+    key: 'auth-store',
+    storage: localStorage,
+    paths: ['user', 'token', 'refreshToken']
+  }
+})
