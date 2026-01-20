@@ -132,7 +132,7 @@ sections:
       - value: kubernetes_gke
         label: "Kubernetes on GKE"
         tier: enterprise
-        description: "Managed Kubernetes on Google Cloud. Netflix-scale infrastructure"
+        description: "Managed Kubernetes on Google Cloud. Hyperscale-scale infrastructure"
         pros:
           - "Ultimate flexibility"
           - "Multi-cloud portable"

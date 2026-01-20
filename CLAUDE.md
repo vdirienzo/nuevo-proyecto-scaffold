@@ -82,7 +82,7 @@ The wizard in `wizard/questions.yaml` defines 33 questions:
 | MVP | 1-2 | <1K | unit+integration, SAST+secrets, Vercel |
 | Scale-up | 3-10 | 1K-100K | +e2e+contract, +SCA+container, Docker |
 | Enterprise | 10-50 | 100K-1M | +load+visual, +DAST+SBOM+WAF, K8s |
-| Netflix | 50+ | 1M+ | +chaos+mutation, +runtime+zero-trust, Multi-region K8s |
+| Hyperscale | 50+ | 1M+ | +chaos+mutation, +runtime+zero-trust, Multi-region K8s |
 
 ## Validation Commands
 

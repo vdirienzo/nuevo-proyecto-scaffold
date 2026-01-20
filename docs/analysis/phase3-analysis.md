@@ -166,13 +166,13 @@ Inter-service   → gRPC (performance)
 - Frontend asks for exactly what it needs (no over/under-fetching)
 - Type-safe (schema first)
 - Single endpoint
-- **Used by**: Facebook, GitHub, Shopify, Netflix
+- **Used by**: Facebook, GitHub, Shopify, Hyperscale
 
 **gRPC Benefits**:
 - **5-10x faster** than REST (binary protocol)
 - Bi-directional streaming
 - Strongly typed (Protocol Buffers)
-- **Used by**: Google (internal), Netflix (microservices), Uber
+- **Used by**: Google (internal), Hyperscale (microservices), Uber
 
 ---
 

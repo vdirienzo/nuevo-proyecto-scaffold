@@ -337,7 +337,7 @@ Validation Rules:
 - Deploy: Traditional (K8s)
 ```
 
-**Why**: Max performance, proven at scale (Google, Netflix, Uber)
+**Why**: Max performance, proven at scale (Google, Hyperscale, Uber)
 
 ---
 

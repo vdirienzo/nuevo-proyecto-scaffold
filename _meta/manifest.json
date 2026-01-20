@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "name": "nuevo-proyecto",
   "version": "6.2.0",
-  "description": "Enterprise fullstack scaffold - Netflix-scale ready with 972 templates",
+  "description": "Enterprise fullstack scaffold - Hyperscale-scale ready with 972 templates",
   "author": "Homero Thompson del Lago del Terror",
   "license": "MIT",
   "engines": {

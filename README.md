@@ -5,7 +5,7 @@
 [![Stars](https://img.shields.io/github/stars/vdirienzo/nuevo-proyecto-scaffold?style=social)](https://github.com/vdirienzo/nuevo-proyecto-scaffold/stargazers)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 
-> **Netflix-Scale Enterprise Fullstack Scaffold**
+> **Hyperscale-Scale Enterprise Fullstack Scaffold**
 >
 > Production-ready project generator with enterprise-grade architecture, security, and observability out of the box.
 
@@ -14,7 +14,7 @@
 ## Features
 
 - **Interactive Wizard** - 11-phase guided setup with intelligent recommendations
-- **Multi-Scale Ready** - From MVP to Netflix-scale with one command
+- **Multi-Scale Ready** - From MVP to Hyperscale-scale with one command
 - **972 Templates** - Battle-tested templates for every component and scenario
 - **5 Design Systems** - Geist, Glassmorphism, Neumorphism, Claymorphism, Neo-Brutalism with React + Vue components
 - **Full Stack Support** - FastAPI, NestJS, Go, Rust (Actix/Rocket) backends + Next.js, React SPA, Vue.js 3, Angular 17+, jQuery frontends
@@ -216,7 +216,7 @@ graph TD
     Phase10 --> Generate[Generate Project]
 
     Phase1 -.->|Project name, description| Metadata
-    Phase2 -.->|MVP, Scale-up, Enterprise, Netflix| Scale
+    Phase2 -.->|MVP, Scale-up, Enterprise, Hyperscale| Scale
     Phase3 -.->|Backend, Frontend, Database, Cache| Stack
     Phase4 -.->|JWT, OAuth2, Auth0, Clerk, SAML, MFA| Auth
     Phase5 -.->|Unit, Integration, E2E, Contract, Load| Testing
@@ -242,17 +242,17 @@ graph TD
 graph LR
     MVP[MVP] --> ScaleUp[Scale-up]
     ScaleUp --> Enterprise[Enterprise]
-    Enterprise --> Netflix[Netflix]
+    Enterprise --> Hyperscale[Hyperscale]
 
     MVP -.->|Single Server<br/>SQLite/Postgres<br/>Basic Logging| MVPFeatures
     ScaleUp -.->|Load Balancer<br/>Redis Cache<br/>Managed DB<br/>CI/CD| ScaleFeatures
     Enterprise -.->|Multi-Region<br/>Microservices<br/>K8s<br/>Full Observability| EnterpriseFeatures
-    Netflix -.->|Global CDN<br/>Chaos Engineering<br/>Multi-Cloud<br/>Zero-Trust Security| NetflixFeatures
+    Hyperscale -.->|Global CDN<br/>Chaos Engineering<br/>Multi-Cloud<br/>Zero-Trust Security| HyperscaleFeatures
 
     style MVP fill:#fff9c4
     style ScaleUp fill:#c8e6c9
     style Enterprise fill:#90caf9
-    style Netflix fill:#ce93d8
+    style Hyperscale fill:#ce93d8
 ```
 
 ---
@@ -588,7 +588,7 @@ graph LR
 
 ```mermaid
 graph TB
-    Chaos[Chaos Engineering - Netflix Tier]
+    Chaos[Chaos Engineering - Hyperscale Tier]
     Load[Load Testing - k6, Gatling]
     Contract[Contract Testing - Pact]
     E2E[E2E Tests - Playwright, Cypress]
@@ -623,7 +623,7 @@ graph TB
 | **MVP** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
 | **Scale-up** | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
 | **Enterprise** | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
-| **Netflix** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Hyperscale** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
@@ -1228,7 +1228,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
-- Inspired by Netflix's engineering practices
+- Inspired by Hyperscale's engineering practices
 - Built with best practices from Google, Meta, and Amazon
 - Community-driven template contributions
 - Battle-tested in production environments

@@ -268,7 +268,7 @@ phase3:
             - "Streaming SSR"
             - "Turbopack (dev)"
           pros:
-            - "Industry standard (Netflix, TikTok, Twitch)"
+            - "Industry standard (Hyperscale, TikTok, Twitch)"
             - "Server Components (less JS to client)"
             - "Excellent SEO"
             - "Vercel deployment (1-click)"

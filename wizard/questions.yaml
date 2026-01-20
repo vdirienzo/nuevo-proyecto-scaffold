@@ -91,7 +91,7 @@ phases:
               - Users: 100,000 - 1M
 
           - value: netflix
-            label: "Netflix Scale - Hyperscale"
+            label: "Hyperscale Scale - Hyperscale"
             description: |
               - Testing: + Chaos + Mutation + A11y
               - Security: Zero-trust + Runtime

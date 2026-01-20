@@ -4,7 +4,7 @@
       "version": "2.0.0",
       "date": "2026-01-17",
       "changes": [
-        "Added scale-based wizard (MVP → Netflix)",
+        "Added scale-based wizard (MVP → Hyperscale)",
         "Added Contract Testing with Pact",
         "Added Load Testing with k6",
         "Added Chaos Engineering with Chaos Mesh",
